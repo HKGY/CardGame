@@ -22,6 +22,12 @@ CG.CONFIG = {
   // 塔罗牌（消耗品）：栏位数 + 战斗胜利掉落概率（按敌人强度）
   tarot: { slots: 3, chance: { monster: 0.35, elite: 0.55, boss: 0.7 } },
 
+  // 遗物：精英/首领掉落数、商店出售数与单价
+  relic: { elite: 1, boss: 2, shopCount: 2, shopPrice: 70 },
+
+  // 掉落卡的锻造上限 = 词条数 + 此随机量
+  cardLimitExtra: [[0, 3], [1, 3], [2, 2]],
+
   // 升级 / 升级祭坛 给的随机词条等级权重
   upgradeLevelWeights: [[1, 4], [2, 3], [3, 2]],
 

@@ -63,7 +63,7 @@ window.CG = window.CG || {};
   }
 
   // ---------- 百科大全 ----------
-  const CODEX_TABS = ['affix', 'tarot', 'enemy'];
+  const CODEX_TABS = ['affix', 'tarot', 'relic', 'enemy'];
   const WHERE_LABEL = { battle: '战斗', map: '地图', any: '通用' };
   const TIER_LABEL = { normal: '普通', elite: '精英', boss: '首领' };
   function enemyTier(id) { return CODEX_TIERS.find(t => CG.ENEMY_POOLS[t].includes(id)) || ''; }
@@ -90,6 +90,11 @@ window.CG = window.CG || {};
         return `<div class="codex-item"><span class="codex-name">${t.icon} ${t.name}</span>` +
                `<span class="codex-tag">${WHERE_LABEL[t.where]}</span><span class="codex-desc">${t.desc}</span></div>`;
       }).join('');
+    } else if (tab === 'relic') {
+      html = CG.RELIC_IDS.map(id => {
+        const r = CG.RELICS[id];
+        return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span><span class="codex-desc">${r.desc}</span></div>`;
+      }).join('');
     } else {
       html = Object.keys(CG.ENEMIES).map(id => {
         const e = CG.ENEMIES[id];
@@ -109,6 +114,7 @@ window.CG = window.CG || {};
     $('run-hp').textContent = `❤️ ${run.hp}/${run.maxHp}`;
     $('run-gold').textContent = `💰 ${run.gold}`;
     $('run-potions').innerHTML = tarotIcons(run);
+    $('run-relics').innerHTML = CG.UI.relicIcons(run.relics);
   }
   function tarotIcons(run) {
     let s = '';
@@ -165,11 +171,18 @@ window.CG = window.CG || {};
         <button class="buy-btn" data-act="take-tarot" ${(pend.tarotTaken || full) ? 'disabled' : ''}>${label}</button>
       </div>`;
     }
+    let relics = '';
+    if (pend.relics && pend.relics.length) {
+      relics = '<p class="reward-relics">获得遗物：' + pend.relics.map(id => {
+        const r = CG.RELICS[id];
+        return `<span class="relic-got" title="${r.desc}">${r.icon} ${r.name}</span>`;
+      }).join('') + '</p>';
+    }
     $('screen-reward').innerHTML = `
       <div class="panel">
         <h2>战斗胜利</h2>
         <p class="reward-gold">获得金币 💰 ${pend.gold}</p>
-        ${tarot}
+        ${relics}${tarot}
         <p>选择一张卡加入牌组（或跳过）：</p>
         <div class="reward-cards">${cards}</div>
         <button class="big-btn" data-act="skip">跳过</button>
@@ -201,16 +214,24 @@ window.CG = window.CG || {};
         <button class="buy-btn" data-buytarot="${i}" ${dis ? 'disabled' : ''}>${it.bought ? '已购买' : '💰 ' + it.price}</button>
       </div>`;
     }).join('');
+    const relicItems = (run.pending.relics || []).map((it, i) => {
+      const r = CG.RELICS[it.id];
+      const dis = it.bought || run.gold < it.price || run.hasRelic(it.id);
+      return `<div class="shop-item shop-tarot" title="${r.desc}">
+        <div class="shop-tarot-face relic-card"><span class="shop-tarot-icon">${r.icon}</span><b>${r.name}</b><small>${r.desc}</small></div>
+        <button class="buy-btn" data-buyrelic="${i}" ${dis ? 'disabled' : ''}>${it.bought ? '已购买' : '💰 ' + it.price}</button>
+      </div>`;
+    }).join('');
     const healAmt = Math.ceil(run.maxHp * cfg.healPct);
-    const rmPrice = run.removePrice();
+    const rmPrice = run.removePrice(), upPrice = run.upgradeCost(), hlPrice = run.healCost();
     $('screen-shop').innerHTML = `
       <div class="panel">
         <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span></h2>
-        <div class="shop-cards">${cardItems}${tarotItems}</div>
+        <div class="shop-cards">${cardItems}${tarotItems}${relicItems}</div>
         <div class="shop-services">
-          <button class="big-btn" data-act="upgrade" ${run.gold < cfg.upgradePrice ? 'disabled' : ''}>升级一张卡（💰 ${cfg.upgradePrice}）</button>
+          <button class="big-btn" data-act="upgrade" ${run.gold < upPrice ? 'disabled' : ''}>升级一张卡（💰 ${upPrice}）</button>
           <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
-          <button class="big-btn" data-act="heal" ${(run.gold < cfg.healPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>治疗 +${healAmt}（💰 ${cfg.healPrice}）</button>
+          <button class="big-btn" data-act="heal" ${(run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>治疗 +${healAmt}（💰 ${hlPrice}）</button>
           <button class="big-btn leave" data-act="leave">离开</button>
         </div>
       </div>`;
@@ -220,6 +241,8 @@ window.CG = window.CG || {};
     if (buy && !buy.disabled) { CG.Audio.play('coin'); return H.onBuyCard(+buy.dataset.buy); }
     const bt = ev.target.closest('[data-buytarot]');
     if (bt && !bt.disabled) { CG.Audio.play('coin'); return H.onBuyTarot(+bt.dataset.buytarot); }
+    const br = ev.target.closest('[data-buyrelic]');
+    if (br && !br.disabled) { CG.Audio.play('coin'); return H.onBuyRelic(+br.dataset.buyrelic); }
     const act = ev.target.closest('[data-act]');
     if (!act || act.disabled) return;
     if (act.dataset.act === 'upgrade') openPicker('选择要升级的卡', uid => H.onBuyUpgrade(uid));
@@ -237,7 +260,7 @@ window.CG = window.CG || {};
         <h2>🏕️ 休息点</h2>
         <p>选择一项行动：</p>
         <div class="rest-options">
-          <button class="big-btn" data-act="heal">😴 休息<br><small>回复 ${heal} 点（当前 ${run.hp}/${run.maxHp}）</small></button>
+          <button class="big-btn" data-act="heal" ${run.canRest() ? '' : 'disabled'}>😴 休息<br><small>${run.canRest() ? `回复 ${heal} 点（当前 ${run.hp}/${run.maxHp}）` : '癌症：无法休息'}</small></button>
           <button class="big-btn" data-act="upgrade">🔨 打磨<br><small>升级一张卡</small></button>
         </div>
       </div>`;

@@ -105,7 +105,7 @@ window.CG = window.CG || {};
     else { cards = [...current.drawPile, ...current.hand, ...current.discardPile, ...current.exhaustPile].sort(byName); title = '本场牌库'; }
     $('pile-title').textContent = `${title}（${cards.length} 张）`;
     $('pile-cards').innerHTML = cards.length
-      ? cards.map(c => cardFace(c)).join('')
+      ? cards.map(c => cardFace(c, { valueMult: current.cardValueMult })).join('')
       : '<p class="empty-note">（空）</p>';
     $('pile-modal').classList.remove('hidden');
   }
@@ -118,22 +118,25 @@ window.CG = window.CG || {};
   }
   function cardInner(s) {
     const name = s.affixes.map(a => `<span class="aff" style="color:${a.color}">${a.name}</span>`).join('')
-               + `<span class="base-name">${s.baseName}</span>`;
+               + `<span class="base-name">${s.baseName}</span><span class="card-limit" title="锻造上限">+${s.limit}</span>`;
     const affixLines = s.affixes.map(a => `<div class="affix-line" style="color:${a.color}">${a.desc}</div>`).join('');
     return `<div class="card-cost">${s.cost}</div>
       <div class="card-name">${name}</div>
       <div class="card-type">${TYPE_LABEL[s.type] || s.type}</div>
       <div class="card-text">${colorKeywords(s.baseText)}${affixLines}</div>`;
   }
-  // 通用静态卡面，opts: { clickable, dim, data:{k:v} }
+  function relicIcons(relics) {
+    return (relics || []).map(id => { const r = CG.RELICS[id]; return `<span class="relic-icon" title="${r.name}：${r.desc}">${r.icon}</span>`; }).join('');
+  }
+  // 通用静态卡面，opts: { clickable, dim, data:{k:v}, valueMult }
   function cardFace(inst, opts = {}) {
-    const s = CG.cardStats(inst);
+    const s = CG.cardStats(inst, { valueMult: opts.valueMult });
     const cls = ['card', 'type-' + s.type, opts.clickable ? 'clickable' : 'static', opts.dim ? 'disabled' : ''].join(' ');
     const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
     return `<div class="${cls}" ${data}>${cardInner(s)}</div>`;
   }
   function handCardHTML(game, inst) {
-    const s = CG.cardStats(inst);
+    const s = CG.cardStats(inst, { valueMult: game.cardValueMult });
     const ok = game.phase === 'player' && s.cost <= game.player.energy;
     return `<div class="card type-${s.type} ${ok ? '' : 'disabled'}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
   }
@@ -187,6 +190,7 @@ window.CG = window.CG || {};
       </div>`;
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player');
+    $('battle-relics').innerHTML = relicIcons(game.relics);
     $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}`;
     $('draw-pile').innerHTML = `🂠 抽牌堆 <b>${game.drawPile.length}</b><small>点击查看</small>`;
     $('discard-pile').innerHTML = `🗑️ 弃牌堆 <b>${game.discardPile.length}</b><small>点击查看</small>`;
@@ -196,5 +200,5 @@ window.CG = window.CG || {};
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
   }
 
-  CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace, tarotBarHTML });
+  CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace, tarotBarHTML, relicIcons });
 })(window.CG);

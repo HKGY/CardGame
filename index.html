@@ -15,6 +15,7 @@
         <span id="run-hp">❤️ 0/0</span>
         <span id="run-gold">💰 0</span>
         <span id="run-potions" class="run-potions" title="消耗品栏"></span>
+        <span id="run-relics" class="run-relics" title="遗物"></span>
         <button id="codex-btn">📖 百科</button>
         <button id="run-deck-btn">🂠 牌库</button>
         <button id="mute-btn" class="mute-btn" title="音效开关">🔊</button>
@@ -31,9 +32,12 @@
     <!-- ===== 战斗 ===== -->
     <section id="screen-battle" class="screen">
       <div class="battle-topbar">
-        <button id="mute-btn-2" class="mute-btn" title="音效开关">🔊</button>
-        <button id="codex-btn-2">📖 百科</button>
-        <button id="view-deck">🂠 本场牌库</button>
+        <span id="battle-relics" class="run-relics"></span>
+        <div class="topbar-btns">
+          <button id="mute-btn-2" class="mute-btn" title="音效开关">🔊</button>
+          <button id="codex-btn-2">📖 百科</button>
+          <button id="view-deck">🂠 本场牌库</button>
+        </div>
       </div>
 
       <div class="battlefield">
@@ -102,6 +106,7 @@
         <div class="codex-tabs">
           <button class="codex-tab" id="codex-tab-affix">词条</button>
           <button class="codex-tab" id="codex-tab-tarot">消耗品</button>
+          <button class="codex-tab" id="codex-tab-relic">遗物</button>
           <button class="codex-tab" id="codex-tab-enemy">敌人</button>
         </div>
         <div id="codex-body" class="codex-body"></div>
@@ -113,6 +118,7 @@
   <script src="js/data/cards.js"></script>
   <script src="js/data/affixes.js"></script>
   <script src="js/data/tarot.js"></script>
+  <script src="js/data/relics.js"></script>
   <script src="js/data/config.js"></script>
   <script src="js/data/enemies.js"></script>
   <script src="js/engine/effects.js"></script>

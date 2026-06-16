@@ -17,10 +17,13 @@ window.CG = window.CG || {};
     defend: { name: '防御', cost: 1, type: 'skill',  kind: 'block',  base: 5 },
   };
 
-  CG.makeCard = (base, affixes = []) =>
-    ({ uid: CG.nextUid(), base, affixes: affixes.map(a => ({ id: a.id, level: a.level })) });
+  // limit = 锻造上限（可拥有的词条上限）。不传时默认为词条数（至少 1）。起始卡为 1。
+  CG.makeCard = (base, affixes = [], limit) =>
+    ({ uid: CG.nextUid(), base, affixes: affixes.map(a => ({ id: a.id, level: a.level })),
+       limit: limit == null ? Math.max(1, affixes.length) : limit });
 
-  CG.cardStats = function (inst) {
+  CG.cardStats = function (inst, opts) {
+    const valueMult = (opts && opts.valueMult) || 1;     // 达摩克利斯：数值翻倍
     const b = CG.BASE_CARDS[inst.base];
     // 词条按固定顺序(AFFIX_ORDER)排列，保证卡名前缀顺序稳定
     const affixes = (inst.affixes || [])
@@ -52,8 +55,9 @@ window.CG = window.CG || {};
     });
 
     const cost = Math.max(0, b.cost + costD);
-    const value = Math.max(0, Math.floor((b.base + valFlat) * (1 + valPct / 100)));
+    const value = Math.max(0, Math.floor((b.base + valFlat) * (1 + valPct / 100)) * valueMult);
     const hits = 1 + hitsD;
+    const limit = inst.limit == null ? Math.max(1, (inst.affixes || []).length) : inst.limit;
 
     // 结算效果列表（复用效果系统；准备：打击→力量、防御→敏捷，加给自己）
     const effects = [{ type: b.kind === 'damage' ? 'damage' : 'block', value, hits }];
@@ -63,11 +67,11 @@ window.CG = window.CG || {};
     if (drawN)   effects.push({ type: 'draw', value: drawN });
     if (prepare) effects.push({ type: inst.base === 'defend' ? 'dexterity' : 'strength', value: prepare });
 
-    const name = affixes.map(a => a.name).join('') + b.name;
+    const name = affixes.map(a => a.name).join('') + b.name + '+' + limit;
     const baseText = (b.kind === 'damage' ? `造成 ${value} 点伤害` : `获得 ${value} 点格挡`) + (hits > 1 ? ` ×${hits}` : '') + '。';
 
     return {
-      base: inst.base, baseName: b.name, name, cost, type: b.type, kind: b.kind,
+      base: inst.base, baseName: b.name, name, cost, type: b.type, kind: b.kind, limit,
       value, hits, effects, affixes, baseText,
       repeatTimes: 1 + repeatX,          // 重复：整组效果结算次数
       windfury,                          // 风怒：本回合可回手次数
@@ -88,12 +92,15 @@ window.CG = window.CG || {};
   // opts.level 可指定等级（锻造祭坛固定 3 级）。Run 升级与「锻造」词条共用。
   CG.upgradeInstance = function (inst, opts) {
     inst.affixes = inst.affixes || [];
-    if (inst.affixes.length >= 3) return;
+    const limit = inst.limit == null ? Math.max(1, inst.affixes.length) : inst.limit;
+    if (inst.affixes.length >= limit) return;          // 达到锻造上限：任何方式都无法再锻造
     const owned = new Set(inst.affixes.map(a => a.id));
     const pool = CG.AFFIX_ORDER.filter(id => !owned.has(id));
     if (!pool.length) return;
     const id = pool[Math.floor(Math.random() * pool.length)];
-    inst.affixes.push({ id, level: (opts && opts.level) || CG.rollAffixLevel() });
+    let level = (opts && opts.level) || CG.rollAffixLevel();
+    if (opts && opts.minLevel && level < opts.minLevel) level = opts.minLevel;   // 幸运脚
+    inst.affixes.push({ id, level });
   };
 
   // 重铸一张卡 = 词条数量不变、全部重掷（随机词条 + 随机等级）

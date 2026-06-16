@@ -10,7 +10,7 @@ window.CG = window.CG || {};
  * ===========================================================================
  */
 (function (CG) {
-  const heal = (run, battle, n) => { const c = battle ? battle.player : run; c.hp = Math.min(run.maxHp, c.hp + n); };
+  const heal = (run, battle, n) => { if (battle) battle.heal(n); else run.gainHp(n); };  // 经治疗入口（人寿保险可过量）
 
   CG.TAROT = {
     fool:       { name: '愚者', icon: '🃏', where: 'battle', desc: '重新开始本场战斗（不回血、不退还已用道具）',

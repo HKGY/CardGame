@@ -33,7 +33,7 @@ window.CG = window.CG || {};
     }
     battle = new CG.Game({
       enemyId, deck: run.deck, hp: run.hp, maxHp: run.maxHp,
-      tarot: run.tarot, actScale: CG.CONFIG.actScale[run.act], hpMult,  // 共享消耗栏 + 数值膨胀
+      tarot: run.tarot, relics: run.relics, run, actScale: CG.CONFIG.actScale[run.act], hpMult,
     });
     battle.onChange(b => CG.UI.render(b));
     battle.onEvent(CG.UI.onEvent);
@@ -119,6 +119,7 @@ window.CG = window.CG || {};
       onRestUpgrade:  uid => run.restUpgrade(uid),
       onBuyCard:      i => run.buyCard(i),
       onBuyTarot:     i => run.buyTarot(i),
+      onBuyRelic:     i => run.buyRelic(i),
       onBuyUpgrade:   uid => run.buyUpgrade(uid),
       onBuyRemove:    uid => run.buyRemove(uid),
       onBuyHeal:      () => run.buyHeal(),

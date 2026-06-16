@@ -100,13 +100,17 @@ window.CG = window.CG || {};
     }
     addLog(msg) { this.log.push(msg); if (this.log.length > 60) this.log.shift(); }
 
-    _startBattle({ enemyId, deck, hp, maxHp, tarot, actScale, hpMult }) {
+    _startBattle({ enemyId, deck, hp, maxHp, tarot, actScale, hpMult, relics, run }) {
       const def = CG.ENEMIES[enemyId];
       const sc = actScale || { hp: 1, dmg: 1 };
       this.tarot = tarot || [];                // 与 Run 共享的消耗品栏（同一数组引用）
+      this.relics = relics || [];              // 与 Run 共享的遗物（引用）
+      this.run = run || null;                  // 反向引用 Run（老虎机/人寿保险等需要）
       this._deck = deck;                       // 原始牌组引用（愚者重开时重新克隆）
       this.nextCardDmgMult = 1;                // 力量塔罗
       this._tempStrength = 0;                  // 战车（本回合力量）
+      this._laststandUsed = false;             // 回光返照：本场一次
+      this.forgeMinLevel = run ? run.forgeMinLevel() : 1;  // 幸运脚
       this.player = {
         name: '你', maxHp, hp, block: 0,
         energy: START_ENERGY, maxEnergy: START_ENERGY, statuses: {},
@@ -116,6 +120,7 @@ window.CG = window.CG || {};
         def, name: def.name, maxHp: ehp, hp: ehp, block: 0,
         statuses: {}, history: [], intent: null, dmgScale: sc.dmg,
       };
+      this._computeCardMult();                 // 达摩克利斯
       this.drawPile = shuffle(deck.map(cloneCard));  // 克隆副本：洗牌/锻造不影响原牌组
       this.hand = [];
       this.discardPile = [];
@@ -123,8 +128,12 @@ window.CG = window.CG || {};
       this.turn = 0;
       this.phase = 'player'; // 'player' | 'enemy' | 'won' | 'lost'
       this.addLog(`遭遇了 ${this.enemy.name}！`);
+      this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.battleStart) r.battleStart(this); });  // 尖矛/青石…
       this._chooseEnemyIntent();
       this._startPlayerTurn();
+    }
+    _computeCardMult() {
+      this.cardValueMult = (this.relics.includes('damocles') && !(this.run && this.run.flags.damoclesBroken)) ? 2 : 1;
     }
 
     // ---------- 回合流程 ----------
@@ -132,10 +141,14 @@ window.CG = window.CG || {};
       this.turn += 1;
       this.phase = 'player';
       this.player.block = 0;
-      this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)); // 过载：下回合掉能量
+      let energyBonus = 0, drawBonus = 0;          // 癌症/无神论者：每回合额外能量/抽牌
+      this.relics.forEach(id => { const r = CG.RELICS[id]; energyBonus += r.turnEnergy || 0; drawBonus += r.turnDraw || 0; });
+      this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)) + energyBonus;
       this.nextEnergyPenalty = 0;
       this._turnPlays = {};                       // 风怒：本回合各卡已打出次数
-      this.drawCards(CARDS_PER_TURN);
+      if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
+      this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.onTurnStart) r.onTurnStart(this); });                    // 老虎机
+      this.drawCards(CARDS_PER_TURN + drawBonus);
       this._emit();
     }
 
@@ -170,7 +183,7 @@ window.CG = window.CG || {};
       const idx = this.hand.findIndex(c => c.uid === uid);
       if (idx === -1) return;
       const card = this.hand[idx];
-      let s = CG.cardStats(card);
+      let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
       if (s.cost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
 
       // 力量塔罗：下一张攻击牌造成 N 倍伤害（用后清除）
@@ -195,7 +208,7 @@ window.CG = window.CG || {};
       if (s.forgeCount) {
         const pool = [...this.hand];
         for (let i = 0; i < s.forgeCount && pool.length; i++)
-          CG.upgradeInstance(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+          CG.upgradeInstance(pool.splice(Math.floor(Math.random() * pool.length), 1)[0], { minLevel: this.forgeMinLevel });
       }
 
       // 风怒：本回合前 N 次打出后回到手牌，否则进弃牌堆
@@ -249,7 +262,30 @@ window.CG = window.CG || {};
         target.block -= absorbed;
         dmg -= absorbed;
       }
-      if (dmg > 0) target.hp = Math.max(0, target.hp - dmg);
+      if (dmg > 0) {
+        target.hp = Math.max(0, target.hp - dmg);
+        if (target === this.player) this._playerDamaged();
+      }
+    }
+    _playerDamaged() {
+      // 达摩克利斯：受伤即变 1 HP 并永久失效
+      if (this.relics.includes('damocles') && this.run && !this.run.flags.damoclesBroken) {
+        this.player.hp = 1;
+        this.run.flags.damoclesBroken = true;
+        this._computeCardMult();
+      }
+      // 人寿保险：生命低于一半时释放储存的过量治疗
+      if (this.run && this.relics.includes('insurance') && this.player.hp < this.player.maxHp / 2 && this.run.overheal > 0) {
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.run.overheal);
+        this.run.overheal = 0;
+      }
+    }
+    heal(n) {                                   // 战斗内治疗（人寿保险可过量储存）
+      if (this.run && this.relics.includes('insurance')) {
+        this.player.hp += n;
+        if (this.player.hp > this.player.maxHp) { this.run.overheal += this.player.hp - this.player.maxHp; this.player.hp = this.player.maxHp; }
+      } else this.player.hp = Math.min(this.player.maxHp, this.player.hp + n);
+      this._emit();
     }
 
     gainBlock(target, amount) {
@@ -276,8 +312,16 @@ window.CG = window.CG || {};
     }
 
     _checkEnd() {
-      if (this.enemy.hp <= 0) { this.phase = 'won'; this.addLog('胜利！'); }
-      else if (this.player.hp <= 0) { this.phase = 'lost'; this.addLog('你倒下了……'); }
+      if (this.enemy.hp <= 0) { this.phase = 'won'; this.addLog('胜利！'); return; }
+      if (this.player.hp <= 0) {
+        if (this.relics.includes('laststand') && !this._laststandUsed) {   // 回光返照：本场一次免死
+          this._laststandUsed = true;
+          this.player.hp = 1;
+          this.addLog('回光返照！你以 1 HP 撑住。');
+          return;
+        }
+        this.phase = 'lost'; this.addLog('你倒下了……');
+      }
     }
 
     _chooseEnemyIntent() {

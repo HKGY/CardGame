@@ -115,8 +115,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .altar-desc { color: var(--muted); font-size: 15px; }
 
 /* ===== 战场 ===== */
-.battle-topbar { display: flex; justify-content: flex-end; gap: 8px; }
+.battle-topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.topbar-btns { display: flex; gap: 8px; }
 .mute-btn { padding: 8px 12px; }
+.run-relics { display: inline-flex; gap: 3px; flex-wrap: wrap; }
+.relic-icon { font-size: 17px; cursor: help; }
+.card-limit { color: var(--muted); font-weight: 700; margin-left: 2px; }
+.reward-relics { color: var(--accent); font-weight: 700; }
+.reward-relics .relic-got { margin: 0 6px; cursor: help; }
+.shop-tarot-face.relic-card { border-color: var(--accent); }
 .battlefield { display: flex; align-items: flex-end; gap: 14px; }
 .side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .versus { align-self: center; color: var(--muted); font-weight: 800; font-size: 20px; opacity: .55; }

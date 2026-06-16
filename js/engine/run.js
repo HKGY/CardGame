@@ -80,7 +80,7 @@ window.CG = window.CG || {};
   // ---------- 奖励 / 商店 ----------
   function rollGold(tier, act) { const [lo, hi] = C().gold[tier]; return Math.round(ri(lo, hi) * (C().goldMult[act] || 1)); }
 
-  // 按强度生成一张带词条的卡（{base, affixes:[{id,level}]}）。保证至少 1 个词条。
+  // 按强度生成一张带词条的卡（{base, affixes, limit}）。保证至少 1 个词条。
   function rollCard(tier) {
     const cfg = C().affix[tier];
     const count = Math.max(1, weighted(cfg.count));
@@ -90,22 +90,24 @@ window.CG = window.CG || {};
       const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
       affixes.push({ id, level: weighted(cfg.levelW) });
     }
-    return { base: pick(['strike', 'defend']), affixes };
+    const limit = affixes.length + weighted(C().cardLimitExtra);   // 锻造上限 ≥ 词条数
+    return { base: pick(['strike', 'defend']), affixes, limit };
   }
   function rollRewardCards(tier) {
     const out = [];
     for (let i = 0; i < C().reward.count; i++) out.push(rollCard(tier));
     return out;
   }
-  function rollShopStock() {
+  function rollShopStock(mult) {
+    mult = mult || 1;
     const cards = [];
     for (let i = 0; i < C().shop.cardCount; i++) {
       const c = rollCard(pick(['monster', 'monster', 'elite']));   // 商店以普通货为主，偶有精英货
-      cards.push({ base: c.base, affixes: c.affixes, price: CG.cardPrice(c), bought: false });
+      cards.push({ base: c.base, affixes: c.affixes, limit: c.limit, price: Math.floor(CG.cardPrice(c) * mult), bought: false });
     }
     const tarot = [];
     for (let i = 0; i < C().shop.tarotCount; i++)
-      tarot.push({ id: pick(CG.TAROT_IDS), price: C().shop.tarotPrice, bought: false });
+      tarot.push({ id: pick(CG.TAROT_IDS), price: Math.floor(C().shop.tarotPrice * mult), bought: false });
     return { cards, tarot };
   }
 
@@ -117,9 +119,11 @@ window.CG = window.CG || {};
       this.gold = C().startGold;
       this.act = 1;
       this.maxActs = C().acts;
-      this.deck = CG.STARTER_DECK.map(b => CG.makeCard(b));
+      this.deck = CG.STARTER_DECK.map(b => CG.makeCard(b));  // 起始卡锻造上限 1
       this.tarot = [];                         // 消耗品栏（塔罗牌）
-      this.flags = {};                         // 各种延迟生效的塔罗效果旗标
+      this.relics = [];                        // 遗物
+      this.overheal = 0;                       // 人寿保险的过量治疗池
+      this.flags = {};                         // 各种延迟生效的旗标
       this.removeCount = 0;                    // 商店删牌次数（涨价用）
       this.current = null;
       this.pending = null;                     // 暂存：本场战斗信息 / 奖励 / 商店货架
@@ -137,6 +141,35 @@ window.CG = window.CG || {};
     _emit() { this.listeners.forEach(fn => fn(this)); }
     isAvailable(node) { return this.available.includes(node); }
 
+    // ---- 遗物 ----
+    hasRelic(id) { return this.relics.includes(id); }
+    addRelic(id) {
+      if (this.hasRelic(id)) return false;
+      this.relics.push(id);
+      if (CG.RELICS[id].onPickup) CG.RELICS[id].onPickup(this);
+      return true;
+    }
+    _dropRelics(n) {                            // 掉落 n 个未拥有的遗物
+      const out = [], pool = CG.RELIC_IDS.filter(id => !this.hasRelic(id));
+      for (let i = 0; i < n && pool.length; i++) {
+        const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        this.addRelic(id); out.push(id);
+      }
+      return out;
+    }
+    forgeMinLevel() { return this.relics.some(id => CG.RELICS[id].forgeMin >= 2) ? 2 : 1; }   // 幸运脚
+    canRest() { return !this.relics.some(id => CG.RELICS[id].noRest); }                        // 癌症
+    canGainTarot() { return !this.relics.some(id => CG.RELICS[id].noTarot); }                  // 无神论者
+    shopMult() { return this.relics.some(id => CG.RELICS[id].shopHalf) ? 0.5 : 1; }            // Steam 促销
+    upgradeCost() { return Math.floor(C().shop.upgradePrice * this.shopMult()); }
+    healCost() { return Math.floor(C().shop.healPrice * this.shopMult()); }
+    gainHp(n) {                                 // 治疗入口；人寿保险可过量储存
+      if (this.relics.some(id => CG.RELICS[id].overheal)) {
+        this.hp += n;
+        if (this.hp > this.maxHp) { this.overheal += this.hp - this.maxHp; this.hp = this.maxHp; }
+      } else this.hp = Math.min(this.maxHp, this.hp + n);
+    }
+
     // 玩家在地图上选择一个节点进入
     selectNode(node) {
       if (!this.isAvailable(node)) return;
@@ -146,7 +179,13 @@ window.CG = window.CG || {};
         this.pending = { tier: node.type, enemyId: pick(pool) };
         this.phase = 'battle';
       } else if (node.type === 'shop') {
-        this.pending = rollShopStock();
+        this.pending = rollShopStock(this.shopMult());
+        const avail = CG.RELIC_IDS.filter(id => !this.hasRelic(id));   // 商店遗物（未拥有）
+        this.pending.relics = [];
+        for (let i = 0; i < C().relic.shopCount && avail.length; i++) {
+          const id = avail.splice(Math.floor(Math.random() * avail.length), 1)[0];
+          this.pending.relics.push({ id, price: Math.floor(C().relic.shopPrice * this.shopMult()), bought: false });
+        }
         if (this.flags.freeShopCard && this.pending.cards[0]) {   // 隐士：首张卡免费
           this.pending.cards[0].price = 0;
           this.flags.freeShopCard = false;
@@ -169,9 +208,9 @@ window.CG = window.CG || {};
       if (id === 'remove') {
         if (this.deck.length > 1) this.deck = this.deck.filter(c => c.uid !== uid);
       } else if (card) {
-        if (id === 'upgrade') CG.upgradeInstance(card);
+        if (id === 'upgrade') CG.upgradeInstance(card, { minLevel: this.forgeMinLevel() });
         else if (id === 'forge') CG.upgradeInstance(card, { level: 3 });
-        else if (id === 'copy') this.deck.push(CG.makeCard(card.base, card.affixes));
+        else if (id === 'copy') this.deck.push(CG.makeCard(card.base, card.affixes, card.limit));
         else if (id === 'reforge') CG.reforgeInstance(card);
       }
       this._advance();
@@ -184,28 +223,36 @@ window.CG = window.CG || {};
       if (!win || this.hp <= 0) { this.phase = 'dead'; this._emit(); return; }
       const tier = this.current.type;                    // monster | elite | boss
       if (tier === 'boss') this.hp = this.maxHp;          // 每场 Boss 战后回满
-      const gold = rollGold(tier, this.act);
-      this.gold += gold;
-      // 世界：本次卡牌奖励替换为随机祭坛
+      // 金币（含存钱罐）
+      let earned = rollGold(tier, this.act);
+      this.relics.forEach(id => { if (CG.RELICS[id].afterGold) earned += CG.RELICS[id].afterGold; });
+      this.gold += earned;
+      // 遗物掉落：精英 1、首领 2(+白色郁金香)
+      let dropped = [];
+      if (tier === 'elite') dropped = this._dropRelics(C().relic.elite);
+      else if (tier === 'boss') { dropped = this._dropRelics(C().relic.boss + (this.flags.bonusBossRelics || 0)); this.flags.bonusBossRelics = 0; }
+      // 塔罗掉落：无神论者不掉、牌盒必掉
+      let tarotId = null;
+      if (this.canGainTarot()) {
+        const guaranteed = this.relics.some(id => CG.RELICS[id].guaranteedTarot);
+        if (guaranteed || Math.random() < (C().tarot.chance[tier] || 0)) tarotId = pick(CG.TAROT_IDS);
+      }
+      // 世界：卡牌奖励替换为随机祭坛（金币/遗物照常）
       if (this.flags.rewardAsAltar) {
         this.flags.rewardAsAltar = false;
-        this.pending = { altar: pick(CG.ALTAR_IDS) };
-        this.phase = 'event';
-        this._emit();
-        return;
+        this.pending = { altar: pick(CG.ALTAR_IDS), relics: dropped };
+        this.phase = 'event'; this._emit(); return;
       }
       const cards = rollRewardCards(tier);
       // 群星：本次奖励每张多一条词条
       if (this.flags.rewardAffixBoost) { this.flags.rewardAffixBoost = false; cards.forEach(c => CG.upgradeInstance(c)); }
-      this.pending = { gold, cards, tarot: null, tarotTaken: false };
-      // 概率掉落塔罗牌
-      if (Math.random() < (C().tarot.chance[tier] || 0)) this.pending.tarot = pick(CG.TAROT_IDS);
+      this.pending = { gold: earned, cards, tarot: tarotId, tarotTaken: false, relics: dropped };
       this.phase = 'reward';
       this._emit();
     }
 
     chooseReward(spec) {                                  // spec=null 表示跳过
-      if (spec) this.deck.push(CG.makeCard(spec.base, spec.affixes));
+      if (spec) this.deck.push(CG.makeCard(spec.base, spec.affixes, spec.limit));
       this.pending = null;
       this._advance();
     }
@@ -220,7 +267,8 @@ window.CG = window.CG || {};
 
     // ---- 休息点 ----
     restHeal() {
-      this.hp = Math.min(this.maxHp, this.hp + Math.ceil(this.maxHp * C().rest.healPct));
+      if (!this.canRest()) return;                        // 癌症：不能休息
+      this.gainHp(Math.ceil(this.maxHp * C().rest.healPct));
       this._advance();
     }
     restUpgrade(uid) { this._upgrade(uid); this._advance(); }
@@ -231,30 +279,35 @@ window.CG = window.CG || {};
       if (!it || it.bought || this.gold < it.price) return;
       this.gold -= it.price;
       it.bought = true;
-      this.deck.push(CG.makeCard(it.base, it.affixes));
+      this.deck.push(CG.makeCard(it.base, it.affixes, it.limit));
       this._emit();
     }
     buyUpgrade(uid) {
-      if (this.gold < C().shop.upgradePrice) return;
-      this.gold -= C().shop.upgradePrice;
+      const price = this.upgradeCost();
+      if (this.gold < price) return;
+      this.gold -= price;
       this._upgrade(uid);
       this._emit();
     }
     buyHeal() {
-      if (this.gold < C().shop.healPrice || this.hp >= this.maxHp) return;
-      this.gold -= C().shop.healPrice;
-      this.hp = Math.min(this.maxHp, this.hp + Math.ceil(this.maxHp * C().shop.healPct));
+      const price = this.healCost();
+      if (this.gold < price || this.hp >= this.maxHp) return;
+      this.gold -= price;
+      this.gainHp(Math.ceil(this.maxHp * C().shop.healPct));
       this._emit();
     }
     buyTarot(i) {                                         // 商店买塔罗牌
+      if (!this.canGainTarot()) return;
       const it = this.pending.tarot[i];
       if (!it || it.bought || this.gold < it.price || this.tarot.length >= C().tarot.slots) return;
-      this.gold -= it.price;
-      it.bought = true;
-      this.tarot.push(it.id);
-      this._emit();
+      this.gold -= it.price; it.bought = true; this.tarot.push(it.id); this._emit();
     }
-    removePrice() { return C().shop.removeBase + C().shop.removeStep * (this.removeCount || 0); }
+    buyRelic(i) {                                         // 商店买遗物
+      const it = this.pending.relics[i];
+      if (!it || it.bought || this.gold < it.price || this.hasRelic(it.id)) return;
+      this.gold -= it.price; it.bought = true; this.addRelic(it.id); this._emit();
+    }
+    removePrice() { return Math.floor((C().shop.removeBase + C().shop.removeStep * (this.removeCount || 0)) * this.shopMult()); }
     buyRemove(uid) {                                      // 商店删牌，价格逐次永久提高
       if (this.gold < this.removePrice() || this.deck.length <= 1) return;
       this.gold -= this.removePrice();
@@ -265,7 +318,7 @@ window.CG = window.CG || {};
     leaveShop() { this.pending = null; this._advance(); }
 
     // ---- 塔罗牌触发的跑图效果 ----
-    fillTarot() { while (this.tarot.length < C().tarot.slots) this.tarot.push(pick(CG.TAROT_IDS)); }
+    fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < C().tarot.slots) this.tarot.push(pick(CG.TAROT_IDS)); }
     gotoActBoss() {                                       // 皇帝：传送到本层 Boss
       this.current = this.map[this.map.length - 1][0];
       this.pending = { tier: 'boss', enemyId: pick(CG.ENEMY_POOLS.boss) };
@@ -286,7 +339,7 @@ window.CG = window.CG || {};
       } else this.flags.freeRoute = true;
     }
 
-    _upgrade(uid) { const c = this.deck.find(c => c.uid === uid); if (c) CG.upgradeInstance(c); }
+    _upgrade(uid) { const c = this.deck.find(c => c.uid === uid); if (c) CG.upgradeInstance(c, { minLevel: this.forgeMinLevel() }); }
 
     // 结算当前节点，前进到下一行（Boss 节点 -> 通关）
     _advance() {
