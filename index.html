@@ -15,6 +15,7 @@
         <span id="run-hp">❤️ 0/0</span>
         <span id="run-gold">💰 0</span>
         <button id="run-deck-btn">🂠 牌库</button>
+        <button id="mute-btn" class="mute-btn" title="音效开关">🔊</button>
       </div>
     </header>
 
@@ -26,7 +27,10 @@
 
     <!-- ===== 战斗 ===== -->
     <section id="screen-battle" class="screen">
-      <div class="battle-topbar"><button id="view-deck">🂠 本场牌库</button></div>
+      <div class="battle-topbar">
+        <button id="mute-btn-2" class="mute-btn" title="音效开关">🔊</button>
+        <button id="view-deck">🂠 本场牌库</button>
+      </div>
 
       <div class="battlefield">
         <div class="side side-player">
@@ -85,6 +89,7 @@
   <script src="js/engine/game.js"></script>
   <script src="js/engine/run.js"></script>
   <script src="js/ui/sprites.js"></script>
+  <script src="js/ui/audio.js"></script>
   <script src="js/ui/render.js"></script>
   <script src="js/ui/screens.js"></script>
   <script src="js/main.js"></script>

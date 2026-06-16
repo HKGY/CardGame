@@ -38,6 +38,7 @@ window.CG = window.CG || {};
       const card = ev.target.closest('.card');
       if (!card || card.classList.contains('disabled') || busy) return;
       busy = true;
+      CG.Audio.play('card');
       const uid = Number(card.dataset.uid);
       card.classList.add('card-playing');
       setTimeout(() => { handlers.onPlayCard(uid); busy = false; }, 220);
@@ -65,11 +66,12 @@ window.CG = window.CG || {};
     const stage = $(payload.side + '-stage');
     if (type === 'attack') {
       animate(sprite, 'attacking', 320);
+      CG.Audio.play('swing');
     } else if (type === 'damage') {
-      if (payload.hpLoss > 0) { animate(sprite, 'hurt', 380); floatNum(stage, '-' + payload.hpLoss, 'dmg'); }
-      else if (payload.blocked > 0) { animate(sprite, 'guard', 400); floatNum(stage, '🛡️', 'guard'); }
+      if (payload.hpLoss > 0) { animate(sprite, 'hurt', 380); floatNum(stage, '-' + payload.hpLoss, 'dmg'); CG.Audio.play('hit', payload.side); }
+      else if (payload.blocked > 0) { animate(sprite, 'guard', 400); floatNum(stage, '🛡️', 'guard'); CG.Audio.play('block'); }
     } else if (type === 'gainblock') {
-      animate(sprite, 'guard', 400); floatNum(stage, '+' + payload.amount + '🛡️', 'guard');
+      animate(sprite, 'guard', 400); floatNum(stage, '+' + payload.amount + '🛡️', 'guard'); CG.Audio.play('block');
     }
   }
 

@@ -21,6 +21,7 @@ window.CG = window.CG || {};
     $('map-area').addEventListener('click', ev => {
       const el = ev.target.closest('.map-node');
       if (!el || !el.classList.contains('available')) return;
+      CG.Audio.play('select');
       H.onSelectNode(H.getRun().map[+el.dataset.row][+el.dataset.idx]);
     });
     $('screen-reward').addEventListener('click', onRewardClick);
@@ -32,7 +33,7 @@ window.CG = window.CG || {};
     $('picker-modal').addEventListener('click', e => { if (e.target.id === 'picker-modal') closePicker(); });
     $('picker-cards').addEventListener('click', ev => {
       const c = ev.target.closest('.card');
-      if (c && c.dataset.uid && pickerHandler) { pickerHandler(+c.dataset.uid); closePicker(); }
+      if (c && c.dataset.uid && pickerHandler) { CG.Audio.play('upgrade'); pickerHandler(+c.dataset.uid); closePicker(); }
     });
   }
 
@@ -74,6 +75,7 @@ window.CG = window.CG || {};
   // ---------- 奖励 ----------
   function showReward(run) {
     showScreen('reward');
+    CG.Audio.play('coin');
     const pend = run.pending;
     const cards = pend.cards.map((spec, i) => CG.UI.cardFace(spec, { clickable: true, data: { ridx: i } })).join('');
     $('screen-reward').innerHTML = `
@@ -87,8 +89,8 @@ window.CG = window.CG || {};
   }
   function onRewardClick(ev) {
     const card = ev.target.closest('.card');
-    if (card && card.dataset.ridx != null) return H.onChooseReward(H.getRun().pending.cards[+card.dataset.ridx]);
-    if (ev.target.closest('[data-act="skip"]')) H.onChooseReward(null);
+    if (card && card.dataset.ridx != null) { CG.Audio.play('card'); return H.onChooseReward(H.getRun().pending.cards[+card.dataset.ridx]); }
+    if (ev.target.closest('[data-act="skip"]')) { CG.Audio.play('select'); H.onChooseReward(null); }
   }
 
   // ---------- 商店 ----------
@@ -116,12 +118,12 @@ window.CG = window.CG || {};
   }
   function onShopClick(ev) {
     const buy = ev.target.closest('[data-buy]');
-    if (buy && !buy.disabled) return H.onBuyCard(+buy.dataset.buy);
+    if (buy && !buy.disabled) { CG.Audio.play('coin'); return H.onBuyCard(+buy.dataset.buy); }
     const act = ev.target.closest('[data-act]');
     if (!act || act.disabled) return;
     if (act.dataset.act === 'upgrade') openPicker('选择要升级的卡', uid => H.onBuyUpgrade(uid));
-    else if (act.dataset.act === 'heal') H.onBuyHeal();
-    else if (act.dataset.act === 'leave') H.onLeaveShop();
+    else if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onBuyHeal(); }
+    else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveShop(); }
   }
 
   // ---------- 休息 ----------
@@ -141,7 +143,7 @@ window.CG = window.CG || {};
   function onRestClick(ev) {
     const act = ev.target.closest('[data-act]');
     if (!act) return;
-    if (act.dataset.act === 'heal') H.onRestHeal();
+    if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onRestHeal(); }
     else if (act.dataset.act === 'upgrade') openPicker('选择要升级的卡', uid => H.onRestUpgrade(uid));
   }
 
@@ -149,6 +151,7 @@ window.CG = window.CG || {};
   function showGameOver(run) {
     showScreen('gameover');
     const win = run.phase === 'victory';
+    if (win) CG.Audio.play('victory');   // 失败音在战斗结束时已播放
     $('screen-gameover').innerHTML = `
       <div class="panel center">
         <h2>${win ? '🎉 通关！' : '💀 你倒下了'}</h2>

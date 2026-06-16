@@ -94,7 +94,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .shop-services, .rest-options { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
 
 /* ===== 战场 ===== */
-.battle-topbar { display: flex; justify-content: flex-end; }
+.battle-topbar { display: flex; justify-content: flex-end; gap: 8px; }
+.mute-btn { padding: 8px 12px; }
 .battlefield { display: flex; align-items: flex-end; gap: 14px; }
 .side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .versus { align-self: center; color: var(--muted); font-weight: 800; font-size: 20px; opacity: .55; }

@@ -34,6 +34,7 @@ window.CG = window.CG || {};
       if (!ended && (b.phase === 'won' || b.phase === 'lost')) {
         ended = true;
         const win = b.phase === 'won', hp = b.player.hp;
+        CG.Audio.play(win ? 'winSting' : 'defeat');
         setTimeout(() => run.finishBattle(win, hp), 1100);
       }
     });
@@ -59,7 +60,16 @@ window.CG = window.CG || {};
     onPlayCard(uid) { if (battle) battle.playCard(uid); },
   };
 
+  // 静音开关（顶栏 + 战斗顶栏两个按钮共用一个状态）
+  function setupMute() {
+    const btns = [document.getElementById('mute-btn'), document.getElementById('mute-btn-2')].filter(Boolean);
+    const sync = () => btns.forEach(b => (b.textContent = CG.Audio.isMuted() ? '🔇' : '🔊'));
+    btns.forEach(b => b.addEventListener('click', () => { CG.Audio.toggle(); sync(); }));
+    sync();
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
+    setupMute();
     CG.UI.init(battleHandlers);
     CG.Screens.init({
       onSelectNode:   node => run.selectNode(node),
