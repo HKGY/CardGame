@@ -60,6 +60,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   font-size: 22px; background: var(--panel-2); border: 2px solid #444a63; color: var(--ink);
   cursor: default;
 }
+/* 关键：覆盖全局 button:active 的 translateY，否则按下时会丢失居中位移、
+   节点往右下跳走，导致鼠标抬起时已不在按钮上、点击不生效。 */
+.map-node:active { transform: translate(-50%, -50%) scale(.92); }
+.map-node.available:hover { transform: translate(-50%, -50%) scale(1.1); }
+
 .map-node.shop  { background: #2a3550; }
 .map-node.rest  { background: #23402c; }
 .map-node.elite { background: #3a2540; }
