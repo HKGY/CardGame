@@ -66,29 +66,52 @@ window.CG = window.CG || {};
         ? Object.assign({}, eff, { value: Math.round(eff.value * sc) }) : eff;
     }
 
-    // 战斗中使用一瓶药水（debuff 给敌人 / buff 给自己 / 抽牌）
-    usePotion(index) {
-      if (this.phase !== 'player') return;
-      const id = this.potions[index];
-      if (!id) return;
-      const p = CG.POTIONS[id], e = p.effect;
-      if (e.kind === 'status') this.applyStatus(e.side === 'enemy' ? this.enemy : this.player, e.status, e.value);
-      else if (e.kind === 'draw') this.drawCards(e.value);
-      this.addLog(`使用了 ${p.name}。`);
-      this.potions.splice(index, 1);
+    // ---- 塔罗牌在战斗中触发的效果 ----
+    addTempStrength(n) { this.applyStatus(this.player, 'strength', n); this._tempStrength = (this._tempStrength || 0) + n; this._emit(); }
+
+    damageAll(n) {                              // 死亡：所有人受到 n 点伤害（过格挡）
+      [this.enemy, this.player].forEach(t => {
+        const beforeHp = t.hp, beforeBlock = t.block;
+        this._dealRaw(t, n);
+        this._fire('damage', { side: this._sideOf(t), hpLoss: beforeHp - t.hp, blocked: Math.min(beforeBlock, n) });
+      });
+      this._checkEnd();
       this._emit();
+    }
+
+    drawToHand(uid) {                           // 魔术师：从抽牌堆取一张到手牌
+      const i = this.drawPile.findIndex(c => c.uid === uid);
+      if (i < 0 || this.hand.length >= HAND_LIMIT) return;
+      this.hand.push(this.drawPile.splice(i, 1)[0]);
+      this._emit();
+    }
+
+    restart() {                                 // 愚者：重开本场（保留当前血量，不退道具）
+      const e = this.enemy;
+      e.hp = e.maxHp; e.block = 0; e.statuses = {}; e.history = []; e.intent = null;
+      this.player.block = 0; this.player.statuses = {};
+      this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
+      this.drawPile = shuffle(this._deck.map(cloneCard));
+      this.hand = []; this.discardPile = []; this.exhaustPile = [];
+      this.turn = 0; this.phase = 'player';
+      this.addLog('重新开始了战斗。');
+      this._chooseEnemyIntent();
+      this._startPlayerTurn();
     }
     addLog(msg) { this.log.push(msg); if (this.log.length > 60) this.log.shift(); }
 
-    _startBattle({ enemyId, deck, hp, maxHp, potions, actScale }) {
+    _startBattle({ enemyId, deck, hp, maxHp, tarot, actScale, hpMult }) {
       const def = CG.ENEMIES[enemyId];
       const sc = actScale || { hp: 1, dmg: 1 };
-      this.potions = potions || [];            // 与 Run 共享的消耗品栏（同一数组引用）
+      this.tarot = tarot || [];                // 与 Run 共享的消耗品栏（同一数组引用）
+      this._deck = deck;                       // 原始牌组引用（愚者重开时重新克隆）
+      this.nextCardDmgMult = 1;                // 力量塔罗
+      this._tempStrength = 0;                  // 战车（本回合力量）
       this.player = {
         name: '你', maxHp, hp, block: 0,
         energy: START_ENERGY, maxEnergy: START_ENERGY, statuses: {},
       };
-      const ehp = Math.round(def.maxHp * sc.hp);   // 数值膨胀：后层敌人生命更高
+      const ehp = Math.round(def.maxHp * sc.hp * (hpMult || 1));   // 数值膨胀 + 女祭司减血
       this.enemy = {
         def, name: def.name, maxHp: ehp, hp: ehp, block: 0,
         statuses: {}, history: [], intent: null, dmgScale: sc.dmg,
@@ -119,6 +142,7 @@ window.CG = window.CG || {};
     // 玩家点“结束回合”：先收尾，敌人行动由 runEnemyTurn 触发（界面可加延迟做演出）
     endTurn() {
       if (this.phase !== 'player') return;
+      if (this._tempStrength) { this.applyStatus(this.player, 'strength', -this._tempStrength); this._tempStrength = 0; } // 战车：回合末移除临时力量
       this.discardPile.push(...this.hand);
       this.hand = [];
       this._tickStatuses(this.player);
@@ -146,8 +170,14 @@ window.CG = window.CG || {};
       const idx = this.hand.findIndex(c => c.uid === uid);
       if (idx === -1) return;
       const card = this.hand[idx];
-      const s = CG.cardStats(card);
+      let s = CG.cardStats(card);
       if (s.cost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
+
+      // 力量塔罗：下一张攻击牌造成 N 倍伤害（用后清除）
+      if (this.nextCardDmgMult > 1 && s.kind === 'damage') {
+        s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value * this.nextCardDmgMult }) : e) });
+        this.nextCardDmgMult = 1;
+      }
 
       this.player.energy -= s.cost;
       this.hand.splice(idx, 1);

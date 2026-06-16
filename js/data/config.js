@@ -19,8 +19,8 @@ CG.CONFIG = {
   gold: { monster: [12, 22], elite: [28, 42], boss: [60, 90] },
   reward: { count: 3 },
 
-  // 药水：消耗品栏位数 + 战斗胜利掉落概率（按敌人强度）
-  potion: { slots: 3, chance: { monster: 0.35, elite: 0.55, boss: 0.7 } },
+  // 塔罗牌（消耗品）：栏位数 + 战斗胜利掉落概率（按敌人强度）
+  tarot: { slots: 3, chance: { monster: 0.35, elite: 0.55, boss: 0.7 } },
 
   // 升级 / 升级祭坛 给的随机词条等级权重
   upgradeLevelWeights: [[1, 4], [2, 3], [3, 2]],
@@ -34,5 +34,9 @@ CG.CONFIG = {
   },
 
   rest: { healPct: 0.30 },
-  shop: { cardCount: 4, upgradePrice: 50, healPrice: 25, healPct: 0.25 },
+  shop: {
+    cardCount: 3, upgradePrice: 50, healPrice: 25, healPct: 0.25,
+    tarotCount: 2, tarotPrice: 45,        // 出售塔罗牌
+    removeBase: 40, removeStep: 25,       // 删牌：每买一次，下次永久 +25
+  },
 };

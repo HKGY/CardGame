@@ -22,10 +22,14 @@ window.CG = window.CG || {};
 
   CG.cardStats = function (inst) {
     const b = CG.BASE_CARDS[inst.base];
-    const affixes = (inst.affixes || []).map(a => {
-      const def = CG.AFFIXES[a.id];
-      return { id: a.id, level: a.level, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base), def };
-    });
+    // 词条按固定顺序(AFFIX_ORDER)排列，保证卡名前缀顺序稳定
+    const affixes = (inst.affixes || [])
+      .slice()
+      .sort((x, y) => CG.AFFIX_ORDER.indexOf(x.id) - CG.AFFIX_ORDER.indexOf(y.id))
+      .map(a => {
+        const def = CG.AFFIXES[a.id];
+        return { id: a.id, level: a.level, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base), def };
+      });
 
     // 聚合词条机制（每个字段 ×等级）
     let costD = 0, valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0,

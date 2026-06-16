@@ -26,9 +26,14 @@ window.CG = window.CG || {};
 
   function startBattle() {
     const { enemyId } = run.pending;
+    let hpMult = 1;
+    if (run.flags.enemyHpDown && run.current.type !== 'boss') {     // 女祭司：下一个非Boss敌人减血
+      hpMult = 1 - run.flags.enemyHpDown;
+      run.flags.enemyHpDown = 0;
+    }
     battle = new CG.Game({
       enemyId, deck: run.deck, hp: run.hp, maxHp: run.maxHp,
-      potions: run.potions, actScale: CG.CONFIG.actScale[run.act],   // 共享消耗品栏 + 数值膨胀
+      tarot: run.tarot, actScale: CG.CONFIG.actScale[run.act], hpMult,  // 共享消耗栏 + 数值膨胀
     });
     battle.onChange(b => CG.UI.render(b));
     battle.onEvent(CG.UI.onEvent);
@@ -53,6 +58,33 @@ window.CG = window.CG || {};
     route();
   }
 
+  // 使用一张塔罗牌（战斗 / 地图通用）
+  function useTarot(index) {
+    if (!run) return;
+    const id = run.tarot[index];
+    if (id == null) return;
+    const t = CG.TAROT[id];
+    const inBattle = run.phase === 'battle' && battle && battle.phase === 'player';
+    const onMap = run.phase === 'map';
+    if (t.where === 'battle' && !inBattle) return;        // 情境不符则不可用
+    if (t.where === 'map' && !onMap) return;
+    if (t.where === 'any' && !inBattle && !onMap) return;
+
+    const phaseBefore = run.phase;
+    run.tarot.splice(index, 1);                            // 消耗
+
+    const finish = () => {
+      if (inBattle) { if (battle) CG.UI.render(battle); }
+      else if (run.phase === phaseBefore) run._emit();     // 地图未跳转 → 刷新；已跳转则 run 自身已 route
+    };
+    const ui = {
+      pickCard: (cards, cb) => CG.Screens.pickCardList('选择一张牌', cards, u => { cb(u); finish(); }),
+      choose: (opts, cb) => CG.Screens.choose('三选一', opts, v => { cb(v); finish(); }),
+    };
+    t.apply(run, inBattle ? battle : null, ui);
+    if (!t.async) finish();
+  }
+
   // 战斗内操作转发到当前 battle（带敌人回合演出延迟）
   const battleHandlers = {
     onEndTurn() {
@@ -62,7 +94,7 @@ window.CG = window.CG || {};
       }
     },
     onPlayCard(uid) { if (battle) battle.playCard(uid); },
-    onUsePotion(i) { if (battle) battle.usePotion(i); },
+    onUseTarot(i) { useTarot(i); },
   };
 
   // 静音开关（顶栏 + 战斗顶栏两个按钮共用一个状态）
@@ -79,13 +111,16 @@ window.CG = window.CG || {};
     CG.Screens.init({
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
-      onTakePotion:   () => run.takePotion(),
+      onTakeTarot:    () => run.takeTarot(),
+      onUseTarot:     i => useTarot(i),
       onUseAltar:     uid => run.useAltar(uid),
       onLeaveEvent:   () => run.leaveEvent(),
       onRestHeal:     () => run.restHeal(),
       onRestUpgrade:  uid => run.restUpgrade(uid),
       onBuyCard:      i => run.buyCard(i),
+      onBuyTarot:     i => run.buyTarot(i),
       onBuyUpgrade:   uid => run.buyUpgrade(uid),
+      onBuyRemove:    uid => run.buyRemove(uid),
       onBuyHeal:      () => run.buyHeal(),
       onLeaveShop:    () => run.leaveShop(),
       onRestart:      () => newRun(),

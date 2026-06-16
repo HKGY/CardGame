@@ -44,24 +44,25 @@ window.CG = window.CG || {};
       setTimeout(() => { handlers.onPlayCard(uid); busy = false; }, 220);
     });
 
-    $('potion-bar').addEventListener('click', ev => {
-      const b = ev.target.closest('.potion-btn');
+    $('tarot-bar').addEventListener('click', ev => {
+      const b = ev.target.closest('.tarot-btn');
       if (!b || b.disabled) return;
       CG.Audio.play('select');
-      handlers.onUsePotion(Number(b.dataset.pi));
+      handlers.onUseTarot(Number(b.dataset.ti));
     });
   }
 
-  function potionBarHTML(game) {
-    const slots = (CG.CONFIG && CG.CONFIG.potion.slots) || 3;
-    const held = (game.potions || []).map((id, i) => {
-      const p = CG.POTIONS[id];
-      return `<button class="potion-btn" data-pi="${i}" title="${p.desc}" style="border-color:${p.color}"` +
-             `${game.phase === 'player' ? '' : ' disabled'}>${p.icon} ${p.name}</button>`;
+  // 塔罗消耗栏（战斗 / 地图通用）。context:'battle'|'map'；active:当前是否可操作
+  function tarotBarHTML(list, context, active) {
+    const slots = (CG.CONFIG && CG.CONFIG.tarot.slots) || 3;
+    list = list || [];
+    const held = list.map((id, i) => {
+      const t = CG.TAROT[id];
+      const usable = active && (context === 'battle' ? t.where !== 'map' : t.where !== 'battle');
+      return `<button class="tarot-btn" data-ti="${i}" title="${t.name}：${t.desc}"${usable ? '' : ' disabled'}>${t.icon} ${t.name}</button>`;
     }).join('');
-    const empty = Math.max(0, slots - (game.potions || []).length);
-    const slotsHtml = '<span class="potion-slot empty"></span>'.repeat(empty);
-    return `<span class="potion-label">消耗品</span>${held}${slotsHtml}`;
+    const empty = Math.max(0, slots - list.length);
+    return `<span class="tarot-label">塔罗</span>${held}${'<span class="tarot-slot empty"></span>'.repeat(empty)}`;
   }
 
   // ---------- 精灵动画 ----------
@@ -185,7 +186,7 @@ window.CG = window.CG || {};
         <div class="badges">${blockBadge(p.block)}${statusBadges(p.statuses)}</div>
       </div>`;
 
-    $('potion-bar').innerHTML = potionBarHTML(game);
+    $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player');
     $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}`;
     $('draw-pile').innerHTML = `🂠 抽牌堆 <b>${game.drawPile.length}</b><small>点击查看</small>`;
     $('discard-pile').innerHTML = `🗑️ 弃牌堆 <b>${game.discardPile.length}</b><small>点击查看</small>`;
@@ -195,5 +196,5 @@ window.CG = window.CG || {};
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
   }
 
-  CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace });
+  CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace, tarotBarHTML });
 })(window.CG);

@@ -50,12 +50,17 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .pot-icon { font-size: 17px; }
 .pot-icon.empty { color: #3a3f55; font-weight: 900; }
 
-/* ===== 药水栏（战斗内） ===== */
-.potion-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 34px; }
-.potion-label { color: var(--muted); font-size: 12px; }
-.potion-btn { background: var(--panel); border: 2px solid #444a63; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
-.potion-btn:disabled { opacity: .5; }
-.potion-slot.empty { width: 24px; height: 24px; border: 1px dashed #3a3f55; border-radius: 6px; }
+/* ===== 塔罗消耗栏 ===== */
+.tarot-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 34px; }
+.tarot-label { color: var(--muted); font-size: 12px; }
+.tarot-btn { background: var(--panel); border: 2px solid #6a5a8a; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
+.tarot-btn:disabled { opacity: .45; }
+.tarot-slot.empty { width: 24px; height: 24px; border: 1px dashed #3a3f55; border-radius: 6px; }
+#map-tarot-bar { justify-content: center; margin-top: 8px; }
+.choice-options { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 8px; }
+.shop-tarot-face { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 126px; height: 150px; background: var(--panel-2); border: 2px solid #6a5a8a; border-radius: 12px; padding: 10px; }
+.shop-tarot-icon { font-size: 34px; }
+.shop-tarot-face small { color: var(--muted); font-size: 11px; text-align: center; line-height: 1.3; }
 
 .reward-potion { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 4px; }
 .reward-potion .pot-name { font-weight: 800; }

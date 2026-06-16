@@ -103,7 +103,10 @@ window.CG = window.CG || {};
       const c = rollCard(pick(['monster', 'monster', 'elite']));   // 商店以普通货为主，偶有精英货
       cards.push({ base: c.base, affixes: c.affixes, price: CG.cardPrice(c), bought: false });
     }
-    return { cards };
+    const tarot = [];
+    for (let i = 0; i < C().shop.tarotCount; i++)
+      tarot.push({ id: pick(CG.TAROT_IDS), price: C().shop.tarotPrice, bought: false });
+    return { cards, tarot };
   }
 
   class Run {
@@ -115,7 +118,9 @@ window.CG = window.CG || {};
       this.act = 1;
       this.maxActs = C().acts;
       this.deck = CG.STARTER_DECK.map(b => CG.makeCard(b));
-      this.potions = [];                       // 消耗品栏（药水）
+      this.tarot = [];                         // 消耗品栏（塔罗牌）
+      this.flags = {};                         // 各种延迟生效的塔罗效果旗标
+      this.removeCount = 0;                    // 商店删牌次数（涨价用）
       this.current = null;
       this.pending = null;                     // 暂存：本场战斗信息 / 奖励 / 商店货架
       this.phase = 'map';
@@ -142,6 +147,10 @@ window.CG = window.CG || {};
         this.phase = 'battle';
       } else if (node.type === 'shop') {
         this.pending = rollShopStock();
+        if (this.flags.freeShopCard && this.pending.cards[0]) {   // 隐士：首张卡免费
+          this.pending.cards[0].price = 0;
+          this.flags.freeShopCard = false;
+        }
         this.phase = 'shop';
       } else if (node.type === 'rest') {
         this.pending = null;
@@ -176,9 +185,20 @@ window.CG = window.CG || {};
       const tier = this.current.type;                    // monster | elite | boss
       const gold = rollGold(tier, this.act);
       this.gold += gold;
-      this.pending = { gold, cards: rollRewardCards(tier), potion: null, potionTaken: false };
-      // 概率掉落药水
-      if (Math.random() < (C().potion.chance[tier] || 0)) this.pending.potion = pick(CG.POTION_IDS);
+      // 世界：本次卡牌奖励替换为随机祭坛
+      if (this.flags.rewardAsAltar) {
+        this.flags.rewardAsAltar = false;
+        this.pending = { altar: pick(CG.ALTAR_IDS) };
+        this.phase = 'event';
+        this._emit();
+        return;
+      }
+      const cards = rollRewardCards(tier);
+      // 群星：本次奖励每张多一条词条
+      if (this.flags.rewardAffixBoost) { this.flags.rewardAffixBoost = false; cards.forEach(c => CG.upgradeInstance(c)); }
+      this.pending = { gold, cards, tarot: null, tarotTaken: false };
+      // 概率掉落塔罗牌
+      if (Math.random() < (C().tarot.chance[tier] || 0)) this.pending.tarot = pick(CG.TAROT_IDS);
       this.phase = 'reward';
       this._emit();
     }
@@ -189,11 +209,11 @@ window.CG = window.CG || {};
       this._advance();
     }
 
-    takePotion() {                                        // 把奖励药水收入消耗品栏
+    takeTarot() {                                         // 把奖励塔罗收入消耗品栏
       const p = this.pending;
-      if (!p || !p.potion || p.potionTaken || this.potions.length >= C().potion.slots) return;
-      this.potions.push(p.potion);
-      p.potionTaken = true;
+      if (!p || !p.tarot || p.tarotTaken || this.tarot.length >= C().tarot.slots) return;
+      this.tarot.push(p.tarot);
+      p.tarotTaken = true;
       this._emit();
     }
 
@@ -225,7 +245,45 @@ window.CG = window.CG || {};
       this.hp = Math.min(this.maxHp, this.hp + Math.ceil(this.maxHp * C().shop.healPct));
       this._emit();
     }
+    buyTarot(i) {                                         // 商店买塔罗牌
+      const it = this.pending.tarot[i];
+      if (!it || it.bought || this.gold < it.price || this.tarot.length >= C().tarot.slots) return;
+      this.gold -= it.price;
+      it.bought = true;
+      this.tarot.push(it.id);
+      this._emit();
+    }
+    removePrice() { return C().shop.removeBase + C().shop.removeStep * (this.removeCount || 0); }
+    buyRemove(uid) {                                      // 商店删牌，价格逐次永久提高
+      if (this.gold < this.removePrice() || this.deck.length <= 1) return;
+      this.gold -= this.removePrice();
+      this.removeCount = (this.removeCount || 0) + 1;
+      this.deck = this.deck.filter(c => c.uid !== uid);
+      this._emit();
+    }
     leaveShop() { this.pending = null; this._advance(); }
+
+    // ---- 塔罗牌触发的跑图效果 ----
+    fillTarot() { while (this.tarot.length < C().tarot.slots) this.tarot.push(pick(CG.TAROT_IDS)); }
+    gotoActBoss() {                                       // 皇帝：传送到本层 Boss
+      this.current = this.map[this.map.length - 1][0];
+      this.pending = { tier: 'boss', enemyId: pick(CG.ENEMY_POOLS.boss) };
+      this.phase = 'battle';
+      this._emit();
+    }
+    teleportRandom() {                                    // 月亮：传送到随机（非 Boss）房间
+      const all = [].concat(...this.map).filter(n => !n.done && n.type !== 'boss' && n !== this.current);
+      if (!all.length) return;
+      const node = all[Math.floor(Math.random() * all.length)];
+      this.available = [node];
+      this.selectNode(node);
+    }
+    freeRoute() {                                         // 倒吊人：无视连线任选下层
+      if (this.phase === 'map' && this.available.length) {
+        const row = this.available[0].row;
+        this.available = this.map[row].filter(n => !n.done);
+      } else this.flags.freeRoute = true;
+    }
 
     _upgrade(uid) { const c = this.deck.find(c => c.uid === uid); if (c) CG.upgradeInstance(c); }
 
@@ -238,7 +296,8 @@ window.CG = window.CG || {};
         this.phase = 'victory'; this._emit(); return;
       }
       const nextRow = this.map[node.row + 1];
-      this.available = node.next.map(i => nextRow[i]);
+      this.available = this.flags.freeRoute ? nextRow.slice() : node.next.map(i => nextRow[i]);
+      this.flags.freeRoute = false;
       this.phase = 'map';
       this._emit();
     }

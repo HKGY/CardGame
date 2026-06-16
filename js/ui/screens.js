@@ -9,6 +9,7 @@ window.CG = window.CG || {};
   const $ = id => document.getElementById(id);
   let H = {};                 // 控制器回调
   let pickerHandler = null;   // 当前选牌弹窗的回调
+  let chooseState = null;     // 当前三选一弹窗状态
 
   const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', rest: '🏕️', boss: '👑', event: '🔮' };
   const LABEL = { monster: '战斗', elite: '精英', shop: '商店', rest: '休息', boss: '首领', event: '事件' };
@@ -34,7 +35,23 @@ window.CG = window.CG || {};
     $('picker-modal').addEventListener('click', e => { if (e.target.id === 'picker-modal') closePicker(); });
     $('picker-cards').addEventListener('click', ev => {
       const c = ev.target.closest('.card');
-      if (c && c.dataset.uid && pickerHandler) { CG.Audio.play('upgrade'); pickerHandler(+c.dataset.uid); closePicker(); }
+      if (c && c.dataset.uid && pickerHandler) { CG.Audio.play('upgrade'); const fn = pickerHandler; closePicker(); fn(+c.dataset.uid); }
+    });
+
+    // 地图上的塔罗栏
+    $('map-tarot-bar').addEventListener('click', ev => {
+      const b = ev.target.closest('.tarot-btn');
+      if (b && !b.disabled) { CG.Audio.play('select'); H.onUseTarot(Number(b.dataset.ti)); }
+    });
+    // 三选一弹窗（太阳）
+    $('choice-close').addEventListener('click', closeChoice);
+    $('choice-modal').addEventListener('click', e => { if (e.target.id === 'choice-modal') closeChoice(); });
+    $('choice-options').addEventListener('click', ev => {
+      const b = ev.target.closest('[data-ci]');
+      if (!b || b.disabled || !chooseState) return;
+      const opt = chooseState.options[+b.dataset.ci], cb = chooseState.cb;
+      closeChoice();
+      cb(opt.value);
     });
   }
 
@@ -45,13 +62,13 @@ window.CG = window.CG || {};
     $('run-act').textContent = run.act;
     $('run-hp').textContent = `❤️ ${run.hp}/${run.maxHp}`;
     $('run-gold').textContent = `💰 ${run.gold}`;
-    $('run-potions').innerHTML = potionIcons(run);
+    $('run-potions').innerHTML = tarotIcons(run);
   }
-  function potionIcons(run) {
+  function tarotIcons(run) {
     let s = '';
-    for (let i = 0; i < CG.CONFIG.potion.slots; i++) {
-      const id = run.potions[i], p = id && CG.POTIONS[id];
-      s += p ? `<span class="pot-icon" title="${p.name}：${p.desc}" style="color:${p.color}">${p.icon}</span>`
+    for (let i = 0; i < CG.CONFIG.tarot.slots; i++) {
+      const id = run.tarot[i], t = id && CG.TAROT[id];
+      s += t ? `<span class="pot-icon" title="${t.name}：${t.desc}">${t.icon}</span>`
              : '<span class="pot-icon empty">·</span>';
     }
     return s;
@@ -82,6 +99,7 @@ window.CG = window.CG || {};
     $('map-area').style.height = H_px + 'px';
     $('map-area').innerHTML =
       `<svg class="map-edges" viewBox="0 0 100 ${H_px}" preserveAspectRatio="none">${edges}</svg>` + nodes;
+    $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, 'map', true);
   }
 
   // ---------- 奖励 ----------
@@ -90,29 +108,29 @@ window.CG = window.CG || {};
     CG.Audio.play('coin');
     const pend = run.pending;
     const cards = pend.cards.map((spec, i) => CG.UI.cardFace(spec, { clickable: true, data: { ridx: i } })).join('');
-    let potion = '';
-    if (pend.potion) {
-      const p = CG.POTIONS[pend.potion];
-      const full = run.potions.length >= CG.CONFIG.potion.slots;
-      const label = pend.potionTaken ? '✓ 已收入' : (full ? '消耗品栏已满' : '收入消耗品栏');
-      potion = `<div class="reward-potion">
-        <span class="pot-name" style="color:${p.color}">${p.icon} ${p.name}</span>
-        <span class="pot-desc">${p.desc}</span>
-        <button class="buy-btn" data-act="take-potion" ${(pend.potionTaken || full) ? 'disabled' : ''}>${label}</button>
+    let tarot = '';
+    if (pend.tarot) {
+      const t = CG.TAROT[pend.tarot];
+      const full = run.tarot.length >= CG.CONFIG.tarot.slots;
+      const label = pend.tarotTaken ? '✓ 已收入' : (full ? '消耗栏已满' : '收入消耗栏');
+      tarot = `<div class="reward-potion">
+        <span class="pot-name">${t.icon} ${t.name}</span>
+        <span class="pot-desc">${t.desc}</span>
+        <button class="buy-btn" data-act="take-tarot" ${(pend.tarotTaken || full) ? 'disabled' : ''}>${label}</button>
       </div>`;
     }
     $('screen-reward').innerHTML = `
       <div class="panel">
         <h2>战斗胜利</h2>
         <p class="reward-gold">获得金币 💰 ${pend.gold}</p>
-        ${potion}
+        ${tarot}
         <p>选择一张卡加入牌组（或跳过）：</p>
         <div class="reward-cards">${cards}</div>
         <button class="big-btn" data-act="skip">跳过</button>
       </div>`;
   }
   function onRewardClick(ev) {
-    if (ev.target.closest('[data-act="take-potion"]')) { CG.Audio.play('coin'); return H.onTakePotion(); }
+    if (ev.target.closest('[data-act="take-tarot"]')) { CG.Audio.play('coin'); return H.onTakeTarot(); }
     const card = ev.target.closest('.card');
     if (card && card.dataset.ridx != null) { CG.Audio.play('card'); return H.onChooseReward(H.getRun().pending.cards[+card.dataset.ridx]); }
     if (ev.target.closest('[data-act="skip"]')) { CG.Audio.play('select'); H.onChooseReward(null); }
@@ -122,20 +140,30 @@ window.CG = window.CG || {};
   function showShop(run) {
     showScreen('shop');
     const cfg = CG.CONFIG.shop;
-    const items = run.pending.cards.map((it, i) => `
+    const cardItems = run.pending.cards.map((it, i) => `
       <div class="shop-item">
         ${CG.UI.cardFace(it, { dim: it.bought || run.gold < it.price })}
         <button class="buy-btn" data-buy="${i}" ${(it.bought || run.gold < it.price) ? 'disabled' : ''}>
-          ${it.bought ? '已购买' : '💰 ' + it.price}
+          ${it.bought ? '已购买' : (it.price === 0 ? '免费' : '💰 ' + it.price)}
         </button>
       </div>`).join('');
+    const tarotItems = (run.pending.tarot || []).map((it, i) => {
+      const t = CG.TAROT[it.id];
+      const dis = it.bought || run.gold < it.price || run.tarot.length >= CG.CONFIG.tarot.slots;
+      return `<div class="shop-item shop-tarot" title="${t.desc}">
+        <div class="shop-tarot-face"><span class="shop-tarot-icon">${t.icon}</span><b>${t.name}</b><small>${t.desc}</small></div>
+        <button class="buy-btn" data-buytarot="${i}" ${dis ? 'disabled' : ''}>${it.bought ? '已购买' : '💰 ' + it.price}</button>
+      </div>`;
+    }).join('');
     const healAmt = Math.ceil(run.maxHp * cfg.healPct);
+    const rmPrice = run.removePrice();
     $('screen-shop').innerHTML = `
       <div class="panel">
         <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span></h2>
-        <div class="shop-cards">${items}</div>
+        <div class="shop-cards">${cardItems}${tarotItems}</div>
         <div class="shop-services">
           <button class="big-btn" data-act="upgrade" ${run.gold < cfg.upgradePrice ? 'disabled' : ''}>升级一张卡（💰 ${cfg.upgradePrice}）</button>
+          <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
           <button class="big-btn" data-act="heal" ${(run.gold < cfg.healPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>治疗 +${healAmt}（💰 ${cfg.healPrice}）</button>
           <button class="big-btn leave" data-act="leave">离开</button>
         </div>
@@ -144,9 +172,12 @@ window.CG = window.CG || {};
   function onShopClick(ev) {
     const buy = ev.target.closest('[data-buy]');
     if (buy && !buy.disabled) { CG.Audio.play('coin'); return H.onBuyCard(+buy.dataset.buy); }
+    const bt = ev.target.closest('[data-buytarot]');
+    if (bt && !bt.disabled) { CG.Audio.play('coin'); return H.onBuyTarot(+bt.dataset.buytarot); }
     const act = ev.target.closest('[data-act]');
     if (!act || act.disabled) return;
     if (act.dataset.act === 'upgrade') openPicker('选择要升级的卡', uid => H.onBuyUpgrade(uid));
+    else if (act.dataset.act === 'remove') openPicker('选择要删除的卡', uid => H.onBuyRemove(uid));
     else if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onBuyHeal(); }
     else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveShop(); }
   }
@@ -211,14 +242,23 @@ window.CG = window.CG || {};
   function onGameOverClick(ev) { if (ev.target.closest('[data-act="restart"]')) H.onRestart(); }
 
   // ---------- 选牌弹窗（升级用） ----------
-  function openPicker(title, onPick) {
-    const run = H.getRun();
+  function openPicker(title, onPick, cards) {
     $('picker-title').textContent = title;
-    $('picker-cards').innerHTML = run.deck.map(c => CG.UI.cardFace(c, { clickable: true, data: { uid: c.uid } })).join('');
+    $('picker-cards').innerHTML = (cards || H.getRun().deck).map(c => CG.UI.cardFace(c, { clickable: true, data: { uid: c.uid } })).join('');
     pickerHandler = onPick;
     $('picker-modal').classList.remove('hidden');
   }
   function closePicker() { $('picker-modal').classList.add('hidden'); pickerHandler = null; }
+  function pickCardList(title, cards, cb) { openPicker(title, cb, cards); }   // 魔术师等：从指定牌堆选
+
+  function choose(title, options, cb) {                                       // 太阳：三选一
+    $('choice-title').textContent = title;
+    $('choice-options').innerHTML = options.map((o, i) =>
+      `<button class="big-btn" data-ci="${i}" ${o.enabled === false ? 'disabled' : ''}>${o.label}</button>`).join('');
+    chooseState = { options, cb };
+    $('choice-modal').classList.remove('hidden');
+  }
+  function closeChoice() { $('choice-modal').classList.add('hidden'); chooseState = null; }
 
   // ---------- 牌库查看（顶栏） ----------
   function openDeckView() {
@@ -233,5 +273,5 @@ window.CG = window.CG || {};
     $('pile-modal').classList.remove('hidden');
   }
 
-  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver };
+  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver, pickCardList, choose };
 })(window.CG);
