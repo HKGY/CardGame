@@ -18,6 +18,11 @@ window.CG = window.CG || {};
   const START_ENERGY = 3;    // 每回合能量
   const CARDS_PER_TURN = 5;  // 每回合抽牌数
 
+  // 克隆一张卡（连词条）——战斗用副本，锻造/洗牌都不影响跑图原牌组
+  function cloneCard(c) {
+    return { uid: c.uid, base: c.base, affixes: (c.affixes || []).map(a => ({ id: a.id, level: a.level })) };
+  }
+
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -53,19 +58,42 @@ window.CG = window.CG || {};
     onEvent(fn) { this.eventListeners.push(fn); return this; }
     _fire(type, payload) { this.eventListeners.forEach(fn => fn(type, payload)); }
     _sideOf(entity) { return entity === this.player ? 'player' : 'enemy'; }
+
+    // 数值膨胀：把敌人招式的伤害/格挡按层数倍率放大
+    _scaleEff(eff) {
+      const sc = this.enemy.dmgScale || 1;
+      return (sc !== 1 && (eff.type === 'damage' || eff.type === 'block'))
+        ? Object.assign({}, eff, { value: Math.round(eff.value * sc) }) : eff;
+    }
+
+    // 战斗中使用一瓶药水（debuff 给敌人 / buff 给自己 / 抽牌）
+    usePotion(index) {
+      if (this.phase !== 'player') return;
+      const id = this.potions[index];
+      if (!id) return;
+      const p = CG.POTIONS[id], e = p.effect;
+      if (e.kind === 'status') this.applyStatus(e.side === 'enemy' ? this.enemy : this.player, e.status, e.value);
+      else if (e.kind === 'draw') this.drawCards(e.value);
+      this.addLog(`使用了 ${p.name}。`);
+      this.potions.splice(index, 1);
+      this._emit();
+    }
     addLog(msg) { this.log.push(msg); if (this.log.length > 60) this.log.shift(); }
 
-    _startBattle({ enemyId, deck, hp, maxHp }) {
+    _startBattle({ enemyId, deck, hp, maxHp, potions, actScale }) {
       const def = CG.ENEMIES[enemyId];
+      const sc = actScale || { hp: 1, dmg: 1 };
+      this.potions = potions || [];            // 与 Run 共享的消耗品栏（同一数组引用）
       this.player = {
         name: '你', maxHp, hp, block: 0,
         energy: START_ENERGY, maxEnergy: START_ENERGY, statuses: {},
       };
+      const ehp = Math.round(def.maxHp * sc.hp);   // 数值膨胀：后层敌人生命更高
       this.enemy = {
-        def, name: def.name, maxHp: def.maxHp, hp: def.maxHp, block: 0,
-        statuses: {}, history: [], intent: null,
+        def, name: def.name, maxHp: ehp, hp: ehp, block: 0,
+        statuses: {}, history: [], intent: null, dmgScale: sc.dmg,
       };
-      this.drawPile = shuffle(deck.slice());   // 跑图牌组的副本，洗牌不影响原牌组
+      this.drawPile = shuffle(deck.map(cloneCard));  // 克隆副本：洗牌/锻造不影响原牌组
       this.hand = [];
       this.discardPile = [];
       this.exhaustPile = [];
@@ -104,7 +132,7 @@ window.CG = window.CG || {};
       e.block = 0;
       const move = e.intent;
       this.addLog(`${e.name} 使用了 ${move.name}。`);
-      (move.effects || []).forEach(eff => CG.Effects.apply(this, eff, e, this.player));
+      (move.effects || []).forEach(eff => CG.Effects.apply(this, this._scaleEff(eff), e, this.player));
       this._tickStatuses(e);
       this._checkEnd();
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
@@ -132,6 +160,13 @@ window.CG = window.CG || {};
       }
       // 过载：累计下回合能量惩罚
       if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
+
+      // 锻造：随机升级手中若干张牌（作用于本场克隆副本）
+      if (s.forgeCount) {
+        const pool = [...this.hand];
+        for (let i = 0; i < s.forgeCount && pool.length; i++)
+          CG.upgradeInstance(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+      }
 
       // 风怒：本回合前 N 次打出后回到手牌，否则进弃牌堆
       let returned = false;
@@ -229,9 +264,10 @@ window.CG = window.CG || {};
       const move = this.enemy.intent;
       if (!move) return null;
       const info = { intent: move.intent, name: move.name };
+      const sc = this.enemy.dmgScale || 1;
       const dmg = (move.effects || []).find(e => e.type === 'damage');
       if (dmg) {
-        let v = dmg.value + (this.enemy.statuses.strength || 0);
+        let v = Math.round(dmg.value * sc) + (this.enemy.statuses.strength || 0);
         if (this.enemy.statuses.weak) v = Math.floor(v * 0.75);
         if (this.player.statuses.vulnerable) v = Math.floor(v * 1.5);
         info.damage = Math.max(0, v);
@@ -239,7 +275,7 @@ window.CG = window.CG || {};
       }
       const blk = (move.effects || []).find(e => e.type === 'block');
       if (blk) {
-        let bl = blk.value + (this.enemy.statuses.dexterity || 0);
+        let bl = Math.round(blk.value * sc) + (this.enemy.statuses.dexterity || 0);
         if (this.enemy.statuses.frail) bl = Math.floor(bl * 0.75);
         info.block = bl;
       }

@@ -41,8 +41,19 @@ window.CG = window.CG || {};
 
   function updateHeader(run, show) {
     $('run-header').classList.toggle('hidden', !show);
+    $('run-act').textContent = run.act;
     $('run-hp').textContent = `❤️ ${run.hp}/${run.maxHp}`;
     $('run-gold').textContent = `💰 ${run.gold}`;
+    $('run-potions').innerHTML = potionIcons(run);
+  }
+  function potionIcons(run) {
+    let s = '';
+    for (let i = 0; i < CG.CONFIG.potion.slots; i++) {
+      const id = run.potions[i], p = id && CG.POTIONS[id];
+      s += p ? `<span class="pot-icon" title="${p.name}：${p.desc}" style="color:${p.color}">${p.icon}</span>`
+             : '<span class="pot-icon empty">·</span>';
+    }
+    return s;
   }
 
   // ---------- 地图 ----------
@@ -78,16 +89,29 @@ window.CG = window.CG || {};
     CG.Audio.play('coin');
     const pend = run.pending;
     const cards = pend.cards.map((spec, i) => CG.UI.cardFace(spec, { clickable: true, data: { ridx: i } })).join('');
+    let potion = '';
+    if (pend.potion) {
+      const p = CG.POTIONS[pend.potion];
+      const full = run.potions.length >= CG.CONFIG.potion.slots;
+      const label = pend.potionTaken ? '✓ 已收入' : (full ? '消耗品栏已满' : '收入消耗品栏');
+      potion = `<div class="reward-potion">
+        <span class="pot-name" style="color:${p.color}">${p.icon} ${p.name}</span>
+        <span class="pot-desc">${p.desc}</span>
+        <button class="buy-btn" data-act="take-potion" ${(pend.potionTaken || full) ? 'disabled' : ''}>${label}</button>
+      </div>`;
+    }
     $('screen-reward').innerHTML = `
       <div class="panel">
         <h2>战斗胜利</h2>
         <p class="reward-gold">获得金币 💰 ${pend.gold}</p>
+        ${potion}
         <p>选择一张卡加入牌组（或跳过）：</p>
         <div class="reward-cards">${cards}</div>
         <button class="big-btn" data-act="skip">跳过</button>
       </div>`;
   }
   function onRewardClick(ev) {
+    if (ev.target.closest('[data-act="take-potion"]')) { CG.Audio.play('coin'); return H.onTakePotion(); }
     const card = ev.target.closest('.card');
     if (card && card.dataset.ridx != null) { CG.Audio.play('card'); return H.onChooseReward(H.getRun().pending.cards[+card.dataset.ridx]); }
     if (ev.target.closest('[data-act="skip"]')) { CG.Audio.play('select'); H.onChooseReward(null); }

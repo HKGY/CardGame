@@ -45,7 +45,21 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 .run-header.hidden { display: none; }
 .run-title { font-weight: 800; letter-spacing: 1px; }
-.run-stats { display: flex; align-items: center; gap: 16px; font-weight: 700; }
+.run-stats { display: flex; align-items: center; gap: 14px; font-weight: 700; }
+.run-potions { display: inline-flex; gap: 3px; }
+.pot-icon { font-size: 17px; }
+.pot-icon.empty { color: #3a3f55; font-weight: 900; }
+
+/* ===== 药水栏（战斗内） ===== */
+.potion-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 34px; }
+.potion-label { color: var(--muted); font-size: 12px; }
+.potion-btn { background: var(--panel); border: 2px solid #444a63; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
+.potion-btn:disabled { opacity: .5; }
+.potion-slot.empty { width: 24px; height: 24px; border: 1px dashed #3a3f55; border-radius: 6px; }
+
+.reward-potion { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 4px; }
+.reward-potion .pot-name { font-weight: 800; }
+.reward-potion .pot-desc { color: var(--muted); }
 
 /* ===== 地图 ===== */
 .map-hint { text-align: center; color: var(--muted); font-size: 13px; margin: 6px 0; }

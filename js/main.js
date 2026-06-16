@@ -25,7 +25,10 @@ window.CG = window.CG || {};
 
   function startBattle() {
     const { enemyId } = run.pending;
-    battle = new CG.Game({ enemyId, deck: run.deck, hp: run.hp, maxHp: run.maxHp });
+    battle = new CG.Game({
+      enemyId, deck: run.deck, hp: run.hp, maxHp: run.maxHp,
+      potions: run.potions, actScale: CG.CONFIG.actScale[run.act],   // 共享消耗品栏 + 数值膨胀
+    });
     battle.onChange(b => CG.UI.render(b));
     battle.onEvent(CG.UI.onEvent);
 
@@ -58,6 +61,7 @@ window.CG = window.CG || {};
       }
     },
     onPlayCard(uid) { if (battle) battle.playCard(uid); },
+    onUsePotion(i) { if (battle) battle.usePotion(i); },
   };
 
   // 静音开关（顶栏 + 战斗顶栏两个按钮共用一个状态）
@@ -74,6 +78,7 @@ window.CG = window.CG || {};
     CG.Screens.init({
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
+      onTakePotion:   () => run.takePotion(),
       onRestHeal:     () => run.restHeal(),
       onRestUpgrade:  uid => run.restUpgrade(uid),
       onBuyCard:      i => run.buyCard(i),

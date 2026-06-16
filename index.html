@@ -10,10 +10,11 @@
   <div id="app">
     <!-- 顶栏：跑图信息（战斗时隐藏） -->
     <header id="run-header" class="run-header">
-      <div class="run-title">🗼 卡牌爬塔 · Demo</div>
+      <div class="run-title">🗼 第 <span id="run-act">1</span> 层</div>
       <div class="run-stats">
         <span id="run-hp">❤️ 0/0</span>
         <span id="run-gold">💰 0</span>
+        <span id="run-potions" class="run-potions" title="消耗品栏"></span>
         <button id="run-deck-btn">🂠 牌库</button>
         <button id="mute-btn" class="mute-btn" title="音效开关">🔊</button>
       </div>
@@ -50,6 +51,8 @@
         <div class="pile" id="discard-pile" title="点击查看弃牌堆"></div>
       </div>
 
+      <div class="potion-bar" id="potion-bar"></div>
+
       <div class="controls">
         <div class="energy" id="energy"></div>
         <button id="end-turn" class="end-turn">结束回合</button>
@@ -84,6 +87,7 @@
   <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
   <script src="js/data/cards.js"></script>
   <script src="js/data/affixes.js"></script>
+  <script src="js/data/potions.js"></script>
   <script src="js/data/config.js"></script>
   <script src="js/data/enemies.js"></script>
   <script src="js/engine/effects.js"></script>

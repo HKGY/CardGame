@@ -68,7 +68,7 @@ window.CG = window.CG || {};
   }
 
   // ---------- 奖励 / 商店 ----------
-  function rollGold(tier) { const [lo, hi] = C().gold[tier]; return ri(lo, hi); }
+  function rollGold(tier, act) { const [lo, hi] = C().gold[tier]; return Math.round(ri(lo, hi) * (C().goldMult[act] || 1)); }
 
   // 按强度生成一张带词条的卡（{base, affixes:[{id,level}]}）
   function rollCard(tier) {
@@ -101,13 +101,21 @@ window.CG = window.CG || {};
       this.listeners = [];
       this.maxHp = C().startHp;
       this.hp = this.maxHp;
-      this.gold = 0;
+      this.gold = C().startGold;
+      this.act = 1;
+      this.maxActs = C().acts;
       this.deck = CG.STARTER_DECK.map(b => CG.makeCard(b));
-      this.map = generateMap();
+      this.potions = [];                       // 消耗品栏（药水）
       this.current = null;
-      this.available = this.map[0].slice();   // 起点：第 0 行任选其一
       this.pending = null;                     // 暂存：本场战斗信息 / 奖励 / 商店货架
       this.phase = 'map';
+      this._newMap();
+    }
+
+    _newMap() {
+      this.map = generateMap();
+      this.current = null;
+      this.available = this.map[0].slice();    // 起点：第 0 行任选其一
     }
 
     onChange(fn) { this.listeners.push(fn); return this; }
@@ -137,9 +145,11 @@ window.CG = window.CG || {};
       this.hp = Math.max(0, remainingHp);
       if (!win || this.hp <= 0) { this.phase = 'dead'; this._emit(); return; }
       const tier = this.current.type;                    // monster | elite | boss
-      const gold = rollGold(tier);
+      const gold = rollGold(tier, this.act);
       this.gold += gold;
-      this.pending = { gold, cards: rollRewardCards(tier) };
+      this.pending = { gold, cards: rollRewardCards(tier), potion: null, potionTaken: false };
+      // 概率掉落药水
+      if (Math.random() < (C().potion.chance[tier] || 0)) this.pending.potion = pick(CG.POTION_IDS);
       this.phase = 'reward';
       this._emit();
     }
@@ -148,6 +158,14 @@ window.CG = window.CG || {};
       if (spec) this.deck.push(CG.makeCard(spec.base, spec.affixes));
       this.pending = null;
       this._advance();
+    }
+
+    takePotion() {                                        // 把奖励药水收入消耗品栏
+      const p = this.pending;
+      if (!p || !p.potion || p.potionTaken || this.potions.length >= C().potion.slots) return;
+      this.potions.push(p.potion);
+      p.potionTaken = true;
+      this._emit();
     }
 
     // ---- 休息点 ----
@@ -180,29 +198,16 @@ window.CG = window.CG || {};
     }
     leaveShop() { this.pending = null; this._advance(); }
 
-    // 升级一张卡：加一个新词条，或给已有词条升一级（每卡最多 3 词条、每词条最多 3 级）
-    _upgrade(uid) {
-      const c = this.deck.find(c => c.uid === uid);
-      if (!c) return;
-      c.affixes = c.affixes || [];
-      const owned = new Set(c.affixes.map(a => a.id));
-      const pool = CG.AFFIX_ORDER.filter(id => !owned.has(id));
-      const levelable = c.affixes.filter(a => a.level < 3);
-      const canAdd = c.affixes.length < 3 && pool.length > 0;
-      if (canAdd && (levelable.length === 0 || Math.random() < 0.6)) {
-        c.affixes.push({ id: pick(pool), level: 1 });
-      } else if (levelable.length > 0) {
-        pick(levelable).level += 1;
-      } else if (canAdd) {
-        c.affixes.push({ id: pick(pool), level: 1 });
-      }
-    }
+    _upgrade(uid) { const c = this.deck.find(c => c.uid === uid); if (c) CG.upgradeInstance(c); }
 
     // 结算当前节点，前进到下一行（Boss 节点 -> 通关）
     _advance() {
       const node = this.current;
       node.done = true;
-      if (node.type === 'boss') { this.phase = 'victory'; this._emit(); return; }
+      if (node.type === 'boss') {                        // 通关 Boss：进入下一层，或全部通关
+        if (this.act < this.maxActs) { this.act++; this._newMap(); this.phase = 'map'; this._emit(); return; }
+        this.phase = 'victory'; this._emit(); return;
+      }
       const nextRow = this.map[node.row + 1];
       this.available = node.next.map(i => nextRow[i]);
       this.phase = 'map';

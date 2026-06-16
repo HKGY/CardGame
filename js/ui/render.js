@@ -43,6 +43,25 @@ window.CG = window.CG || {};
       card.classList.add('card-playing');
       setTimeout(() => { handlers.onPlayCard(uid); busy = false; }, 220);
     });
+
+    $('potion-bar').addEventListener('click', ev => {
+      const b = ev.target.closest('.potion-btn');
+      if (!b || b.disabled) return;
+      CG.Audio.play('select');
+      handlers.onUsePotion(Number(b.dataset.pi));
+    });
+  }
+
+  function potionBarHTML(game) {
+    const slots = (CG.CONFIG && CG.CONFIG.potion.slots) || 3;
+    const held = (game.potions || []).map((id, i) => {
+      const p = CG.POTIONS[id];
+      return `<button class="potion-btn" data-pi="${i}" title="${p.desc}" style="border-color:${p.color}"` +
+             `${game.phase === 'player' ? '' : ' disabled'}>${p.icon} ${p.name}</button>`;
+    }).join('');
+    const empty = Math.max(0, slots - (game.potions || []).length);
+    const slotsHtml = '<span class="potion-slot empty"></span>'.repeat(empty);
+    return `<span class="potion-label">消耗品</span>${held}${slotsHtml}`;
   }
 
   // ---------- 精灵动画 ----------
@@ -166,6 +185,7 @@ window.CG = window.CG || {};
         <div class="badges">${blockBadge(p.block)}${statusBadges(p.statuses)}</div>
       </div>`;
 
+    $('potion-bar').innerHTML = potionBarHTML(game);
     $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}`;
     $('draw-pile').innerHTML = `🂠 抽牌堆 <b>${game.drawPile.length}</b><small>点击查看</small>`;
     $('discard-pile').innerHTML = `🗑️ 弃牌堆 <b>${game.discardPile.length}</b><small>点击查看</small>`;

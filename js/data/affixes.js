@@ -36,11 +36,18 @@ window.CG = window.CG || {};
                   desc: n => `耗能 +${n}，打出 ${1 + n} 次` },
     bright:     { name: '明亮', color: '#f0c850', energy: 1,
                   desc: n => `回复 ${n} 点能量` },
+    draw:       { name: '抽取', color: '#efe9da', draw: 1,
+                  desc: n => `抽 ${n} 张牌` },
+    forge:      { name: '锻造', color: '#f2d23a', forge: 1,
+                  desc: n => `随机升级手中 ${n} 张牌（限本场）` },
+    prepare:    { name: '准备', color: '#3ad0d0', prepare: 2,
+                  desc: (n, base) => base === 'defend' ? `获得 ${2 * n} 层敏捷` : `获得 ${2 * n} 层力量` },
   };
 
   // 词条加入卡牌的先后（生成/升级时用作候选池）
   CG.AFFIX_ORDER = ['suppress', 'neutralize', 'shatter', 'swift', 'multi',
-                    'windfury', 'overload', 'corrupt', 'repeat', 'bright'];
+                    'windfury', 'overload', 'corrupt', 'repeat', 'bright',
+                    'draw', 'forge', 'prepare'];
 
   // 显示名：2 级加「更」，3 级加「最」
   CG.affixDisplayName = (id, level) => (level === 2 ? '更' : level === 3 ? '最' : '') + CG.AFFIXES[id].name;
