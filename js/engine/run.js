@@ -27,21 +27,31 @@ window.CG = window.CG || {};
     if (r >= 2) opts.push(['elite', 2]);
     return weighted(opts);
   }
+  // 连接相邻两行：生成「单调阶梯」式连边——每个上层节点连到一段连续的下层节点，
+  // 区间起点随索引单调不减且首尾相接（共享末端=汇合 / +1=分叉）。由此保证：
+  //   1) 永不交叉：上层 i<k ⟹ i 的所有目标 ≤ k 的所有目标；
+  //   2) 全覆盖 + 每个上层节点都有出边、每个下层节点都有入边；
+  //   3) 只连邻近的下层节点（分支宽度≈2），不会出现横跨很远的长连线。
   function connectRows(a, b) {
-    a.forEach((node, i) => {
-      const center = a.length === 1 ? Math.floor((b.length - 1) / 2)
-                                    : Math.round(i / (a.length - 1) * (b.length - 1));
-      const set = new Set([center]);
-      if (center + 1 < b.length && Math.random() < 0.5) set.add(center + 1);
-      if (center - 1 >= 0 && Math.random() < 0.35) set.add(center - 1);
-      node.next = [...set].sort((x, y) => x - y);
-    });
-    b.forEach((_, j) => {                          // 保证每个下层节点都有入边
-      if (!a.some(n => n.next.includes(j))) {
-        const ai = a.length === 1 ? 0 : Math.round(j / (b.length - 1) * (a.length - 1));
-        a[ai].next = [...new Set([...a[ai].next, j])].sort((x, y) => x - y);
+    const m = a.length, n = b.length;
+    for (const node of a) node.next = [];
+    let L = 0;                                     // 当前上层节点的区间起点（单调不减）
+    for (let i = 0; i < m; i++) {
+      const after = m - 1 - i;                     // 之后还剩多少个上层节点
+      let R;
+      if (i === m - 1) {
+        R = n - 1;                                 // 最后一个收尾，保证覆盖到末端
+      } else {
+        const hi = Math.min(L + 1, n - 1);                       // 分支宽度≤2，避免长连线
+        let lo = Math.max(L, (n - 1) - (after + 1) * 2);         // 别推进太慢，保证后续可达末端
+        lo = Math.min(lo, hi);
+        R = lo + Math.floor(Math.random() * (hi - lo + 1));
       }
-    });
+      if (R < L) R = L;
+      if (R > n - 1) R = n - 1;
+      for (let j = L; j <= R; j++) a[i].next.push(j);
+      if (i < m - 1) L = (R < n - 1 && Math.random() < 0.5) ? R + 1 : R;  // 分叉 或 共享末端(汇合)
+    }
   }
   function generateMap() {
     const rowsN = C().map.rows;
