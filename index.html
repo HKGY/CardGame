@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>卡牌战斗 · Demo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <h1>卡牌战斗 · Demo</h1>
+      <button id="new-battle">新战斗</button>
+    </header>
+
+    <!-- 敌人 -->
+    <section id="enemy-area" class="enemy-area"></section>
+
+    <!-- 玩家状态 -->
+    <section id="player-status" class="player-status"></section>
+
+    <!-- 牌桌：抽牌堆 / 手牌 / 弃牌堆 -->
+    <section class="board">
+      <div class="pile" id="draw-pile"></div>
+      <div class="hand" id="hand"></div>
+      <div class="pile" id="discard-pile"></div>
+    </section>
+
+    <!-- 操作区 -->
+    <section class="controls">
+      <div class="energy" id="energy"></div>
+      <button id="end-turn" class="end-turn">结束回合</button>
+    </section>
+
+    <!-- 战斗日志 -->
+    <section class="log" id="log"></section>
+
+    <!-- 胜负遮罩 -->
+    <div id="overlay" class="overlay hidden">
+      <div class="overlay-box">
+        <h2 id="overlay-title"></h2>
+        <button id="overlay-btn">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 加载顺序：数据 -> 引擎 -> 界面 -> 入口（都挂在全局 window.CG 上） -->
+  <script src="js/data/cards.js"></script>
+  <script src="js/data/enemies.js"></script>
+  <script src="js/engine/effects.js"></script>
+  <script src="js/engine/game.js"></script>
+  <script src="js/ui/render.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
