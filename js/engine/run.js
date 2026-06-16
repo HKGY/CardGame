@@ -183,6 +183,7 @@ window.CG = window.CG || {};
       this.hp = Math.max(0, remainingHp);
       if (!win || this.hp <= 0) { this.phase = 'dead'; this._emit(); return; }
       const tier = this.current.type;                    // monster | elite | boss
+      if (tier === 'boss') this.hp = this.maxHp;          // 每场 Boss 战后回满
       const gold = rollGold(tier, this.act);
       this.gold += gold;
       // 世界：本次卡牌奖励替换为随机祭坛

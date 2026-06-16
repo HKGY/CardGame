@@ -15,6 +15,7 @@
         <span id="run-hp">❤️ 0/0</span>
         <span id="run-gold">💰 0</span>
         <span id="run-potions" class="run-potions" title="消耗品栏"></span>
+        <button id="codex-btn">📖 百科</button>
         <button id="run-deck-btn">🂠 牌库</button>
         <button id="mute-btn" class="mute-btn" title="音效开关">🔊</button>
       </div>
@@ -31,6 +32,7 @@
     <section id="screen-battle" class="screen">
       <div class="battle-topbar">
         <button id="mute-btn-2" class="mute-btn" title="音效开关">🔊</button>
+        <button id="codex-btn-2">📖 百科</button>
         <button id="view-deck">🂠 本场牌库</button>
       </div>
 
@@ -90,6 +92,19 @@
       <div class="modal-box">
         <div class="modal-head"><h3 id="choice-title"></h3><button id="choice-close">取消</button></div>
         <div id="choice-options" class="choice-options"></div>
+      </div>
+    </div>
+
+    <!-- 百科大全 -->
+    <div id="codex-modal" class="modal hidden">
+      <div class="modal-box codex-box">
+        <div class="modal-head"><h3>📖 百科大全</h3><button id="codex-close">关闭</button></div>
+        <div class="codex-tabs">
+          <button class="codex-tab" id="codex-tab-affix">词条</button>
+          <button class="codex-tab" id="codex-tab-tarot">消耗品</button>
+          <button class="codex-tab" id="codex-tab-enemy">敌人</button>
+        </div>
+        <div id="codex-body" class="codex-body"></div>
       </div>
     </div>
   </div>

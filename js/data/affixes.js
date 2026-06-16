@@ -26,10 +26,8 @@ window.CG = window.CG || {};
                   desc: n => `次数 +${n}，耗能 +${n}` },
     windfury:   { name: '风怒', color: '#b06fd6', windfury: 1,
                   desc: n => `打出后回到手牌（每回合 ${n} 次）` },
-    overload:   { name: '过载', color: '#4fb8ee', nextEnergy: -1, valuePct: 50,
-                  desc: n => `下回合能量 -${n}，数值 +${50 * n}%` },
-    corrupt:    { name: '腐化', color: '#bd8550', hpLoss: 2, valuePct: 50,
-                  desc: n => `失去 ${2 * n} 点生命，数值 +${50 * n}%` },
+    overload:   { name: '过载', color: '#4fb8ee', nextEnergy: -1, valuePct: 100,
+                  desc: n => `下回合能量 -${n}，数值 +${100 * n}%` },
     repeat:     { name: '重复', color: '#ee82b8', cost: 1, repeat: 1,
                   desc: n => `耗能 +${n}，打出 ${1 + n} 次` },
     bright:     { name: '明亮', color: '#f0c850', energy: 1,
@@ -44,7 +42,7 @@ window.CG = window.CG || {};
 
   // 词条加入卡牌的先后（生成/升级时用作候选池）
   CG.AFFIX_ORDER = ['suppress', 'neutralize', 'shatter', 'multi',
-                    'windfury', 'overload', 'corrupt', 'repeat', 'bright',
+                    'windfury', 'overload', 'repeat', 'bright',
                     'draw', 'forge', 'prepare'];
 
   // 显示名：2 级加「更」，3 级加「最」

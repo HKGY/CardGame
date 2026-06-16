@@ -248,6 +248,21 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .modal-cards { display: flex; flex-wrap: wrap; gap: 10px; overflow: auto; justify-content: center; padding: 4px; }
 .empty-note { color: var(--muted); }
 
+/* ===== 百科大全 ===== */
+.codex-box { width: min(680px, 94vw); }
+.codex-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.codex-tab.active { background: var(--accent); color: #1a1d29; }
+.codex-body { overflow: auto; }
+.codex-note { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+.codex-item { display: flex; align-items: baseline; gap: 10px; padding: 5px 4px; border-bottom: 1px solid #2e3347; }
+.codex-name { font-weight: 800; min-width: 86px; flex-shrink: 0; }
+.codex-tag { font-size: 11px; color: var(--muted); border: 1px solid #3a3f55; border-radius: 6px; padding: 0 6px; flex-shrink: 0; }
+.codex-desc { color: #d2d6e4; font-size: 13px; }
+.codex-enemy { padding: 8px 4px; border-bottom: 1px solid #2e3347; }
+.codex-enemy-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.codex-hp { color: var(--hp); font-size: 13px; }
+.codex-move { color: var(--muted); font-size: 12px; margin-left: 10px; line-height: 1.6; }
+
 @media (max-width: 620px) {
   .battlefield { flex-direction: column; align-items: stretch; }
   .versus { display: none; }

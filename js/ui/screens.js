@@ -53,6 +53,52 @@ window.CG = window.CG || {};
       closeChoice();
       cb(opt.value);
     });
+
+    // 百科大全
+    $('codex-btn').addEventListener('click', () => openCodex());
+    $('codex-btn-2').addEventListener('click', () => openCodex());
+    $('codex-close').addEventListener('click', () => $('codex-modal').classList.add('hidden'));
+    $('codex-modal').addEventListener('click', e => { if (e.target.id === 'codex-modal') $('codex-modal').classList.add('hidden'); });
+    CODEX_TABS.forEach(t => $('codex-tab-' + t).addEventListener('click', () => renderCodex(t)));
+  }
+
+  // ---------- 百科大全 ----------
+  const CODEX_TABS = ['affix', 'tarot', 'enemy'];
+  const WHERE_LABEL = { battle: '战斗', map: '地图', any: '通用' };
+  const TIER_LABEL = { normal: '普通', elite: '精英', boss: '首领' };
+  function enemyTier(id) { return CODEX_TIERS.find(t => CG.ENEMY_POOLS[t].includes(id)) || ''; }
+  const CODEX_TIERS = ['normal', 'elite', 'boss'];
+  function moveSummary(move) {
+    const map = { damage: '⚔', block: '🛡', strength: '力量', weak: '虚弱', vulnerable: '易伤', frail: '脆弱' };
+    return (move.effects || []).map(e =>
+      `${map[e.type] || e.type} ${e.value}${e.hits > 1 ? '×' + e.hits : ''}`).join('，');
+  }
+  function openCodex(tab) { renderCodex(tab || 'affix'); $('codex-modal').classList.remove('hidden'); }
+  function renderCodex(tab) {
+    CODEX_TABS.forEach(t => $('codex-tab-' + t).classList.toggle('active', t === tab));
+    let html = '';
+    if (tab === 'affix') {
+      html = '<p class="codex-note">2/3 级名字前加「更/最」，数值 ×2 / ×3。</p>' +
+        CG.AFFIX_ORDER.map(id => {
+          const a = CG.AFFIXES[id];
+          return `<div class="codex-item"><span class="codex-name" style="color:${a.color}">${a.name}</span>` +
+                 `<span class="codex-desc">${a.desc(1, 'strike')}</span></div>`;
+        }).join('');
+    } else if (tab === 'tarot') {
+      html = CG.TAROT_IDS.map(id => {
+        const t = CG.TAROT[id];
+        return `<div class="codex-item"><span class="codex-name">${t.icon} ${t.name}</span>` +
+               `<span class="codex-tag">${WHERE_LABEL[t.where]}</span><span class="codex-desc">${t.desc}</span></div>`;
+      }).join('');
+    } else {
+      html = Object.keys(CG.ENEMIES).map(id => {
+        const e = CG.ENEMIES[id];
+        const moves = e.moves.map(m => `<div class="codex-move">${m.name}：${moveSummary(m)}</div>`).join('');
+        return `<div class="codex-enemy"><div class="codex-enemy-head"><b>${e.name}</b>` +
+               `<span class="codex-tag">${TIER_LABEL[enemyTier(id)]}</span><span class="codex-hp">❤ ${e.maxHp}</span></div>${moves}</div>`;
+      }).join('');
+    }
+    $('codex-body').innerHTML = html;
   }
 
   function showScreen(id) { SCREENS.forEach(s => $('screen-' + s).classList.toggle('active', s === id)); }
@@ -273,5 +319,5 @@ window.CG = window.CG || {};
     $('pile-modal').classList.remove('hidden');
   }
 
-  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver, pickCardList, choose };
+  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver, pickCardList, choose, openCodex };
 })(window.CG);
