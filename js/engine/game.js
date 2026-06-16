@@ -81,7 +81,9 @@ window.CG = window.CG || {};
       this.turn += 1;
       this.phase = 'player';
       this.player.block = 0;
-      this.player.energy = this.player.maxEnergy;
+      this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)); // 过载：下回合掉能量
+      this.nextEnergyPenalty = 0;
+      this._turnPlays = {};                       // 风怒：本回合各卡已打出次数
       this.drawCards(CARDS_PER_TURN);
       this._emit();
     }
@@ -115,14 +117,31 @@ window.CG = window.CG || {};
       if (this.phase !== 'player') return;
       const idx = this.hand.findIndex(c => c.uid === uid);
       if (idx === -1) return;
-      const def = CG.cardStats(this.hand[idx]);
-      if (def.cost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
+      const card = this.hand[idx];
+      const s = CG.cardStats(card);
+      if (s.cost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
 
-      this.player.energy -= def.cost;
-      const [card] = this.hand.splice(idx, 1);
-      this.addLog(`你打出了 ${def.name}。`);
-      (def.effects || []).forEach(eff => CG.Effects.apply(this, eff, this.player, this.enemy));
-      this.discardPile.push(card);
+      this.player.energy -= s.cost;
+      this.hand.splice(idx, 1);
+      this.addLog(`你打出了 ${s.name}。`);
+
+      // 重复：整组效果结算 repeatTimes 次
+      for (let r = 0; r < s.repeatTimes; r++) {
+        (s.effects || []).forEach(eff => CG.Effects.apply(this, eff, this.player, this.enemy));
+        if (this.player.hp <= 0 || this.enemy.hp <= 0) break;
+      }
+      // 过载：累计下回合能量惩罚
+      if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
+
+      // 风怒：本回合前 N 次打出后回到手牌，否则进弃牌堆
+      let returned = false;
+      if (s.windfury > 0 && this.player.hp > 0 && this.enemy.hp > 0 && this.hand.length < HAND_LIMIT) {
+        this._turnPlays = this._turnPlays || {};
+        const cnt = (this._turnPlays[card.uid] || 0) + 1;
+        this._turnPlays[card.uid] = cnt;
+        if (cnt <= s.windfury) { this.hand.push(card); returned = true; }
+      }
+      if (!returned) this.discardPile.push(card);
 
       this._checkEnd();
       this._emit();
@@ -169,7 +188,9 @@ window.CG = window.CG || {};
     }
 
     gainBlock(target, amount) {
-      const b = Math.max(0, amount + (target.statuses.dexterity || 0)); // 敏捷：格挡 +X
+      let b = amount + (target.statuses.dexterity || 0);                 // 敏捷：格挡 +X
+      if (target.statuses.frail) b = Math.floor(b * 0.75);              // 脆弱：获得格挡 -25%
+      b = Math.max(0, b);
       target.block += b;
       if (b > 0) this._fire('gainblock', { side: this._sideOf(target), amount: b });
     }
@@ -217,7 +238,11 @@ window.CG = window.CG || {};
         info.hits = dmg.hits || 1;
       }
       const blk = (move.effects || []).find(e => e.type === 'block');
-      if (blk) info.block = blk.value + (this.enemy.statuses.dexterity || 0);
+      if (blk) {
+        let bl = blk.value + (this.enemy.statuses.dexterity || 0);
+        if (this.enemy.statuses.frail) bl = Math.floor(bl * 0.75);
+        info.block = bl;
+      }
       return info;
     }
   }

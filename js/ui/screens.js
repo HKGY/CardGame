@@ -176,7 +176,10 @@ window.CG = window.CG || {};
   function openDeckView() {
     const run = H.getRun();
     const sorted = [...run.deck].sort((a, b) =>
-      a.base === b.base ? (a.upgrade || 0) - (b.upgrade || 0) : (a.base < b.base ? -1 : 1));
+      a.base === b.base
+        ? ((a.affixes || []).length - (b.affixes || []).length
+           || CG.cardStats(a).name.localeCompare(CG.cardStats(b).name, 'zh'))
+        : (a.base < b.base ? -1 : 1));
     $('pile-title').textContent = `牌库（${run.deck.length} 张）`;
     $('pile-cards').innerHTML = sorted.map(c => CG.UI.cardFace(c)).join('');
     $('pile-modal').classList.remove('hidden');

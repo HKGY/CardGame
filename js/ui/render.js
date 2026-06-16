@@ -97,10 +97,13 @@ window.CG = window.CG || {};
             .replace(/格挡/g, '<span class="kw-block">格挡</span>');
   }
   function cardInner(s) {
+    const name = s.affixes.map(a => `<span class="aff" style="color:${a.color}">${a.name}</span>`).join('')
+               + `<span class="base-name">${s.baseName}</span>`;
+    const affixLines = s.affixes.map(a => `<div class="affix-line" style="color:${a.color}">${a.desc}</div>`).join('');
     return `<div class="card-cost">${s.cost}</div>
-      <div class="card-name">${s.name}</div>
+      <div class="card-name">${name}</div>
       <div class="card-type">${TYPE_LABEL[s.type] || s.type}</div>
-      <div class="card-text">${colorKeywords(s.text)}</div>`;
+      <div class="card-text">${colorKeywords(s.baseText)}${affixLines}</div>`;
   }
   // 通用静态卡面，opts: { clickable, dim, data:{k:v} }
   function cardFace(inst, opts = {}) {

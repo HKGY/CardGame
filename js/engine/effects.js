@@ -22,16 +22,20 @@ window.CG = window.CG || {};
       for (let i = 0; i < hits; i++) game.dealAttackDamage(source, target, eff.value);
     },
     block(game, eff, source) {
-      game.gainBlock(source, eff.value);
+      const hits = eff.hits || 1;
+      for (let i = 0; i < hits; i++) game.gainBlock(source, eff.value);
     },
     draw(game, eff) {
       game.drawCards(eff.value);
     },
     energy(game, eff, source) {
-      source.energy += eff.value;
+      source.energy += eff.value;             // 明亮：回复能量
     },
     heal(game, eff, source) {
       source.hp = Math.min(source.maxHp, source.hp + eff.value);
+    },
+    loseHp(game, eff, source) {
+      source.hp = Math.max(0, source.hp - eff.value);  // 腐化：直接失去生命（不经格挡）
     },
     strength(game, eff, source) {
       game.applyStatus(source, 'strength', eff.value);
@@ -44,6 +48,9 @@ window.CG = window.CG || {};
     },
     weak(game, eff, source, target) {
       game.applyStatus(target, 'weak', eff.value);
+    },
+    frail(game, eff, source, target) {
+      game.applyStatus(target, 'frail', eff.value);   // 破碎：目标获得的格挡 -25%
     },
   };
 

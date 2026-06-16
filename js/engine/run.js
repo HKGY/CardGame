@@ -69,18 +69,29 @@ window.CG = window.CG || {};
 
   // ---------- 奖励 / 商店 ----------
   function rollGold(tier) { const [lo, hi] = C().gold[tier]; return ri(lo, hi); }
+
+  // 按强度生成一张带词条的卡（{base, affixes:[{id,level}]}）
+  function rollCard(tier) {
+    const cfg = C().affix[tier];
+    const count = weighted(cfg.count);
+    const pool = [...CG.AFFIX_ORDER];
+    const affixes = [];
+    for (let i = 0; i < count && pool.length; i++) {
+      const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      affixes.push({ id, level: 1 + Math.floor(Math.random() * cfg.maxLevel) });
+    }
+    return { base: pick(['strike', 'defend']), affixes };
+  }
   function rollRewardCards(tier) {
     const out = [];
-    for (let i = 0; i < C().reward.count; i++)
-      out.push({ base: pick(['strike', 'defend']), upgrade: weighted(C().reward.upgradeWeights[tier]) });
+    for (let i = 0; i < C().reward.count; i++) out.push(rollCard(tier));
     return out;
   }
   function rollShopStock() {
     const cards = [];
     for (let i = 0; i < C().shop.cardCount; i++) {
-      const base = pick(['strike', 'defend']);
-      const upgrade = weighted([[0, 5], [1, 3], [2, 2]]);
-      cards.push({ base, upgrade, price: CG.cardPrice(upgrade), bought: false });
+      const c = rollCard(pick(['monster', 'monster', 'elite']));   // 商店以普通货为主，偶有精英货
+      cards.push({ base: c.base, affixes: c.affixes, price: CG.cardPrice(c), bought: false });
     }
     return { cards };
   }
@@ -134,7 +145,7 @@ window.CG = window.CG || {};
     }
 
     chooseReward(spec) {                                  // spec=null 表示跳过
-      if (spec) this.deck.push(CG.makeCard(spec.base, spec.upgrade));
+      if (spec) this.deck.push(CG.makeCard(spec.base, spec.affixes));
       this.pending = null;
       this._advance();
     }
@@ -152,7 +163,7 @@ window.CG = window.CG || {};
       if (!it || it.bought || this.gold < it.price) return;
       this.gold -= it.price;
       it.bought = true;
-      this.deck.push(CG.makeCard(it.base, it.upgrade));
+      this.deck.push(CG.makeCard(it.base, it.affixes));
       this._emit();
     }
     buyUpgrade(uid) {
@@ -169,7 +180,23 @@ window.CG = window.CG || {};
     }
     leaveShop() { this.pending = null; this._advance(); }
 
-    _upgrade(uid) { const c = this.deck.find(c => c.uid === uid); if (c) c.upgrade = (c.upgrade || 0) + 1; }
+    // 升级一张卡：加一个新词条，或给已有词条升一级（每卡最多 3 词条、每词条最多 3 级）
+    _upgrade(uid) {
+      const c = this.deck.find(c => c.uid === uid);
+      if (!c) return;
+      c.affixes = c.affixes || [];
+      const owned = new Set(c.affixes.map(a => a.id));
+      const pool = CG.AFFIX_ORDER.filter(id => !owned.has(id));
+      const levelable = c.affixes.filter(a => a.level < 3);
+      const canAdd = c.affixes.length < 3 && pool.length > 0;
+      if (canAdd && (levelable.length === 0 || Math.random() < 0.6)) {
+        c.affixes.push({ id: pick(pool), level: 1 });
+      } else if (levelable.length > 0) {
+        pick(levelable).level += 1;
+      } else if (canAdd) {
+        c.affixes.push({ id: pick(pool), level: 1 });
+      }
+    }
 
     // 结算当前节点，前进到下一行（Boss 节点 -> 通关）
     _advance() {

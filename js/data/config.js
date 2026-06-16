@@ -13,22 +13,16 @@ CG.CONFIG = {
   // 战斗金币奖励区间 [最小, 最大]
   gold: { monster: [12, 22], elite: [28, 42], boss: [60, 90] },
 
-  // 卡牌奖励：每次给 count 张候选；不同强度敌人给的升级等级权重不同 [[等级, 权重], ...]
-  reward: {
-    count: 3,
-    upgradeWeights: {
-      monster: [[0, 7], [1, 2], [2, 1]],
-      elite:   [[1, 5], [2, 3], [3, 1]],
-      boss:    [[2, 5], [3, 3], [4, 1]],
-    },
+  reward: { count: 3 },          // 每次战斗给几张候选卡
+
+  // 不同强度敌人掉落/出售的卡所带词条：词条数量权重 [[数量, 权重], ...] 与最高等级
+  affix: {
+    monster: { count: [[0, 4], [1, 5], [2, 1]], maxLevel: 1 },
+    elite:   { count: [[1, 4], [2, 3]],         maxLevel: 2 },
+    boss:    { count: [[2, 4], [3, 2]],         maxLevel: 3 },
   },
 
-  // 休息点：回血百分比
-  rest: { healPct: 0.30 },
+  rest: { healPct: 0.30 },       // 休息点回血百分比
 
-  // 商店
   shop: { cardCount: 4, upgradePrice: 75, healPrice: 30, healPct: 0.25 },
 };
-
-// 商店里卡牌的售价（随升级等级递增）
-CG.cardPrice = upgrade => 45 + 30 * upgrade;
