@@ -1,17 +1,18 @@
 window.CG = window.CG || {};
 
 /* ===========================================================================
- *  界面渲染 + 输入 —— 把游戏状态画到 DOM，并把点击转发给控制器。
- *  - render()：每次状态变化整体刷新「会变的部分」（信息面板/手牌/牌堆…）。
- *  - onEvent()：响应引擎抛出的战斗事件，驱动精灵的攻击/受击/格挡动画。
- *    精灵所在的舞台不会被 render 重绘，所以动画不会被刷掉。
+ *  战斗界面 + 输入 —— 把单场战斗状态画到 DOM，并把点击转发给控制器。
+ *  - render(battle)：刷新会变的部分（信息面板 / 手牌 / 牌堆 / 日志）。
+ *  - onEvent()：响应引擎事件，驱动精灵攻击/受击/格挡动画与飘字。
+ *  战斗结束（won/lost）由上层 Run 流程接管，这里不再弹胜负框。
+ *  另外导出 CG.UI.cardFace(inst) 供其它界面（奖励/商店/牌库）复用卡面。
  * ===========================================================================
  */
 (function (CG) {
   let handlers = {};
-  let current = null;        // 当前对局（牌堆查看用）
-  let busy = false;          // 出牌动画期间锁输入
-  let enemySpriteId = null;  // 已绘制的敌人贴图 id（避免每帧重画精灵）
+  let current = null;
+  let busy = false;
+  let enemySpriteId = null;
   const $ = id => document.getElementById(id);
 
   const TYPE_LABEL = { attack: '攻击', skill: '技能', power: '能力' };
@@ -27,17 +28,12 @@ window.CG = window.CG || {};
     $('player-sprite').innerHTML = CG.Sprites.get('knight');
 
     $('end-turn').addEventListener('click', () => { if (!busy) handlers.onEndTurn(); });
-    $('new-battle').addEventListener('click', () => handlers.onNewBattle());
-    $('overlay-btn').addEventListener('click', () => handlers.onNewBattle());
-
-    // 牌堆查看
     $('view-deck').addEventListener('click', () => openPile('deck'));
     $('draw-pile').addEventListener('click', () => openPile('draw'));
     $('discard-pile').addEventListener('click', () => openPile('discard'));
     $('pile-close').addEventListener('click', closePile);
     $('pile-modal').addEventListener('click', e => { if (e.target.id === 'pile-modal') closePile(); });
 
-    // 出牌：先播放卡牌上浮动画，再真正结算
     $('hand').addEventListener('click', ev => {
       const card = ev.target.closest('.card');
       if (!card || card.classList.contains('disabled') || busy) return;
@@ -48,18 +44,15 @@ window.CG = window.CG || {};
     });
   }
 
-  // ---------- 事件驱动的精灵动画 ----------
+  // ---------- 精灵动画 ----------
   function animate(el, cls, ms) {
     if (!el) return;
-    el.classList.remove(cls);
-    void el.offsetWidth;            // 强制回流，使动画可重新触发
-    el.classList.add(cls);
+    el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
     setTimeout(() => el.classList.remove(cls), ms);
   }
-
   function floatNum(stage, text, kind) {
     if (!stage) return;
-    const n = stage.querySelectorAll('.float-num').length; // 多段伤害时错开避免重叠
+    const n = stage.querySelectorAll('.float-num').length;
     const span = document.createElement('span');
     span.className = 'float-num ' + kind;
     span.textContent = text;
@@ -67,69 +60,57 @@ window.CG = window.CG || {};
     stage.appendChild(span);
     setTimeout(() => span.remove(), 900);
   }
-
   function onEvent(type, payload) {
     const sprite = $(payload.side + '-sprite');
     const stage = $(payload.side + '-stage');
     if (type === 'attack') {
-      animate(sprite, 'attacking', 320);                 // 攻击：向对方突进
+      animate(sprite, 'attacking', 320);
     } else if (type === 'damage') {
-      if (payload.hpLoss > 0) {
-        animate(sprite, 'hurt', 380);                    // 受击：抖动 + 红闪
-        floatNum(stage, '-' + payload.hpLoss, 'dmg');
-      } else if (payload.blocked > 0) {
-        animate(sprite, 'guard', 400);                   // 被格挡：蓝闪
-        floatNum(stage, '🛡️', 'guard');
-      }
+      if (payload.hpLoss > 0) { animate(sprite, 'hurt', 380); floatNum(stage, '-' + payload.hpLoss, 'dmg'); }
+      else if (payload.blocked > 0) { animate(sprite, 'guard', 400); floatNum(stage, '🛡️', 'guard'); }
     } else if (type === 'gainblock') {
-      animate(sprite, 'guard', 400);
-      floatNum(stage, '+' + payload.amount + '🛡️', 'guard');
+      animate(sprite, 'guard', 400); floatNum(stage, '+' + payload.amount + '🛡️', 'guard');
     }
   }
 
-  // ---------- 牌堆查看 ----------
+  // ---------- 牌堆查看（战斗内：基于战斗的各牌堆） ----------
   function openPile(kind) {
     if (!current) return;
-    const byName = (a, b) =>
-      CG.CARDS[a.defId].name.localeCompare(CG.CARDS[b.defId].name, 'zh');
+    const byName = (a, b) => CG.cardStats(a).name.localeCompare(CG.cardStats(b).name, 'zh');
     let cards, title;
-    if (kind === 'draw') {
-      cards = [...current.drawPile].sort(byName);          // 排序以隐藏真实抽牌顺序
-      title = '抽牌堆 · 顺序已隐藏';
-    } else if (kind === 'discard') {
-      cards = [...current.discardPile].reverse();          // 最近弃的在前
-      title = '弃牌堆';
-    } else {
-      cards = [...current.drawPile, ...current.hand, ...current.discardPile, ...current.exhaustPile].sort(byName);
-      title = '牌库 · 本场全部卡牌';
-    }
+    if (kind === 'draw') { cards = [...current.drawPile].sort(byName); title = '抽牌堆 · 顺序已隐藏'; }
+    else if (kind === 'discard') { cards = [...current.discardPile].reverse(); title = '弃牌堆'; }
+    else { cards = [...current.drawPile, ...current.hand, ...current.discardPile, ...current.exhaustPile].sort(byName); title = '本场牌库'; }
     $('pile-title').textContent = `${title}（${cards.length} 张）`;
     $('pile-cards').innerHTML = cards.length
-      ? cards.map(c => staticCardHTML(CG.CARDS[c.defId])).join('')
+      ? cards.map(c => cardFace(c)).join('')
       : '<p class="empty-note">（空）</p>';
     $('pile-modal').classList.remove('hidden');
   }
   function closePile() { $('pile-modal').classList.add('hidden'); }
 
-  // ---------- 卡牌 HTML ----------
-  // 关键词上色：伤害 -> 红，格挡 -> 蓝
+  // ---------- 卡面 ----------
   function colorKeywords(t) {
     return t.replace(/伤害/g, '<span class="kw-dmg">伤害</span>')
             .replace(/格挡/g, '<span class="kw-block">格挡</span>');
   }
-  function cardInner(def) {
-    return `<div class="card-cost">${def.cost}</div>
-      <div class="card-name">${def.name}</div>
-      <div class="card-type">${TYPE_LABEL[def.type] || def.type}</div>
-      <div class="card-text">${colorKeywords(def.text)}</div>`;
+  function cardInner(s) {
+    return `<div class="card-cost">${s.cost}</div>
+      <div class="card-name">${s.name}</div>
+      <div class="card-type">${TYPE_LABEL[s.type] || s.type}</div>
+      <div class="card-text">${colorKeywords(s.text)}</div>`;
+  }
+  // 通用静态卡面，opts: { clickable, dim, data:{k:v} }
+  function cardFace(inst, opts = {}) {
+    const s = CG.cardStats(inst);
+    const cls = ['card', 'type-' + s.type, opts.clickable ? 'clickable' : 'static', opts.dim ? 'disabled' : ''].join(' ');
+    const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
+    return `<div class="${cls}" ${data}>${cardInner(s)}</div>`;
   }
   function handCardHTML(game, inst) {
-    const def = CG.CARDS[inst.defId];
-    const ok = game.phase === 'player' && def.cost <= game.player.energy;
-    return `<div class="card type-${def.type} ${ok ? '' : 'disabled'}" data-uid="${inst.uid}">${cardInner(def)}</div>`;
-  }
-  function staticCardHTML(def) {
-    return `<div class="card type-${def.type} static">${cardInner(def)}</div>`;
+    const s = CG.cardStats(inst);
+    const ok = game.phase === 'player' && s.cost <= game.player.energy;
+    return `<div class="card type-${s.type} ${ok ? '' : 'disabled'}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
   }
 
   // ---------- 小组件 ----------
@@ -160,7 +141,7 @@ window.CG = window.CG || {};
     current = game;
     const p = game.player, e = game.enemy;
 
-    if (enemySpriteId !== e.def.id) {                 // 敌人换了才重画精灵
+    if (enemySpriteId !== e.def.id) {
       $('enemy-sprite').innerHTML = CG.Sprites.get(e.def.sprite || 'blob');
       enemySpriteId = e.def.id;
     }
@@ -187,13 +168,7 @@ window.CG = window.CG || {};
 
     $('end-turn').disabled = game.phase !== 'player';
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
-
-    const ov = $('overlay');
-    if (game.phase === 'won' || game.phase === 'lost') {
-      $('overlay-title').textContent = game.phase === 'won' ? '🎉 胜利！' : '💀 战败';
-      ov.classList.remove('hidden');
-    } else ov.classList.add('hidden');
   }
 
-  CG.UI = { init, render, onEvent };
+  CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace });
 })(window.CG);

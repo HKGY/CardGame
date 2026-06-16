@@ -3,75 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>卡牌战斗 · Demo</title>
+  <title>卡牌爬塔 · Demo</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="app">
-    <header class="topbar">
-      <h1>卡牌战斗 · Demo</h1>
-      <div class="topbar-actions">
-        <button id="view-deck">🂠 牌库</button>
-        <button id="new-battle">新战斗</button>
+    <!-- 顶栏：跑图信息（战斗时隐藏） -->
+    <header id="run-header" class="run-header">
+      <div class="run-title">🗼 卡牌爬塔 · Demo</div>
+      <div class="run-stats">
+        <span id="run-hp">❤️ 0/0</span>
+        <span id="run-gold">💰 0</span>
+        <button id="run-deck-btn">🂠 牌库</button>
       </div>
     </header>
 
-    <!-- 战场：左玩家、右敌人，各含精灵舞台 + 信息面板 -->
-    <section class="battlefield">
-      <div class="side side-player">
-        <div class="stage" id="player-stage"><div class="sprite" id="player-sprite"></div></div>
-        <div class="info" id="player-info"></div>
+    <!-- ===== 地图 ===== -->
+    <section id="screen-map" class="screen">
+      <p class="map-hint">点击发光节点前进。⚔️战斗　💀精英　🛒商店　🏕️休息　👑首领</p>
+      <div class="map-wrap"><div id="map-area" class="map-area"></div></div>
+    </section>
+
+    <!-- ===== 战斗 ===== -->
+    <section id="screen-battle" class="screen">
+      <div class="battle-topbar"><button id="view-deck">🂠 本场牌库</button></div>
+
+      <div class="battlefield">
+        <div class="side side-player">
+          <div class="stage" id="player-stage"><div class="sprite" id="player-sprite"></div></div>
+          <div class="info" id="player-info"></div>
+        </div>
+        <div class="versus">VS</div>
+        <div class="side side-enemy">
+          <div class="stage" id="enemy-stage"><div class="sprite" id="enemy-sprite"></div></div>
+          <div class="info" id="enemy-info"></div>
+        </div>
       </div>
-      <div class="versus">VS</div>
-      <div class="side side-enemy">
-        <div class="stage" id="enemy-stage"><div class="sprite" id="enemy-sprite"></div></div>
-        <div class="info" id="enemy-info"></div>
+
+      <div class="board">
+        <div class="pile" id="draw-pile" title="点击查看抽牌堆"></div>
+        <div class="hand" id="hand"></div>
+        <div class="pile" id="discard-pile" title="点击查看弃牌堆"></div>
       </div>
+
+      <div class="controls">
+        <div class="energy" id="energy"></div>
+        <button id="end-turn" class="end-turn">结束回合</button>
+      </div>
+
+      <div class="log" id="log"></div>
     </section>
 
-    <!-- 牌桌：抽牌堆 / 手牌 / 弃牌堆（牌堆可点击查看） -->
-    <section class="board">
-      <div class="pile" id="draw-pile" title="点击查看抽牌堆"></div>
-      <div class="hand" id="hand"></div>
-      <div class="pile" id="discard-pile" title="点击查看弃牌堆"></div>
-    </section>
+    <!-- ===== 其它屏（内容由 JS 填充） ===== -->
+    <section id="screen-reward" class="screen"></section>
+    <section id="screen-shop" class="screen"></section>
+    <section id="screen-rest" class="screen"></section>
+    <section id="screen-gameover" class="screen"></section>
 
-    <!-- 操作区 -->
-    <section class="controls">
-      <div class="energy" id="energy"></div>
-      <button id="end-turn" class="end-turn">结束回合</button>
-    </section>
-
-    <!-- 战斗日志 -->
-    <section class="log" id="log"></section>
-
-    <!-- 胜负遮罩 -->
-    <div id="overlay" class="overlay hidden">
-      <div class="overlay-box">
-        <h2 id="overlay-title"></h2>
-        <button id="overlay-btn">再来一局</button>
+    <!-- 牌堆 / 牌库查看弹窗（战斗与跑图通用） -->
+    <div id="pile-modal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-head"><h3 id="pile-title"></h3><button id="pile-close">关闭</button></div>
+        <div id="pile-cards" class="modal-cards"></div>
       </div>
     </div>
 
-    <!-- 牌堆查看弹窗 -->
-    <div id="pile-modal" class="modal hidden">
+    <!-- 升级选牌弹窗 -->
+    <div id="picker-modal" class="modal hidden">
       <div class="modal-box">
-        <div class="modal-head">
-          <h3 id="pile-title"></h3>
-          <button id="pile-close">关闭</button>
-        </div>
-        <div id="pile-cards" class="modal-cards"></div>
+        <div class="modal-head"><h3 id="picker-title"></h3><button id="picker-close">取消</button></div>
+        <div id="picker-cards" class="modal-cards"></div>
       </div>
     </div>
   </div>
 
-  <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在全局 window.CG 上） -->
+  <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
   <script src="js/data/cards.js"></script>
+  <script src="js/data/config.js"></script>
   <script src="js/data/enemies.js"></script>
   <script src="js/engine/effects.js"></script>
   <script src="js/engine/game.js"></script>
+  <script src="js/engine/run.js"></script>
   <script src="js/ui/sprites.js"></script>
   <script src="js/ui/render.js"></script>
+  <script src="js/ui/screens.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

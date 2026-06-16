@@ -15,11 +15,8 @@ window.CG = window.CG || {};
  */
 (function (CG) {
   const HAND_LIMIT = 10;     // 手牌上限
-  const START_HP = 75;       // 玩家初始 / 最大生命
   const START_ENERGY = 3;    // 每回合能量
   const CARDS_PER_TURN = 5;  // 每回合抽牌数
-
-  let uidCounter = 0;        // 给每张牌实例一个唯一 id，方便界面定位
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -42,11 +39,12 @@ window.CG = window.CG || {};
   }
 
   class Game {
-    constructor(enemyId) {
+    // opts: { enemyId, deck, hp, maxHp } —— 由 Run 提供，战斗承接跑图中的牌组与血量
+    constructor(opts) {
       this.listeners = [];       // 状态变化（整体刷新界面）
       this.eventListeners = [];  // 战斗事件（驱动精灵动画：attack / damage / gainblock）
       this.log = [];
-      this._startBattle(enemyId);
+      this._startBattle(opts);
     }
 
     onChange(fn) { this.listeners.push(fn); return this; }
@@ -57,17 +55,17 @@ window.CG = window.CG || {};
     _sideOf(entity) { return entity === this.player ? 'player' : 'enemy'; }
     addLog(msg) { this.log.push(msg); if (this.log.length > 60) this.log.shift(); }
 
-    _startBattle(enemyId) {
+    _startBattle({ enemyId, deck, hp, maxHp }) {
       const def = CG.ENEMIES[enemyId];
       this.player = {
-        name: '你', maxHp: START_HP, hp: START_HP, block: 0,
+        name: '你', maxHp, hp, block: 0,
         energy: START_ENERGY, maxEnergy: START_ENERGY, statuses: {},
       };
       this.enemy = {
         def, name: def.name, maxHp: def.maxHp, hp: def.maxHp, block: 0,
         statuses: {}, history: [], intent: null,
       };
-      this.drawPile = shuffle(CG.STARTER_DECK.map(id => ({ uid: ++uidCounter, defId: id })));
+      this.drawPile = shuffle(deck.slice());   // 跑图牌组的副本，洗牌不影响原牌组
       this.hand = [];
       this.discardPile = [];
       this.exhaustPile = [];
@@ -117,14 +115,14 @@ window.CG = window.CG || {};
       if (this.phase !== 'player') return;
       const idx = this.hand.findIndex(c => c.uid === uid);
       if (idx === -1) return;
-      const def = CG.CARDS[this.hand[idx].defId];
+      const def = CG.cardStats(this.hand[idx]);
       if (def.cost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
 
       this.player.energy -= def.cost;
       const [card] = this.hand.splice(idx, 1);
       this.addLog(`你打出了 ${def.name}。`);
       (def.effects || []).forEach(eff => CG.Effects.apply(this, eff, this.player, this.enemy));
-      (def.exhaust ? this.exhaustPile : this.discardPile).push(card);
+      this.discardPile.push(card);
 
       this._checkEnd();
       this._emit();
