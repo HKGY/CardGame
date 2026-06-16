@@ -22,13 +22,17 @@ CG.CONFIG = {
   // 药水：消耗品栏位数 + 战斗胜利掉落概率（按敌人强度）
   potion: { slots: 3, chance: { monster: 0.35, elite: 0.55, boss: 0.7 } },
 
-  // 各档敌人掉落/出售卡所带词条：数量权重 [[数量, 权重], ...] 与最高等级
+  // 升级 / 升级祭坛 给的随机词条等级权重
+  upgradeLevelWeights: [[1, 4], [2, 3], [3, 2]],
+
+  // 各档敌人掉落/出售卡所带词条：数量权重 + 等级权重。
+  // 都至少 1 个词条；精英/首领明显更强、与小怪区分度更大。
   affix: {
-    monster: { count: [[0, 4], [1, 5], [2, 1]], maxLevel: 1 },
-    elite:   { count: [[1, 4], [2, 3]],         maxLevel: 2 },
-    boss:    { count: [[2, 4], [3, 2]],         maxLevel: 3 },
+    monster: { count: [[1, 7], [2, 3]],         levelW: [[1, 6], [2, 3], [3, 1]] },
+    elite:   { count: [[2, 6], [3, 4]],         levelW: [[1, 2], [2, 4], [3, 4]] },
+    boss:    { count: [[3, 8], [2, 2]],         levelW: [[1, 1], [2, 3], [3, 6]] },
   },
 
   rest: { healPct: 0.30 },
-  shop: { cardCount: 4, upgradePrice: 75, healPrice: 30, healPct: 0.25 },
+  shop: { cardCount: 4, upgradePrice: 50, healPrice: 25, healPct: 0.25 },
 };

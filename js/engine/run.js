@@ -19,11 +19,21 @@ window.CG = window.CG || {};
     return pairs[pairs.length - 1][0];
   }
 
+  // 事件祭坛
+  CG.ALTARS = {
+    upgrade: { name: '升级祭坛', icon: '⬆️', desc: '为一张牌加上一个随机词条（随机等级）。' },
+    forge:   { name: '锻造祭坛', icon: '🔨', desc: '为一张牌加上一个【3 级】随机词条。' },
+    copy:    { name: '复制祭坛', icon: '🪞', desc: '复制一张牌，副本加入牌组。' },
+    remove:  { name: '删牌祭坛', icon: '🗑️', desc: '从牌组中移除一张牌。' },
+    reforge: { name: '重铸祭坛', icon: '♻️', desc: '重铸一张牌的全部词条（数量不变，重新随机）。' },
+  };
+  CG.ALTAR_IDS = ['upgrade', 'forge', 'copy', 'remove', 'reforge'];
+
   // ---------- 地图生成 ----------
   function pickNodeType(r, contentRows) {
     if (r === 0) return 'monster';                 // 起始行：普通战斗
     if (r === contentRows - 1) return 'rest';      // Boss 前固定休息
-    const opts = [['monster', 5], ['shop', 2], ['rest', 2]];
+    const opts = [['monster', 5], ['shop', 2], ['rest', 2], ['event', 3]];
     if (r >= 2) opts.push(['elite', 2]);
     return weighted(opts);
   }
@@ -70,15 +80,15 @@ window.CG = window.CG || {};
   // ---------- 奖励 / 商店 ----------
   function rollGold(tier, act) { const [lo, hi] = C().gold[tier]; return Math.round(ri(lo, hi) * (C().goldMult[act] || 1)); }
 
-  // 按强度生成一张带词条的卡（{base, affixes:[{id,level}]}）
+  // 按强度生成一张带词条的卡（{base, affixes:[{id,level}]}）。保证至少 1 个词条。
   function rollCard(tier) {
     const cfg = C().affix[tier];
-    const count = weighted(cfg.count);
+    const count = Math.max(1, weighted(cfg.count));
     const pool = [...CG.AFFIX_ORDER];
     const affixes = [];
     for (let i = 0; i < count && pool.length; i++) {
       const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-      affixes.push({ id, level: 1 + Math.floor(Math.random() * cfg.maxLevel) });
+      affixes.push({ id, level: weighted(cfg.levelW) });
     }
     return { base: pick(['strike', 'defend']), affixes };
   }
@@ -136,9 +146,28 @@ window.CG = window.CG || {};
       } else if (node.type === 'rest') {
         this.pending = null;
         this.phase = 'rest';
+      } else if (node.type === 'event') {
+        this.pending = { altar: pick(CG.ALTAR_IDS) };   // 随机一种祭坛
+        this.phase = 'event';
       }
       this._emit();
     }
+
+    // 事件祭坛：对选中的牌应用效果，然后离开
+    useAltar(uid) {
+      const id = this.pending && this.pending.altar;
+      const card = this.deck.find(c => c.uid === uid);
+      if (id === 'remove') {
+        if (this.deck.length > 1) this.deck = this.deck.filter(c => c.uid !== uid);
+      } else if (card) {
+        if (id === 'upgrade') CG.upgradeInstance(card);
+        else if (id === 'forge') CG.upgradeInstance(card, { level: 3 });
+        else if (id === 'copy') this.deck.push(CG.makeCard(card.base, card.affixes));
+        else if (id === 'reforge') CG.reforgeInstance(card);
+      }
+      this._advance();
+    }
+    leaveEvent() { this._advance(); }
 
     // 战斗结束回收：win + 剩余血量
     finishBattle(win, remainingHp) {

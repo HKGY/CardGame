@@ -10,9 +10,9 @@ window.CG = window.CG || {};
   let H = {};                 // 控制器回调
   let pickerHandler = null;   // 当前选牌弹窗的回调
 
-  const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', rest: '🏕️', boss: '👑' };
-  const LABEL = { monster: '战斗', elite: '精英', shop: '商店', rest: '休息', boss: '首领' };
-  const SCREENS = ['map', 'battle', 'reward', 'shop', 'rest', 'gameover'];
+  const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', rest: '🏕️', boss: '👑', event: '🔮' };
+  const LABEL = { monster: '战斗', elite: '精英', shop: '商店', rest: '休息', boss: '首领', event: '事件' };
+  const SCREENS = ['map', 'battle', 'reward', 'shop', 'rest', 'event', 'gameover'];
 
   function init(handlers) {
     H = handlers;
@@ -27,6 +27,7 @@ window.CG = window.CG || {};
     $('screen-reward').addEventListener('click', onRewardClick);
     $('screen-shop').addEventListener('click', onShopClick);
     $('screen-rest').addEventListener('click', onRestClick);
+    $('screen-event').addEventListener('click', onEventClick);
     $('screen-gameover').addEventListener('click', onGameOverClick);
 
     $('picker-close').addEventListener('click', closePicker);
@@ -171,6 +172,29 @@ window.CG = window.CG || {};
     else if (act.dataset.act === 'upgrade') openPicker('选择要升级的卡', uid => H.onRestUpgrade(uid));
   }
 
+  // ---------- 事件（祭坛） ----------
+  function showEvent(run) {
+    showScreen('event');
+    const a = CG.ALTARS[run.pending.altar];
+    $('screen-event').innerHTML = `
+      <div class="panel center">
+        <h2>${a.icon} ${a.name}</h2>
+        <p class="altar-desc">${a.desc}</p>
+        <div class="event-actions">
+          <button class="big-btn" data-act="use">使用</button>
+          <button class="big-btn leave" data-act="leave">离开</button>
+        </div>
+      </div>`;
+  }
+  function onEventClick(ev) {
+    const act = ev.target.closest('[data-act]');
+    if (!act) return;
+    if (act.dataset.act === 'use') {
+      const a = CG.ALTARS[H.getRun().pending.altar];
+      openPicker(a.name + '：选择一张牌', uid => H.onUseAltar(uid));
+    } else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveEvent(); }
+  }
+
   // ---------- 结算 ----------
   function showGameOver(run) {
     showScreen('gameover');
@@ -209,5 +233,5 @@ window.CG = window.CG || {};
     $('pile-modal').classList.remove('hidden');
   }
 
-  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showGameOver };
+  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver };
 })(window.CG);

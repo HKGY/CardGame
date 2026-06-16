@@ -18,6 +18,7 @@ window.CG = window.CG || {};
       case 'reward':   return CG.Screens.showReward(run);
       case 'shop':     return CG.Screens.showShop(run);
       case 'rest':     return CG.Screens.showRest(run);
+      case 'event':    return CG.Screens.showEvent(run);
       case 'dead':
       case 'victory':  return CG.Screens.showGameOver(run);
     }
@@ -79,6 +80,8 @@ window.CG = window.CG || {};
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
       onTakePotion:   () => run.takePotion(),
+      onUseAltar:     uid => run.useAltar(uid),
+      onLeaveEvent:   () => run.leaveEvent(),
       onRestHeal:     () => run.restHeal(),
       onRestUpgrade:  uid => run.restUpgrade(uid),
       onBuyCard:      i => run.buyCard(i),

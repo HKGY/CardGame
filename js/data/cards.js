@@ -72,22 +72,35 @@ window.CG = window.CG || {};
     };
   };
 
-  // 升级一张卡：加一个新词条，或给已有词条升一级（≤3 词条、每条≤3 级）。
-  // Run 的升级与「锻造」词条共用。
-  CG.upgradeInstance = function (inst) {
+  function weightedPick(pairs) {
+    const t = pairs.reduce((s, p) => s + p[1], 0);
+    let r = Math.random() * t;
+    for (const [v, w] of pairs) if ((r -= w) < 0) return v;
+    return pairs[pairs.length - 1][0];
+  }
+  CG.rollAffixLevel = () => weightedPick((CG.CONFIG && CG.CONFIG.upgradeLevelWeights) || [[1, 4], [2, 3], [3, 2]]);
+
+  // 升级一张卡 = 加一个【随机等级】的随机词条（≤3 词条；词条不再被升级）。
+  // opts.level 可指定等级（锻造祭坛固定 3 级）。Run 升级与「锻造」词条共用。
+  CG.upgradeInstance = function (inst, opts) {
     inst.affixes = inst.affixes || [];
-    const rpick = arr => arr[Math.floor(Math.random() * arr.length)];
+    if (inst.affixes.length >= 3) return;
     const owned = new Set(inst.affixes.map(a => a.id));
     const pool = CG.AFFIX_ORDER.filter(id => !owned.has(id));
-    const levelable = inst.affixes.filter(a => a.level < 3);
-    const canAdd = inst.affixes.length < 3 && pool.length > 0;
-    if (canAdd && (levelable.length === 0 || Math.random() < 0.6)) inst.affixes.push({ id: rpick(pool), level: 1 });
-    else if (levelable.length > 0) rpick(levelable).level += 1;
-    else if (canAdd) inst.affixes.push({ id: rpick(pool), level: 1 });
+    if (!pool.length) return;
+    const id = pool[Math.floor(Math.random() * pool.length)];
+    inst.affixes.push({ id, level: (opts && opts.level) || CG.rollAffixLevel() });
   };
 
-  // 一张卡的售价：基础 40 + 每点词条等级 25
-  CG.cardPrice = card => 40 + 25 * (card.affixes || []).reduce((s, a) => s + a.level, 0);
+  // 重铸一张卡 = 词条数量不变、全部重掷（随机词条 + 随机等级）
+  CG.reforgeInstance = function (inst) {
+    const n = (inst.affixes || []).length;
+    inst.affixes = [];
+    for (let i = 0; i < n; i++) CG.upgradeInstance(inst);
+  };
+
+  // 一张卡的售价：基础 20 + 每点词条等级 14（已下调）
+  CG.cardPrice = card => 20 + 14 * (card.affixes || []).reduce((s, a) => s + a.level, 0);
 
   // 初始牌组：5 打击 + 5 防御（无词条）
   CG.STARTER_DECK = ['strike', 'strike', 'strike', 'strike', 'strike',

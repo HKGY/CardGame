@@ -81,6 +81,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 .map-node.shop  { background: #2a3550; }
 .map-node.rest  { background: #23402c; }
+.map-node.event { background: #2e2a4e; }
 .map-node.elite { background: #3a2540; }
 .map-node.boss  { background: #42203a; width: 58px; height: 58px; font-size: 28px; }
 .map-node.locked { opacity: .4; }
@@ -105,7 +106,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .shop-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .buy-btn { background: var(--accent); color: #1a1d29; font-weight: 800; }
 .buy-btn:disabled { background: var(--panel-2); color: var(--muted); }
-.shop-services, .rest-options { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+.shop-services, .rest-options, .event-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+.altar-desc { color: var(--muted); font-size: 15px; }
 
 /* ===== 战场 ===== */
 .battle-topbar { display: flex; justify-content: flex-end; gap: 8px; }

@@ -22,8 +22,6 @@ window.CG = window.CG || {};
                   desc: n => `附加 ${n} 层虚弱` },
     shatter:    { name: '破碎', color: '#4a86e0', apply: { frail: 1 },
                   desc: n => `施加 ${n} 层脆弱` },
-    swift:      { name: '迅捷', color: '#e6e9f0', cost: -1, value: -3,
-                  desc: n => `耗能 -${n}，数值 -${3 * n}` },
     multi:      { name: '多重', color: '#e89030', hits: 1, cost: 1,
                   desc: n => `次数 +${n}，耗能 +${n}` },
     windfury:   { name: '风怒', color: '#b06fd6', windfury: 1,
@@ -45,7 +43,7 @@ window.CG = window.CG || {};
   };
 
   // 词条加入卡牌的先后（生成/升级时用作候选池）
-  CG.AFFIX_ORDER = ['suppress', 'neutralize', 'shatter', 'swift', 'multi',
+  CG.AFFIX_ORDER = ['suppress', 'neutralize', 'shatter', 'multi',
                     'windfury', 'overload', 'corrupt', 'repeat', 'bright',
                     'draw', 'forge', 'prepare'];
 
