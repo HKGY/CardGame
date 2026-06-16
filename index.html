@@ -10,20 +10,30 @@
   <div id="app">
     <header class="topbar">
       <h1>卡牌战斗 · Demo</h1>
-      <button id="new-battle">新战斗</button>
+      <div class="topbar-actions">
+        <button id="view-deck">🂠 牌库</button>
+        <button id="new-battle">新战斗</button>
+      </div>
     </header>
 
-    <!-- 敌人 -->
-    <section id="enemy-area" class="enemy-area"></section>
+    <!-- 战场：左玩家、右敌人，各含精灵舞台 + 信息面板 -->
+    <section class="battlefield">
+      <div class="side side-player">
+        <div class="stage" id="player-stage"><div class="sprite" id="player-sprite"></div></div>
+        <div class="info" id="player-info"></div>
+      </div>
+      <div class="versus">VS</div>
+      <div class="side side-enemy">
+        <div class="stage" id="enemy-stage"><div class="sprite" id="enemy-sprite"></div></div>
+        <div class="info" id="enemy-info"></div>
+      </div>
+    </section>
 
-    <!-- 玩家状态 -->
-    <section id="player-status" class="player-status"></section>
-
-    <!-- 牌桌：抽牌堆 / 手牌 / 弃牌堆 -->
+    <!-- 牌桌：抽牌堆 / 手牌 / 弃牌堆（牌堆可点击查看） -->
     <section class="board">
-      <div class="pile" id="draw-pile"></div>
+      <div class="pile" id="draw-pile" title="点击查看抽牌堆"></div>
       <div class="hand" id="hand"></div>
-      <div class="pile" id="discard-pile"></div>
+      <div class="pile" id="discard-pile" title="点击查看弃牌堆"></div>
     </section>
 
     <!-- 操作区 -->
@@ -42,13 +52,25 @@
         <button id="overlay-btn">再来一局</button>
       </div>
     </div>
+
+    <!-- 牌堆查看弹窗 -->
+    <div id="pile-modal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h3 id="pile-title"></h3>
+          <button id="pile-close">关闭</button>
+        </div>
+        <div id="pile-cards" class="modal-cards"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- 加载顺序：数据 -> 引擎 -> 界面 -> 入口（都挂在全局 window.CG 上） -->
+  <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在全局 window.CG 上） -->
   <script src="js/data/cards.js"></script>
   <script src="js/data/enemies.js"></script>
   <script src="js/engine/effects.js"></script>
   <script src="js/engine/game.js"></script>
+  <script src="js/ui/sprites.js"></script>
   <script src="js/ui/render.js"></script>
   <script src="js/main.js"></script>
 </body>

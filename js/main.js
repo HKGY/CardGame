@@ -11,7 +11,8 @@ window.CG = window.CG || {};
     const ids = Object.keys(CG.ENEMIES);
     const id = ids[Math.floor(Math.random() * ids.length)]; // 随机一个敌人，增加重玩性
     game = new CG.Game(id);
-    game.onChange(g => CG.UI.render(g));
+    game.onChange(g => CG.UI.render(g));   // 状态变化 -> 整体刷新
+    game.onEvent(CG.UI.onEvent);           // 战斗事件 -> 精灵动画
     CG.UI.render(game);
   }
 

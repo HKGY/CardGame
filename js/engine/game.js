@@ -43,13 +43,18 @@ window.CG = window.CG || {};
 
   class Game {
     constructor(enemyId) {
-      this.listeners = [];
+      this.listeners = [];       // 状态变化（整体刷新界面）
+      this.eventListeners = [];  // 战斗事件（驱动精灵动画：attack / damage / gainblock）
       this.log = [];
       this._startBattle(enemyId);
     }
 
     onChange(fn) { this.listeners.push(fn); return this; }
     _emit() { this.listeners.forEach(fn => fn(this)); }
+
+    onEvent(fn) { this.eventListeners.push(fn); return this; }
+    _fire(type, payload) { this.eventListeners.forEach(fn => fn(type, payload)); }
+    _sideOf(entity) { return entity === this.player ? 'player' : 'enemy'; }
     addLog(msg) { this.log.push(msg); if (this.log.length > 60) this.log.shift(); }
 
     _startBattle(enemyId) {
@@ -139,13 +144,21 @@ window.CG = window.CG || {};
       }
     }
 
-    // 计算并结算一次攻击伤害（含力量 / 虚弱 / 易伤修正）
+    // 计算并结算一次攻击伤害（含力量 / 虚弱 / 易伤修正），并抛出动画事件
     dealAttackDamage(source, target, base) {
       let dmg = base + (source.statuses.strength || 0);
       if (source.statuses.weak) dmg = Math.floor(dmg * 0.75);       // 虚弱：造成伤害 -25%
       if (target.statuses.vulnerable) dmg = Math.floor(dmg * 1.5);  // 易伤：受到伤害 +50%
       if (dmg < 0) dmg = 0;
+
+      this._fire('attack', { side: this._sideOf(source) });
+      const beforeHp = target.hp, beforeBlock = target.block;
       this._dealRaw(target, dmg);
+      this._fire('damage', {
+        side: this._sideOf(target),
+        hpLoss: beforeHp - target.hp,
+        blocked: Math.min(beforeBlock, dmg),
+      });
     }
 
     _dealRaw(target, dmg) {
@@ -160,6 +173,7 @@ window.CG = window.CG || {};
     gainBlock(target, amount) {
       const b = Math.max(0, amount + (target.statuses.dexterity || 0)); // 敏捷：格挡 +X
       target.block += b;
+      if (b > 0) this._fire('gainblock', { side: this._sideOf(target), amount: b });
     }
 
     applyStatus(target, key, amount) {

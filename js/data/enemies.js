@@ -7,6 +7,7 @@ window.CG = window.CG || {};
  *    id     唯一标识
  *    name   显示名称
  *    maxHp  最大生命
+ *    sprite 贴图名（对应 js/ui/sprites.js 里的 key；不写或找不到则用通用贴图）
  *    moves  招式列表，每个招式：
  *             name    名称
  *             intent  意图类型（决定头顶显示的图标）：
@@ -18,7 +19,7 @@ window.CG = window.CG || {};
  */
 CG.ENEMIES = {
   jaw_worm: {
-    id: 'jaw_worm', name: '颚虫', maxHp: 44,
+    id: 'jaw_worm', name: '颚虫', maxHp: 44, sprite: 'worm',
     moves: [
       { name: '撕咬', intent: 'attack',
         effects: [{ type: 'damage', value: 11 }] },
@@ -31,7 +32,7 @@ CG.ENEMIES = {
   },
 
   cultist: {
-    id: 'cultist', name: '邪教徒', maxHp: 48,
+    id: 'cultist', name: '邪教徒', maxHp: 48, sprite: 'cultist',
     moves: [
       { name: '仪式', intent: 'buff',
         effects: [{ type: 'strength', value: 3 }] },
