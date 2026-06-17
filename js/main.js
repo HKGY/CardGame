@@ -9,9 +9,24 @@ window.CG = window.CG || {};
   let run = null;
   let battle = null;
 
+  // 当前阶段 + 层数 -> 场景背景 key
+  function sceneFor() {
+    const act = run.act || 1;
+    switch (run.phase) {
+      case 'battle': return (run.current && run.current.type === 'boss') ? 'boss' : 'act' + act;
+      case 'map':
+      case 'reward': return 'act' + act;
+      case 'shop':   return 'shop';
+      case 'rest':   return 'rest';
+      case 'event':  return 'event';
+      default:       return 'menu';     // dead / victory
+    }
+  }
+
   // 按当前阶段切换界面
   function route() {
     CG.Screens.updateHeader(run, run.phase !== 'battle');
+    CG.Background.setScene(sceneFor());
     switch (run.phase) {
       case 'battle':   return startBattle();
       case 'map':      return CG.Screens.showMap(run);

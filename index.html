@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>残响之塔 · 卡牌爬塔</title>
-  <link rel="stylesheet" href="css/style.css?v=14">
+  <link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body>
   <!-- 内联定位作兜底：即使样式表被浏览器缓存成旧版，画布也不会挤出空白条 -->
+  <div id="scene-bg" style="position:fixed;inset:0;z-index:-2;pointer-events:none"></div>
   <canvas id="bg-canvas" style="position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none"></canvas>
   <div id="app">
     <!-- 开始菜单 -->
@@ -16,9 +17,9 @@
         <h1 class="menu-title">残响之塔</h1>
         <p class="menu-sub">Echoing Spire · 卡牌爬塔</p>
         <div class="menu-story">
-          <p>世界尽头，凭空耸立着一座名为「残响之塔」的尖塔。塔身回荡着历代挑战者的残念——他们都曾妄图登顶，却无一生还。</p>
-          <p>传说塔顶封存着能改写命运的「初火」。你握着一副最朴素的牌，踏入第一层。</p>
-          <p>每一层都有更凶险的守望者，也散落着遗物与塔罗的指引。用你的牌组、运气与抉择，一层层向上——直至面对塔顶的真相。</p>
+          <p>魔族大军压境，王国危在旦夕。传说古代遗迹的高塔之巅，封存着足以扭转战局的「古代遗物」。</p>
+          <p>身为王国第一女骑士，你自请前往。塔中盘踞的魔物正是入侵的先锋——清剿它们，也是替前线分忧。</p>
+          <p>你握着一副最朴素的牌，踏入第一层。用你的牌组、运气与抉择，一层层向上——去取回那件传说之物。</p>
         </div>
         <div class="menu-actions">
           <button id="menu-start" class="big-btn menu-start">⚔️ 开始攀登</button>
@@ -134,20 +135,20 @@
   </div>
 
   <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
-  <script src="js/data/cards.js?v=14"></script>
-  <script src="js/data/affixes.js?v=14"></script>
-  <script src="js/data/tarot.js?v=14"></script>
-  <script src="js/data/relics.js?v=14"></script>
-  <script src="js/data/config.js?v=14"></script>
-  <script src="js/data/enemies.js?v=14"></script>
-  <script src="js/engine/effects.js?v=14"></script>
-  <script src="js/engine/game.js?v=14"></script>
-  <script src="js/engine/run.js?v=14"></script>
-  <script src="js/ui/sprites.js?v=14"></script>
-  <script src="js/ui/audio.js?v=14"></script>
-  <script src="js/ui/background.js?v=14"></script>
-  <script src="js/ui/render.js?v=14"></script>
-  <script src="js/ui/screens.js?v=14"></script>
-  <script src="js/main.js?v=14"></script>
+  <script src="js/data/cards.js?v=17"></script>
+  <script src="js/data/affixes.js?v=17"></script>
+  <script src="js/data/tarot.js?v=17"></script>
+  <script src="js/data/relics.js?v=17"></script>
+  <script src="js/data/config.js?v=17"></script>
+  <script src="js/data/enemies.js?v=17"></script>
+  <script src="js/engine/effects.js?v=17"></script>
+  <script src="js/engine/game.js?v=17"></script>
+  <script src="js/engine/run.js?v=17"></script>
+  <script src="js/ui/sprites.js?v=17"></script>
+  <script src="js/ui/audio.js?v=17"></script>
+  <script src="js/ui/background.js?v=17"></script>
+  <script src="js/ui/render.js?v=17"></script>
+  <script src="js/ui/screens.js?v=17"></script>
+  <script src="js/main.js?v=17"></script>
 </body>
 </html>

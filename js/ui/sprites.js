@@ -159,5 +159,14 @@ window.CG = window.CG || {};
     </svg>`,
   };
 
-  CG.Sprites = { get: name => S[name] || S.blob };
+  // 角色立绘：优先加载 assets/sprites/<key>.png；加载失败时回退到内联 SVG。
+  const V = 'v17';
+  function get(name) {
+    const key = S[name] ? name : 'blob';
+    return `<img class="char" alt="" src="assets/sprites/${key}.png?${V}" `
+         + `onerror="window.CG.Sprites._fallback(this,'${key}')">`;
+  }
+  function _fallback(img, key) { img.onerror = null; img.outerHTML = S[key] || S.blob; }
+
+  CG.Sprites = { get, svg: name => S[name] || S.blob, _fallback };
 })(window.CG);

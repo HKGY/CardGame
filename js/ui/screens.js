@@ -66,7 +66,7 @@ window.CG = window.CG || {};
     $('menu-codex').addEventListener('click', () => openCodex());
   }
 
-  function showMenu() { $('run-header').classList.add('hidden'); showScreen('menu'); }
+  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); showScreen('menu'); }
 
   // ---------- 百科大全 ----------
   const CODEX_TABS = ['affix', 'tarot', 'relic', 'enemy'];
@@ -315,8 +315,10 @@ window.CG = window.CG || {};
     if (win) CG.Audio.play('victory');   // 失败音在战斗结束时已播放
     $('screen-gameover').innerHTML = `
       <div class="panel center">
-        <h2>${win ? '🎉 通关！' : '💀 你倒下了'}</h2>
-        <p>${win ? '你击败了首领，登顶成功。' : '冒险到此为止。'}</p>
+        <h2>${win ? '🗿 登顶……？' : '💤 两眼一黑'}</h2>
+        <p>${win
+          ? '塔顶矗立着一块古老的石碑，上面写着：「谢谢你扫荡了塔里的魔物，但是古代遗物在另一座高塔。」'
+          : '你感到两眼一黑——原来是一场梦。'}</p>
         <p>金币 💰 ${run.gold} ・ 牌组 ${run.deck.length} 张 ・ 遗物 ${run.relics.length} 个</p>
         <div class="rest-options">
           <button class="big-btn" data-act="restart">再来一局</button>

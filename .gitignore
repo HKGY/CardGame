@@ -11,3 +11,6 @@ dist/
 
 # Claude Code 本地个人设置
 .claude/settings.local.json
+
+# 美术原始素材暂存（已抠图分类进 assets/，原图作本地备份不入库）
+tmp/
