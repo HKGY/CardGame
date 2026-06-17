@@ -91,8 +91,8 @@ window.CG = window.CG || {};
                `<span class="codex-desc">${a.desc(1, 'strike')}</span></div>`;
       };
       html = '<p class="codex-note">锻造一次 = 一个随机等级增益 + 一个 1 级减益（2/3 级前加「更/最」、数值 ×2/×3）。</p>' +
-        '<div class="codex-sub">增益（正分）</div>' + CG.BUFF_ORDER.map(row).join('') +
-        '<div class="codex-sub">减益（负分）</div>' + CG.DEBUFF_ORDER.map(row).join('');
+        '<div class="codex-sub">增益（正分）</div>' + (CG.BUFF_ORDER || []).map(row).join('') +
+        '<div class="codex-sub">减益（负分）</div>' + (CG.DEBUFF_ORDER || []).map(row).join('');
     } else if (tab === 'tarot') {
       html = CG.TAROT_IDS.map(id => {
         const t = CG.TAROT[id];
