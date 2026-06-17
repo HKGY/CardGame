@@ -57,7 +57,7 @@ window.CG = window.CG || {};
     if (!el || key === curScene) return;
     curScene = key;
     if (!key) { el.classList.remove('show'); el.style.backgroundImage = ''; return; }
-    el.style.backgroundImage = `url("assets/bg/${key}.png?v=17")`;
+    el.style.backgroundImage = `url("assets/bg/${key}.png?v=20")`;
     el.classList.add('show');
   }
 

@@ -160,7 +160,7 @@ window.CG = window.CG || {};
   };
 
   // 角色立绘：优先加载 assets/sprites/<key>.png；加载失败时回退到内联 SVG。
-  const V = 'v17';
+  const V = 'v20';
   function get(name) {
     const key = S[name] ? name : 'blob';
     return `<img class="char" alt="" src="assets/sprites/${key}.png?${V}" `
