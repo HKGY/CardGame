@@ -3,11 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>卡牌爬塔 · Demo</title>
+  <title>残响之塔 · 卡牌爬塔</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <canvas id="bg-canvas"></canvas>
   <div id="app">
+    <!-- 开始菜单 -->
+    <section id="screen-menu" class="screen">
+      <div class="menu">
+        <h1 class="menu-title">残响之塔</h1>
+        <p class="menu-sub">Echoing Spire · 卡牌爬塔</p>
+        <div class="menu-story">
+          <p>世界尽头，凭空耸立着一座名为「残响之塔」的尖塔。塔身回荡着历代挑战者的残念——他们都曾妄图登顶，却无一生还。</p>
+          <p>传说塔顶封存着能改写命运的「初火」。你握着一副最朴素的牌，踏入第一层。</p>
+          <p>每一层都有更凶险的守望者，也散落着遗物与塔罗的指引。用你的牌组、运气与抉择，一层层向上——直至面对塔顶的真相。</p>
+        </div>
+        <div class="menu-actions">
+          <button id="menu-start" class="big-btn menu-start">⚔️ 开始攀登</button>
+          <button id="menu-codex" class="big-btn">📖 百科</button>
+        </div>
+      </div>
+    </section>
+
     <!-- 顶栏：跑图信息（战斗时隐藏） -->
     <header id="run-header" class="run-header">
       <div class="run-title">🗼 第 <span id="run-act">1</span> 层</div>
@@ -126,6 +144,7 @@
   <script src="js/engine/run.js"></script>
   <script src="js/ui/sprites.js"></script>
   <script src="js/ui/audio.js"></script>
+  <script src="js/ui/background.js"></script>
   <script src="js/ui/render.js"></script>
   <script src="js/ui/screens.js"></script>
   <script src="js/main.js"></script>

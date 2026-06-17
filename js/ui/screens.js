@@ -13,7 +13,7 @@ window.CG = window.CG || {};
 
   const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', rest: '🏕️', boss: '👑', event: '🔮' };
   const LABEL = { monster: '战斗', elite: '精英', shop: '商店', rest: '休息', boss: '首领', event: '事件' };
-  const SCREENS = ['map', 'battle', 'reward', 'shop', 'rest', 'event', 'gameover'];
+  const SCREENS = ['menu', 'map', 'battle', 'reward', 'shop', 'rest', 'event', 'gameover'];
 
   function init(handlers) {
     H = handlers;
@@ -60,7 +60,13 @@ window.CG = window.CG || {};
     $('codex-close').addEventListener('click', () => $('codex-modal').classList.add('hidden'));
     $('codex-modal').addEventListener('click', e => { if (e.target.id === 'codex-modal') $('codex-modal').classList.add('hidden'); });
     CODEX_TABS.forEach(t => $('codex-tab-' + t).addEventListener('click', () => renderCodex(t)));
+
+    // 开始菜单
+    $('menu-start').addEventListener('click', () => H.onStart());
+    $('menu-codex').addEventListener('click', () => openCodex());
   }
+
+  function showMenu() { $('run-header').classList.add('hidden'); showScreen('menu'); }
 
   // ---------- 百科大全 ----------
   const CODEX_TABS = ['affix', 'tarot', 'relic', 'enemy'];
@@ -304,11 +310,17 @@ window.CG = window.CG || {};
       <div class="panel center">
         <h2>${win ? '🎉 通关！' : '💀 你倒下了'}</h2>
         <p>${win ? '你击败了首领，登顶成功。' : '冒险到此为止。'}</p>
-        <p>金币 💰 ${run.gold} ・ 牌组 ${run.deck.length} 张</p>
-        <button class="big-btn" data-act="restart">再来一局</button>
+        <p>金币 💰 ${run.gold} ・ 牌组 ${run.deck.length} 张 ・ 遗物 ${run.relics.length} 个</p>
+        <div class="rest-options">
+          <button class="big-btn" data-act="restart">再来一局</button>
+          <button class="big-btn" data-act="menu">主菜单</button>
+        </div>
       </div>`;
   }
-  function onGameOverClick(ev) { if (ev.target.closest('[data-act="restart"]')) H.onRestart(); }
+  function onGameOverClick(ev) {
+    if (ev.target.closest('[data-act="restart"]')) H.onRestart();
+    else if (ev.target.closest('[data-act="menu"]')) showMenu();
+  }
 
   // ---------- 选牌弹窗（升级用） ----------
   function openPicker(title, onPick, cards) {
@@ -342,5 +354,5 @@ window.CG = window.CG || {};
     $('pile-modal').classList.remove('hidden');
   }
 
-  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver, pickCardList, choose, openCodex };
+  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver, pickCardList, choose, openCodex, showMenu };
 })(window.CG);

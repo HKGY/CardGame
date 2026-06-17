@@ -106,9 +106,11 @@ window.CG = window.CG || {};
   }
 
   window.addEventListener('DOMContentLoaded', () => {
+    CG.Background.init();
     setupMute();
     CG.UI.init(battleHandlers);
     CG.Screens.init({
+      onStart:        () => newRun(),
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
       onTakeTarot:    () => run.takeTarot(),
@@ -127,6 +129,6 @@ window.CG = window.CG || {};
       onRestart:      () => newRun(),
       getRun:         () => run,
     });
-    newRun();
+    CG.Screens.showMenu();          // 先进开始菜单，点「开始攀登」再创建跑图
   });
 })(window.CG);

@@ -18,6 +18,10 @@ window.CG = window.CG || {};
     for (const [v, w] of pairs) if ((r -= w) < 0) return v;
     return pairs[pairs.length - 1][0];
   }
+  function pickEnemy(tier, act) {                                     // 按当前层筛选敌人池
+    const pool = CG.ENEMY_POOLS[tier].filter(id => (CG.ENEMIES[id].acts || [1, 2, 3]).includes(act));
+    return pick(pool.length ? pool : CG.ENEMY_POOLS[tier]);
+  }
 
   // 事件祭坛
   CG.ALTARS = {
@@ -175,8 +179,8 @@ window.CG = window.CG || {};
       if (!this.isAvailable(node)) return;
       this.current = node;
       if (node.type === 'monster' || node.type === 'elite' || node.type === 'boss') {
-        const pool = CG.ENEMY_POOLS[node.type === 'monster' ? 'normal' : node.type];
-        this.pending = { tier: node.type, enemyId: pick(pool) };
+        const tier = node.type === 'monster' ? 'normal' : node.type;
+        this.pending = { tier: node.type, enemyId: pickEnemy(tier, this.act) };
         this.phase = 'battle';
       } else if (node.type === 'shop') {
         this.pending = rollShopStock(this.shopMult());
@@ -321,7 +325,7 @@ window.CG = window.CG || {};
     fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < C().tarot.slots) this.tarot.push(pick(CG.TAROT_IDS)); }
     gotoActBoss() {                                       // 皇帝：传送到本层 Boss
       this.current = this.map[this.map.length - 1][0];
-      this.pending = { tier: 'boss', enemyId: pick(CG.ENEMY_POOLS.boss) };
+      this.pending = { tier: 'boss', enemyId: pickEnemy('boss', this.act) };
       this.phase = 'battle';
       this._emit();
     }

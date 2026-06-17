@@ -17,10 +17,41 @@
 body {
   margin: 0;
   font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  background: radial-gradient(circle at 50% 0%, #232838, var(--bg));
+  background: #14161f;
   color: var(--ink);
   min-height: 100vh;
 }
+/* 缓慢流动的星云背景 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  background:
+    radial-gradient(40% 50% at 22% 28%, #2a2350cc, transparent 70%),
+    radial-gradient(42% 52% at 80% 72%, #1f3a55bb, transparent 70%),
+    radial-gradient(circle at 50% 120%, #2c2032, #14161f 62%);
+  animation: bgdrift 28s ease-in-out infinite alternate;
+}
+@keyframes bgdrift {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(3%, -2%) scale(1.08); }
+}
+#bg-canvas { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+#app { position: relative; z-index: 1; }
+
+/* ===== 开始菜单 ===== */
+#screen-menu.active { display: flex; }
+.menu { max-width: 640px; margin: 6vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.menu-title { font-size: 52px; margin: 0; letter-spacing: 10px; font-weight: 900;
+  background: linear-gradient(#ffe9a8, #f0c040 55%, #b8860b); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 4px 24px #f0c04033; }
+.menu-sub { margin: -6px 0 4px; color: var(--muted); letter-spacing: 3px; }
+.menu-story { background: #1c1f2caa; border: 1px solid #34394d; border-radius: 14px; padding: 18px 22px; line-height: 1.9; color: #cfd4e4; text-align: left; }
+.menu-story p { margin: 0 0 10px; }
+.menu-story p:last-child { margin: 0; }
+.menu-actions { display: flex; gap: 14px; margin-top: 6px; }
+.menu-start { background: linear-gradient(#3a6f3a, #2c5530); font-size: 18px; padding: 14px 34px; }
 
 #app { max-width: 960px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 

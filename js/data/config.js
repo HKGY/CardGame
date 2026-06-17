@@ -9,9 +9,9 @@ CG.CONFIG = {
   startGold: 99,
   acts: 3,                       // 总层数
 
-  // 数值膨胀：第 2/3 层敌人生命与伤害的倍率
-  actScale: { 1: { hp: 1, dmg: 1 }, 2: { hp: 1.6, dmg: 1.4 }, 3: { hp: 2.3, dmg: 1.85 } },
-  goldMult: { 1: 1, 2: 1.5, 3: 2 },   // 后层金币也更多
+  // 数值膨胀：第 2/3 层敌人生命与伤害的倍率（后层已有更强的专属敌人，倍率放缓）
+  actScale: { 1: { hp: 1, dmg: 1 }, 2: { hp: 1.45, dmg: 1.3 }, 3: { hp: 1.9, dmg: 1.6 } },
+  goldMult: { 1: 1, 2: 1.4, 3: 1.8 },   // 后层金币也更多
 
   // 地图：rows = Boss 之前的“内容行”数量；最后会再自动补一行 Boss。
   map: { rows: 6, minWidth: 2, maxWidth: 4 },

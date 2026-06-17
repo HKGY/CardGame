@@ -99,6 +99,57 @@ window.CG = window.CG || {};
       <path d="M44 104 q16 14 34 0 q-17 4 -34 0z" fill="#173e22"/>
     </svg>`,
 
+    // 绿史莱姆
+    greenslime: `<svg viewBox="0 0 120 140" class="char">
+      <ellipse cx="60" cy="132" rx="34" ry="8" fill="#0003"/>
+      <path d="M26 106 q0 -52 34 -52 q34 0 34 52 q-34 16 -68 0z" fill="#4fae5a" opacity="0.95"/>
+      <path d="M34 66 q26 -14 52 0" stroke="#a7e8ad" stroke-width="3" fill="none" opacity="0.6"/>
+      <circle cx="50" cy="88" r="6" fill="#fff"/><circle cx="51" cy="89" r="3" fill="#111"/>
+      <circle cx="70" cy="88" r="6" fill="#fff"/><circle cx="69" cy="89" r="3" fill="#111"/>
+    </svg>`,
+
+    // 蝙蝠群
+    bat: `<svg viewBox="0 0 120 140" class="char">
+      <ellipse cx="60" cy="128" rx="30" ry="7" fill="#0003"/>
+      <path d="M60 64 q-34 -22 -50 -6 q14 -2 16 8 q-12 4 -8 16 q16 -16 42 0z" fill="#3a2f4a"/>
+      <path d="M60 64 q34 -22 50 -6 q-14 -2 -16 8 q12 4 8 16 q-16 -16 -42 0z" fill="#3a2f4a"/>
+      <ellipse cx="60" cy="72" rx="16" ry="18" fill="#4a3d5e"/>
+      <polygon points="50,56 54,46 58,56" fill="#4a3d5e"/><polygon points="62,56 66,46 70,56" fill="#4a3d5e"/>
+      <circle cx="54" cy="70" r="3" fill="#ffcf3a"/><circle cx="66" cy="70" r="3" fill="#ffcf3a"/>
+    </svg>`,
+
+    // 霜灵
+    frost: `<svg viewBox="0 0 120 140" class="char">
+      <ellipse cx="60" cy="132" rx="28" ry="7" fill="#0003"/>
+      <path d="M60 38 q26 18 22 52 q-22 16 -44 0 q-4 -34 22 -52z" fill="#8fd4ec" opacity="0.92"/>
+      <path d="M60 30 v22 M50 40 l20 12 M70 40 l-20 12" stroke="#dff4fb" stroke-width="3"/>
+      <circle cx="52" cy="78" r="5" fill="#1a3340"/><circle cx="68" cy="78" r="5" fill="#1a3340"/>
+      <path d="M50 96 q10 8 20 0" stroke="#2a5566" stroke-width="3" fill="none"/>
+    </svg>`,
+
+    // 狂战士
+    berserker: `<svg viewBox="0 0 120 140" class="char">
+      <ellipse cx="60" cy="134" rx="36" ry="8" fill="#0003"/>
+      <rect x="14" y="40" width="8" height="64" rx="3" fill="#caa" transform="rotate(-18 18 72)"/>
+      <rect x="6" y="34" width="22" height="14" rx="3" fill="#888" transform="rotate(-18 18 72)"/>
+      <path d="M30 100 q0 -54 30 -54 q30 0 30 54 q-30 16 -60 0z" fill="#8a3b3b"/>
+      <rect x="44" y="112" width="14" height="22" rx="5" fill="#5a2626"/><rect x="62" y="112" width="14" height="22" rx="5" fill="#5a2626"/>
+      <path d="M40 60 l16 6 M80 60 l-16 6" stroke="#3a1010" stroke-width="4"/>
+      <circle cx="49" cy="72" r="5" fill="#ffce3a"/><circle cx="71" cy="72" r="5" fill="#ffce3a"/>
+      <path d="M44 90 q16 12 32 0 l-6 -4 -10 4 -10 -4z" fill="#fff"/>
+    </svg>`,
+
+    // 时之主宰
+    chrono: `<svg viewBox="0 0 120 140" class="char">
+      <ellipse cx="60" cy="134" rx="40" ry="8" fill="#0003"/>
+      <path d="M60 22 L96 120 L24 120 Z" fill="#3b3566"/>
+      <circle cx="60" cy="64" r="26" fill="#14101f" stroke="#7a6fb0" stroke-width="3"/>
+      <line x1="60" y1="64" x2="60" y2="46" stroke="#c9b8ff" stroke-width="3"/>
+      <line x1="60" y1="64" x2="74" y2="70" stroke="#c9b8ff" stroke-width="3"/>
+      <circle cx="60" cy="64" r="3" fill="#ffe9a8"/>
+      <circle cx="48" cy="60" r="3.5" fill="#ff8a5a"/><circle cx="72" cy="60" r="3.5" fill="#ff8a5a"/>
+    </svg>`,
+
     // 兜底
     blob: `<svg viewBox="0 0 120 140" class="char">
       <ellipse cx="60" cy="132" rx="32" ry="8" fill="#0003"/>
