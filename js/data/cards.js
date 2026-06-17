@@ -60,6 +60,7 @@ window.CG = window.CG || {};
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
     });
+    if (statuses.frozen) statuses.frozen = 1;        // 冰封不随等级叠加：固定跳过 1 次行动
 
     const cost = Math.max(0, b.cost + costD);
     const value = Math.max(0, Math.floor((b.base + valFlat) * (1 + valPct / 100)) * valueMult);
@@ -103,15 +104,17 @@ window.CG = window.CG || {};
   }
   CG.rollAffixLevel = () => weightedPick((CG.CONFIG && CG.CONFIG.upgradeLevelWeights) || [[1, 4], [2, 3], [3, 2]]);
 
-  function rollBuff(owned) {                       // 强力 buff 更稀有
-    const pool = CG.BUFF_ORDER.filter(id => !owned.has(id)).map(id => [id, Math.max(1, 8 - CG.AFFIXES[id].score)]);
+  function rollBuff(owned, base) {                 // 强力 buff 更稀有；防御牌排除「仅攻击」词条
+    const pool = CG.BUFF_ORDER
+      .filter(id => !owned.has(id) && !(base === 'defend' && CG.AFFIXES[id].damageOnly))
+      .map(id => [id, Math.max(1, 8 - CG.AFFIXES[id].score)]);
     return pool.length ? weightedPick(pool) : null;
   }
   function rollDebuff(owned) {                      // 严重 debuff 更稀有
     const pool = CG.DEBUFF_ORDER.filter(id => !owned.has(id)).map(id => [id, Math.max(1, 6 + CG.AFFIXES[id].score)]);
     return pool.length ? weightedPick(pool) : null;
   }
-  CG.rollBuffId = ownedArr => rollBuff(new Set(ownedArr || []));   // 给掉落卡生成用
+  CG.rollBuffId = (ownedArr, base) => rollBuff(new Set(ownedArr || []), base);   // 给掉落卡生成用
 
   CG.buffCount = inst => (inst.affixes || []).filter(a => !CG.isDebuff(a.id)).length;
   CG.canForge = inst => CG.buffCount(inst) < (inst.limit == null ? Math.max(1, CG.buffCount(inst)) : inst.limit);
@@ -121,7 +124,7 @@ window.CG = window.CG || {};
     if (!CG.canForge(inst)) return null;
     const ownedB = new Set((inst.affixes || []).filter(a => !CG.isDebuff(a.id)).map(a => a.id));
     const ownedD = new Set((inst.affixes || []).filter(a => CG.isDebuff(a.id)).map(a => a.id));
-    const buffId = rollBuff(ownedB);
+    const buffId = rollBuff(ownedB, inst.base);
     if (!buffId) return null;
     let level = (opts && opts.level) || CG.rollAffixLevel();
     if (opts && opts.minLevel && level < opts.minLevel) level = opts.minLevel;   // 幸运脚
@@ -153,7 +156,7 @@ window.CG = window.CG || {};
     const D = (inst.affixes || []).length - B;
     inst.affixes = [];
     const ob = new Set(), od = new Set();
-    for (let i = 0; i < B; i++) { const id = rollBuff(ob); if (!id) break; ob.add(id); inst.affixes.push({ id, level: CG.rollAffixLevel() }); }
+    for (let i = 0; i < B; i++) { const id = rollBuff(ob, inst.base); if (!id) break; ob.add(id); inst.affixes.push({ id, level: CG.rollAffixLevel() }); }
     for (let i = 0; i < D; i++) { const id = rollDebuff(od); if (!id) break; od.add(id); inst.affixes.push({ id, level: 1 }); }
   };
 

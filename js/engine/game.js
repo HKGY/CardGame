@@ -338,10 +338,13 @@ window.CG = window.CG || {};
       this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.onPlayerDamaged) r.onPlayerDamaged(this); });
     }
     heal(n) {                                   // 战斗内治疗（人寿保险可过量储存）
+      const before = this.player.hp;
       if (this.run && this.relics.includes('insurance')) {
         this.player.hp += n;
         if (this.player.hp > this.player.maxHp) { this.run.overheal += this.player.hp - this.player.maxHp; this.player.hp = this.player.maxHp; }
       } else this.player.hp = Math.min(this.player.maxHp, this.player.hp + n);
+      const healed = this.player.hp - before;
+      if (healed > 0) this._fire('heal', { side: 'player', amount: healed });   // 治疗动画
       this._emit();
     }
 
@@ -355,12 +358,13 @@ window.CG = window.CG || {};
 
     applyStatus(target, key, amount) {
       target.statuses[key] = (target.statuses[key] || 0) + amount;
+      if (key === 'frozen' && target.statuses[key] > 1) target.statuses[key] = 1;   // 冰封最多 1 层
       if (target.statuses[key] === 0) delete target.statuses[key];
     }
 
     // 计时类减益每回合结束 -1（力量 / 敏捷是永久的，不在此列）
-    _tickStatuses(entity) {
-      ['vulnerable', 'weak', 'frail'].forEach(s => {
+    _tickStatuses(entity) {     // 非负数状态每回合 -1（力量/敏捷可为负，不衰减）
+      ['vulnerable', 'weak', 'frail', 'poison', 'leech'].forEach(s => {
         if (entity.statuses[s] > 0) {
           entity.statuses[s] -= 1;
           if (entity.statuses[s] <= 0) delete entity.statuses[s];

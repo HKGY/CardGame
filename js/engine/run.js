@@ -87,17 +87,18 @@ window.CG = window.CG || {};
   // 按强度生成一张带词条的卡（{base, affixes, limit}）。保证至少 1 个词条。
   function rollCard(tier) {
     const cfg = C().affix[tier];
+    const base = pick(['strike', 'defend']);
     const count = Math.max(1, weighted(cfg.count));
     const owned = [];
     const affixes = [];
     for (let i = 0; i < count; i++) {           // 掉落卡只带 buff（无裸卡、无 debuff）
-      const id = CG.rollBuffId(owned);
+      const id = CG.rollBuffId(owned, base);
       if (!id) break;
       owned.push(id);
       affixes.push({ id, level: weighted(cfg.levelW) });
     }
     const limit = affixes.length + weighted(C().cardLimitExtra);   // 锻造上限 ≥ buff 数
-    return { base: pick(['strike', 'defend']), affixes, limit };
+    return { base, affixes, limit };
   }
   function rollRewardCards(tier) {
     const out = [];

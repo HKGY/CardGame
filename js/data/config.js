@@ -23,7 +23,7 @@ CG.CONFIG = {
   tarot: { slots: 3, chance: { monster: 0.35, elite: 0.55, boss: 0.7 } },
 
   // 遗物：精英/首领掉落数、商店出售数与单价
-  relic: { elite: 1, boss: 2, shopCount: 2, shopPrice: 70 },
+  relic: { elite: 1, boss: 2, shopCount: 2, shopPrice: 150 },
 
   // 掉落卡的锻造上限 = 词条数 + 此随机量
   cardLimitExtra: [[0, 3], [1, 3], [2, 2]],

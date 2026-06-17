@@ -26,11 +26,11 @@ window.CG = window.CG || {};
     repeat:     { name: '重复', color: '#ee82b8', score: 5, repeat: 1,  desc: n => `整张卡打出 ${1 + n} 次` },
     bright:     { name: '明亮', color: '#f0c850', score: 6, energy: 1,  desc: n => `回复 ${n} 点能量` },
     // —— 借鉴《炉石传说》《宝可梦》——
-    lifesteal:  { name: '吸血', color: '#cf4f6a', score: 5, lifesteal: 0.5, desc: n => `对敌人造成伤害的 ${50 * n}% 转化为治疗` },
-    poison:     { name: '淬毒', color: '#8ab84a', score: 4, apply: { poison: 1 },  desc: n => `给敌人 ${n} 层中毒（每回合受等量伤害）` },
-    freeze:     { name: '冰封', color: '#6cc6e0', score: 5, apply: { frozen: 1 },  desc: n => `冰冻敌人 ${n} 回合（跳过其行动）` },
-    leech:      { name: '寄生', color: '#5fae6a', score: 4, apply: { leech: 1 },   desc: n => `给敌人 ${n} 层寄生（每回合受伤并为你回血）` },
-    silence:    { name: '沉默', color: '#aab0c4', score: 3, silence: 1, desc: () => `移除敌人的力量` },
+    lifesteal:  { name: '吸血', color: '#cf4f6a', score: 5, lifesteal: 0.5, damageOnly: true, desc: n => `对敌人造成伤害的 ${50 * n}% 转化为治疗` },
+    poison:     { name: '淬毒', color: '#8ab84a', score: 4, apply: { poison: 1 },  desc: n => `给敌人 ${n} 层中毒（每回合受等量伤害，逐回合 -1）` },
+    freeze:     { name: '冰封', color: '#6cc6e0', score: 4, apply: { frozen: 1 },  desc: () => `冰冻敌人，跳过其下一次行动` },
+    leech:      { name: '寄生', color: '#5fae6a', score: 4, apply: { leech: 1 },   desc: n => `给敌人 ${n} 层寄生（每回合受伤并为你回血，逐回合 -1）` },
+    silence:    { name: '沉默', color: '#aab0c4', score: 4, silence: 1, apply: { weak: 1 }, desc: n => `移除敌人力量，并施加 ${n} 层虚弱` },
     recover:    { name: '回春', color: '#e89ab8', score: 3, heal: 4,    desc: n => `回复 ${4 * n} 点生命` },
     thrift:     { name: '速记', color: '#bcd17a', score: 5, cost: -1,   desc: n => `耗能 -${n}` },
   };

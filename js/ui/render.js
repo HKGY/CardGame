@@ -85,7 +85,19 @@ window.CG = window.CG || {};
     stage.appendChild(span);
     setTimeout(() => span.remove(), 900);
   }
+  // 伤害事件入队逐个弹出（多段攻击不会一次冒出多个数字）；其它事件立即播放
+  let fxQueue = [], fxTimer = null;
   function onEvent(type, payload) {
+    if (type === 'damage') { fxQueue.push(payload); if (!fxTimer) drainFx(); }
+    else playFx(type, payload);
+  }
+  function drainFx() {
+    const payload = fxQueue.shift();
+    if (!payload) { fxTimer = null; return; }
+    playFx('damage', payload);
+    fxTimer = setTimeout(drainFx, 230);
+  }
+  function playFx(type, payload) {
     const sprite = $(payload.side + '-sprite');
     const stage = $(payload.side + '-stage');
     if (type === 'attack') {
@@ -96,6 +108,8 @@ window.CG = window.CG || {};
       else if (payload.blocked > 0) { animate(sprite, 'guard', 400); floatNum(stage, '🛡️', 'guard'); CG.Audio.play('block'); }
     } else if (type === 'gainblock') {
       animate(sprite, 'guard', 400); floatNum(stage, '+' + payload.amount + '🛡️', 'guard'); CG.Audio.play('block');
+    } else if (type === 'heal') {
+      animate(sprite, 'healed', 520); floatNum(stage, '+' + payload.amount, 'heal'); CG.Audio.play('heal');
     }
   }
 
@@ -148,10 +162,20 @@ window.CG = window.CG || {};
   }
 
   // ---------- 小组件 ----------
-  function hpBar(cur, max) {
-    const pct = Math.max(0, (cur / max) * 100);
-    return `<div class="hpbar"><div class="hpfill" style="width:${pct}%"></div>` +
-           `<span class="hptext">${cur} / ${max}</span></div>`;
+  // 血条用稳定的 hpfill 元素 + rAF 改宽度，触发 CSS 过渡（血量增减都平滑滑动）
+  let lastHp = {};
+  function renderUnit(side, u, name, topRight) {
+    const newPct = Math.max(0, (u.hp / u.maxHp) * 100);
+    const oldPct = lastHp[side] == null ? newPct : lastHp[side];
+    $(side + '-info').innerHTML =
+      `<div class="unit ${side}">
+        <div class="unit-top"><span class="unit-name">${name}</span>${topRight}</div>
+        <div class="hpbar"><div class="hpfill" id="${side}-hpfill" style="width:${oldPct}%"></div><span class="hptext">${u.hp} / ${u.maxHp}</span></div>
+        <div class="badges">${blockBadge(u.block)}${statusBadges(u.statuses)}</div>
+      </div>`;
+    const fill = $(side + '-hpfill');           // 强制回流提交旧宽度，再改新宽度 -> 必定触发过渡
+    if (fill && fill.style) { void fill.offsetWidth; fill.style.width = newPct + '%'; }
+    lastHp[side] = newPct;
   }
   function blockBadge(b) { return b > 0 ? `<span class="badge badge-block">🛡️ ${b}</span>` : ''; }
   function statusBadges(s) {
@@ -179,22 +203,11 @@ window.CG = window.CG || {};
     if (enemySpriteId !== e.def.id) {
       $('enemy-sprite').innerHTML = CG.Sprites.get(e.def.sprite || 'blob');
       enemySpriteId = e.def.id;
+      lastHp = {};                       // 换敌人时重置血条动画基准，避免跨场跳动
     }
 
-    $('enemy-info').innerHTML = `
-      <div class="unit enemy">
-        <div class="unit-top"><span class="unit-name">${e.name}</span>${intentHTML(game)}</div>
-        ${hpBar(e.hp, e.maxHp)}
-        <div class="badges">${blockBadge(e.block)}${statusBadges(e.statuses)}</div>
-      </div>`;
-
-    $('player-info').innerHTML = `
-      <div class="unit player">
-        <div class="unit-top"><span class="unit-name">你</span>
-          <span class="turn-tag">第 ${game.turn} 回合</span></div>
-        ${hpBar(p.hp, p.maxHp)}
-        <div class="badges">${blockBadge(p.block)}${statusBadges(p.statuses)}</div>
-      </div>`;
+    renderUnit('enemy', e, e.name, intentHTML(game));
+    renderUnit('player', p, '你', `<span class="turn-tag">第 ${game.turn} 回合</span>`);
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());
     $('battle-relics').innerHTML = relicIcons(game.relics);

@@ -186,6 +186,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   30% { transform: scale(1.08); filter: brightness(1.3) drop-shadow(0 0 7px var(--block)); }
   100% { transform: scale(1); filter: none; }
 }
+.sprite.healed { animation: healed .5s ease; }
+@keyframes healed {
+  0% { transform: scale(1); filter: none; }
+  35% { transform: scale(1.06); filter: brightness(1.35) drop-shadow(0 0 10px #5fd06a); }
+  100% { transform: scale(1); filter: none; }
+}
 
 .float-num {
   position: absolute; left: 50%; top: 24%; transform: translateX(-50%);
@@ -194,6 +200,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 .float-num.dmg { color: #ff5a4e; }
 .float-num.guard { color: #8fc8ff; font-size: 20px; }
+.float-num.heal { color: #6fe07a; }
 @keyframes floatup {
   0% { opacity: 0; transform: translate(-50%, 8px) scale(.8); }
   20% { opacity: 1; transform: translate(-50%, -4px) scale(1.12); }
