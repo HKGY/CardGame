@@ -127,7 +127,7 @@ window.CG = window.CG || {};
   }
   function tarotIcons(run) {
     let s = '';
-    for (let i = 0; i < CG.CONFIG.tarot.slots; i++) {
+    for (let i = 0; i < run.tarotSlots(); i++) {
       const id = run.tarot[i], t = id && CG.TAROT[id];
       s += t ? `<span class="pot-icon" title="${t.name}：${t.desc}">${t.icon}</span>`
              : '<span class="pot-icon empty">·</span>';
@@ -160,7 +160,7 @@ window.CG = window.CG || {};
     $('map-area').style.height = H_px + 'px';
     $('map-area').innerHTML =
       `<svg class="map-edges" viewBox="0 0 100 ${H_px}" preserveAspectRatio="none">${edges}</svg>` + nodes;
-    $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, 'map', true);
+    $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
   }
 
   // ---------- 奖励 ----------
@@ -172,7 +172,7 @@ window.CG = window.CG || {};
     let tarot = '';
     if (pend.tarot) {
       const t = CG.TAROT[pend.tarot];
-      const full = run.tarot.length >= CG.CONFIG.tarot.slots;
+      const full = run.tarot.length >= run.tarotSlots();
       const label = pend.tarotTaken ? '✓ 已收入' : (full ? '消耗栏已满' : '收入消耗栏');
       tarot = `<div class="reward-potion">
         <span class="pot-name">${t.icon} ${t.name}</span>
@@ -217,7 +217,7 @@ window.CG = window.CG || {};
       </div>`).join('');
     const tarotItems = (run.pending.tarot || []).map((it, i) => {
       const t = CG.TAROT[it.id];
-      const dis = it.bought || run.gold < it.price || run.tarot.length >= CG.CONFIG.tarot.slots;
+      const dis = it.bought || run.gold < it.price || run.tarot.length >= run.tarotSlots();
       return `<div class="shop-item shop-tarot" title="${t.desc}">
         <div class="shop-tarot-face"><span class="shop-tarot-icon">${t.icon}</span><b>${t.name}</b><small>${t.desc}</small></div>
         <button class="buy-btn" data-buytarot="${i}" ${dis ? 'disabled' : ''}>${it.bought ? '已购买' : '💰 ' + it.price}</button>

@@ -167,6 +167,7 @@ window.CG = window.CG || {};
     canRest() { return !this.relics.some(id => CG.RELICS[id].noRest); }                        // 癌症
     canGainTarot() { return !this.relics.some(id => CG.RELICS[id].noTarot); }                  // 无神论者
     shopMult() { return this.relics.some(id => CG.RELICS[id].shopHalf) ? 0.5 : 1; }            // Steam 促销
+    tarotSlots() { return C().tarot.slots + this.relics.reduce((s, id) => s + (CG.RELICS[id].tarotSlot || 0), 0); }  // 肚脐：消耗品栏 +1
     upgradeCost() { return Math.floor(C().shop.upgradePrice * this.shopMult()); }
     healCost() { return Math.floor(C().shop.healPrice * this.shopMult()); }
     gainHp(n) {                                 // 治疗入口；人寿保险可过量储存
@@ -264,7 +265,7 @@ window.CG = window.CG || {};
 
     takeTarot() {                                         // 把奖励塔罗收入消耗品栏
       const p = this.pending;
-      if (!p || !p.tarot || p.tarotTaken || this.tarot.length >= C().tarot.slots) return;
+      if (!p || !p.tarot || p.tarotTaken || this.tarot.length >= this.tarotSlots()) return;
       this.tarot.push(p.tarot);
       p.tarotTaken = true;
       this._emit();
@@ -304,7 +305,7 @@ window.CG = window.CG || {};
     buyTarot(i) {                                         // 商店买塔罗牌
       if (!this.canGainTarot()) return;
       const it = this.pending.tarot[i];
-      if (!it || it.bought || this.gold < it.price || this.tarot.length >= C().tarot.slots) return;
+      if (!it || it.bought || this.gold < it.price || this.tarot.length >= this.tarotSlots()) return;
       this.gold -= it.price; it.bought = true; this.tarot.push(it.id); this._emit();
     }
     buyRelic(i) {                                         // 商店买遗物
@@ -323,7 +324,7 @@ window.CG = window.CG || {};
     leaveShop() { this.pending = null; this._advance(); }
 
     // ---- 塔罗牌触发的跑图效果 ----
-    fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < C().tarot.slots) this.tarot.push(pick(CG.TAROT_IDS)); }
+    fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(pick(CG.TAROT_IDS)); }
     gotoActBoss() {                                       // 皇帝：传送到本层 Boss
       this.current = this.map[this.map.length - 1][0];
       this.pending = { tier: 'boss', enemyId: pickEnemy('boss', this.act) };

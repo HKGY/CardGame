@@ -110,10 +110,13 @@ window.CG = window.CG || {};
       this.nextCardDmgMult = 1;                // 力量塔罗
       this._tempStrength = 0;                  // 战车（本回合力量）
       this._laststandUsed = false;             // 回光返照：本场一次
+      this._holyUsed = false;                  // 圣盾披风：本场一次
+      this._oneupUsed = false;                 // 1up：本场一次
       this.forgeMinLevel = run ? run.forgeMinLevel() : 1;  // 幸运脚
+      const maxEnergy = START_ENERGY + this.relics.reduce((s, id) => s + (CG.RELICS[id].maxEnergyBonus || 0), 0);  // 电池
       this.player = {
         name: '你', maxHp, hp, block: 0,
-        energy: START_ENERGY, maxEnergy: START_ENERGY, statuses: {},
+        energy: maxEnergy, maxEnergy, statuses: {},
       };
       const ehp = Math.round(def.maxHp * sc.hp * (hpMult || 1));   // 数值膨胀 + 女祭司减血
       this.enemy = {
@@ -147,7 +150,15 @@ window.CG = window.CG || {};
       this.nextEnergyPenalty = 0;
       this._turnPlays = {};                       // 风怒：本回合各卡已打出次数
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
-      this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.onTurnStart) r.onTurnStart(this); });                    // 老虎机
+      this.relics.forEach(id => {
+        const r = CG.RELICS[id];
+        if (r.onTurnStart) r.onTurnStart(this);          // 老虎机
+        if (r.blockTurn) this.gainBlock(this.player, r.blockTurn);       // 永恒之心/铁棒
+        if (r.regenTurn) this.heal(r.regenTurn);                          // 再生肿块
+        if (r.turnDamage && this.enemy.hp > 0) this.dealAttackDamage(this.player, this.enemy, r.turnDamage); // 家族
+      });
+      this._checkEnd();
+      if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
       this.drawCards(CARDS_PER_TURN + drawBonus);
       this._emit();
     }
@@ -248,21 +259,34 @@ window.CG = window.CG || {};
       }
     }
 
-    // 计算并结算一次攻击伤害（含力量 / 虚弱 / 易伤修正），并抛出动画事件
+    _relicSum(field) { return this.relics.reduce((s, id) => s + (CG.RELICS[id][field] || 0), 0); }
+    _relicMult(field) { return this.relics.reduce((m, id) => m * (CG.RELICS[id][field] || 1), 1); }
+
+    // 计算并结算一次攻击伤害（含力量 / 虚弱 / 易伤 / 遗物修正），并抛出动画事件
     dealAttackDamage(source, target, base) {
       let dmg = base + (source.statuses.strength || 0);
+      if (source === this.player) {                                 // 玩家攻击：洋葱/蟋蟀等
+        dmg += this._relicSum('attackBonus');
+        const m = this._relicMult('attackMult');
+        if (m !== 1) dmg = Math.floor(dmg * m);
+      }
       if (source.statuses.weak) dmg = Math.floor(dmg * 0.75);       // 虚弱：造成伤害 -25%
       if (target.statuses.vulnerable) dmg = Math.floor(dmg * 1.5);  // 易伤：受到伤害 +50%
       if (dmg < 0) dmg = 0;
+      if (target === this.player) {                                 // 玩家受击：薄饼/圣盾
+        dmg = Math.max(0, dmg - this._relicSum('flatReduce'));
+        if (dmg > 0 && this.relics.some(id => CG.RELICS[id].holyMantle) && !this._holyUsed) { dmg = 0; this._holyUsed = true; this.addLog('圣盾披风挡下一击！'); }
+      }
 
       this._fire('attack', { side: this._sideOf(source) });
       const beforeHp = target.hp, beforeBlock = target.block;
       this._dealRaw(target, dmg);
-      this._fire('damage', {
-        side: this._sideOf(target),
-        hpLoss: beforeHp - target.hp,
-        blocked: Math.min(beforeBlock, dmg),
-      });
+      this._fire('damage', { side: this._sideOf(target), hpLoss: beforeHp - target.hp, blocked: Math.min(beforeBlock, dmg) });
+
+      if (target === this.player) {                                 // 荆棘：敌人攻击你后反伤
+        const th = this._relicSum('thorns');
+        if (th > 0 && this.enemy.hp > 0) { const eh = this.enemy.hp, eb = this.enemy.block; this._dealRaw(this.enemy, th); this._fire('damage', { side: 'enemy', hpLoss: eh - this.enemy.hp, blocked: Math.min(eb, th) }); }
+      }
     }
 
     _dealRaw(target, dmg) {
@@ -288,6 +312,11 @@ window.CG = window.CG || {};
         this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.run.overheal);
         this.run.overheal = 0;
       }
+      // 吞下的硬币：受伤获得金币
+      const g = this._relicSum('goldOnHit');
+      if (g > 0 && this.run) this.run.gold += g;
+      // 通用受击钩子
+      this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.onPlayerDamaged) r.onPlayerDamaged(this); });
     }
     heal(n) {                                   // 战斗内治疗（人寿保险可过量储存）
       if (this.run && this.relics.includes('insurance')) {
@@ -323,6 +352,12 @@ window.CG = window.CG || {};
     _checkEnd() {
       if (this.enemy.hp <= 0) { this.phase = 'won'; this.addLog('胜利！'); return; }
       if (this.player.hp <= 0) {
+        if (this.relics.some(id => CG.RELICS[id].fullRevive) && !this._oneupUsed) {  // 1up：满血复活
+          this._oneupUsed = true;
+          this.player.hp = this.player.maxHp;
+          this.addLog('1up！满血复活。');
+          return;
+        }
         if (this.relics.includes('laststand') && !this._laststandUsed) {   // 回光返照：本场一次免死
           this._laststandUsed = true;
           this.player.hp = 1;

@@ -53,8 +53,8 @@ window.CG = window.CG || {};
   }
 
   // 塔罗消耗栏（战斗 / 地图通用）。context:'battle'|'map'；active:当前是否可操作
-  function tarotBarHTML(list, context, active) {
-    const slots = (CG.CONFIG && CG.CONFIG.tarot.slots) || 3;
+  function tarotBarHTML(list, context, active, slots) {
+    slots = slots || (CG.CONFIG && CG.CONFIG.tarot.slots) || 3;
     list = list || [];
     const held = list.map((id, i) => {
       const t = CG.TAROT[id];
@@ -191,7 +191,7 @@ window.CG = window.CG || {};
         <div class="badges">${blockBadge(p.block)}${statusBadges(p.statuses)}</div>
       </div>`;
 
-    $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player');
+    $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());
     $('battle-relics').innerHTML = relicIcons(game.relics);
     $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}`;
     $('draw-pile').innerHTML = `🂠 抽牌堆 <b>${game.drawPile.length}</b><small>点击查看</small>`;
