@@ -152,10 +152,11 @@ window.CG = window.CG || {};
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
-        if (r.onTurnStart) r.onTurnStart(this);          // 老虎机
-        if (r.blockTurn) this.gainBlock(this.player, r.blockTurn);       // 永恒之心/铁棒
+        if (r.onTurnStart) r.onTurnStart(this);          // 老虎机 / 兄弟鲍比 / 献祭匕首
+        const bt = typeof r.blockTurn === 'function' ? r.blockTurn(this) : r.blockTurn;
+        if (bt) this.gainBlock(this.player, bt);                          // 永恒之心/铁棒
         if (r.regenTurn) this.heal(r.regenTurn);                          // 再生肿块
-        if (r.turnDamage && this.enemy.hp > 0) this.dealAttackDamage(this.player, this.enemy, r.turnDamage); // 家族
+        if (r.turnDamage && this.enemy.hp > 0) this.dealAttackDamage(this.player, this.enemy, r.turnDamage); // 小斯蒂文
       });
       this._checkEnd();
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
@@ -250,15 +251,15 @@ window.CG = window.CG || {};
         }
       }
 
-      // 风怒：本回合前 N 次打出后回到手牌，否则进弃牌堆
+      // 风怒：本回合前 N 次打出后回到手牌（销毁优先，不回手）
       let returned = false;
-      if (s.windfury > 0 && this.player.hp > 0 && this.enemy.hp > 0 && this.hand.length < HAND_LIMIT) {
+      if (!s.exhaust && s.windfury > 0 && this.player.hp > 0 && this.enemy.hp > 0 && this.hand.length < HAND_LIMIT) {
         this._turnPlays = this._turnPlays || {};
         const cnt = (this._turnPlays[card.uid] || 0) + 1;
         this._turnPlays[card.uid] = cnt;
         if (cnt <= s.windfury) { this.hand.push(card); returned = true; }
       }
-      if (!returned) this.discardPile.push(card);
+      if (!returned) { if (s.exhaust) this.exhaustPile.push(card); else this.discardPile.push(card); }  // 销毁→消耗堆
 
       this._checkEnd();
       this._emit();
@@ -278,15 +279,17 @@ window.CG = window.CG || {};
       }
     }
 
-    _relicSum(field) { return this.relics.reduce((s, id) => s + (CG.RELICS[id][field] || 0), 0); }
-    _relicMult(field) { return this.relics.reduce((m, id) => m * (CG.RELICS[id][field] || 1), 1); }
+    // 遗物字段可为数字或 (game, ctx)=>数字 的条件函数（用于区分相似遗物的触发前提）
+    _relicSum(field, ctx) { return this.relics.reduce((s, id) => { const v = CG.RELICS[id][field]; return s + (typeof v === 'function' ? (v(this, ctx) || 0) : (v || 0)); }, 0); }
+    _relicMult(field, ctx) { return this.relics.reduce((m, id) => { const v = CG.RELICS[id][field]; return m * (typeof v === 'function' ? (v(this, ctx) || 1) : (v || 1)); }, 1); }
 
     // 计算并结算一次攻击伤害（含力量 / 虚弱 / 易伤 / 遗物修正），并抛出动画事件
     dealAttackDamage(source, target, base) {
       let dmg = base + (source.statuses.strength || 0);
-      if (source === this.player) {                                 // 玩家攻击：洋葱/蟋蟀等
-        dmg += this._relicSum('attackBonus');
-        const m = this._relicMult('attackMult');
+      if (source === this.player) {                                 // 玩家攻击：洋葱/蟋蟀等（含条件前提）
+        const ctx = { source, target };
+        dmg += this._relicSum('attackBonus', ctx);
+        const m = this._relicMult('attackMult', ctx);
         if (m !== 1) dmg = Math.floor(dmg * m);
       }
       if (source.statuses.weak) dmg = Math.floor(dmg * 0.75);       // 虚弱：造成伤害 -25%
@@ -421,6 +424,17 @@ window.CG = window.CG || {};
         info.block = bl;
       }
       return info;
+    }
+
+    // 给界面用：本回合（敌人下一次行动）预计对玩家造成的净伤害（已计入格挡 / 减伤 / 圣盾 / 冰冻）
+    playerIncomingDamage() {
+      if (this.enemy.statuses.frozen) return 0;                 // 敌人将被冰冻跳过
+      const p = this.intentPreview();
+      if (!p || p.damage == null) return 0;
+      const perHit = Math.max(0, p.damage - this._relicSum('flatReduce'));   // 薄饼：每段 -2
+      let raw = perHit * (p.hits || 1);
+      if (raw > 0 && this.relics.some(id => CG.RELICS[id].holyMantle) && !this._holyUsed) raw -= perHit;  // 圣盾挡首段
+      return Math.max(0, raw - this.player.block);
     }
   }
 

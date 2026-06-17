@@ -86,9 +86,10 @@ window.CG = window.CG || {};
     if (tab === 'affix') {
       const row = id => {
         const a = CG.AFFIXES[id];
+        const detail = (a.long || a.desc)(1, 'strike');   // 百科显示详解（long），卡面用精简 desc
         return `<div class="codex-item"><span class="codex-name" style="color:${a.color}">${a.name}</span>` +
                `<span class="codex-tag">${a.score > 0 ? '+' + a.score : a.score}</span>` +
-               `<span class="codex-desc">${a.desc(1, 'strike')}</span></div>`;
+               `<span class="codex-desc">${detail}</span></div>`;
       };
       html = '<p class="codex-note">锻造一次 = 一个随机等级增益 + 一个 1 级减益（2/3 级前加「更/最」、数值 ×2/×3）。</p>' +
         '<div class="codex-sub">增益（正分）</div>' + (CG.BUFF_ORDER || []).map(row).join('') +

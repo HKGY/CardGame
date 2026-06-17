@@ -56,9 +56,16 @@ window.CG = window.CG || {};
       game.applyStatus(source, eff.status, eff.value); // 减益词条：给自己施加易伤/虚弱/脆弱
     },
     poison(game, eff, source, target) { game.applyStatus(target, 'poison', eff.value); },   // 淬毒：每回合受伤
-    frozen(game, eff, source, target) { game.applyStatus(target, 'frozen', eff.value); },   // 冰封：跳过行动
-    leech(game, eff, source, target)  { game.applyStatus(target, 'leech', eff.value); },    // 寄生：受伤并为你回血
-    silence(game, eff, source, target) { if (target.statuses.strength) delete target.statuses.strength; }, // 沉默：移除力量
+    frozen(game, eff, source, target) {                                  // 冰封：每场战斗仅首次生效
+      if (game._frozeUsed) return;
+      game._frozeUsed = true;
+      game.applyStatus(target, 'frozen', eff.value);
+    },
+    leech(game, eff, source, target)  { game.applyStatus(target, 'leech', eff.value); },    // 寄生（保留引擎支持）
+    silence(game, eff, source, target) {                                 // 沉默：移除当前力量并按等级削减
+      if (target.statuses.strength) delete target.statuses.strength;
+      game.applyStatus(target, 'strength', -eff.value);
+    },
   };
 
   CG.Effects = {

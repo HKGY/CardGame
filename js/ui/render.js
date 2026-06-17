@@ -164,14 +164,14 @@ window.CG = window.CG || {};
   // ---------- 小组件 ----------
   // 血条用稳定的 hpfill 元素 + rAF 改宽度，触发 CSS 过渡（血量增减都平滑滑动）
   let lastHp = {};
-  function renderUnit(side, u, name, topRight) {
+  function renderUnit(side, u, name, topRight, extraBadge) {
     const newPct = Math.max(0, (u.hp / u.maxHp) * 100);
     const oldPct = lastHp[side] == null ? newPct : lastHp[side];
     $(side + '-info').innerHTML =
       `<div class="unit ${side}">
         <div class="unit-top"><span class="unit-name">${name}</span>${topRight}</div>
         <div class="hpbar"><div class="hpfill" id="${side}-hpfill" style="width:${oldPct}%"></div><span class="hptext">${u.hp} / ${u.maxHp}</span></div>
-        <div class="badges">${blockBadge(u.block)}${statusBadges(u.statuses)}</div>
+        <div class="badges">${extraBadge || ''}${blockBadge(u.block)}${statusBadges(u.statuses)}</div>
       </div>`;
     const fill = $(side + '-hpfill');           // 强制回流提交旧宽度，再改新宽度 -> 必定触发过渡
     if (fill && fill.style) { void fill.offsetWidth; fill.style.width = newPct + '%'; }
@@ -206,8 +206,10 @@ window.CG = window.CG || {};
       lastHp = {};                       // 换敌人时重置血条动画基准，避免跨场跳动
     }
 
+    const incoming = game.playerIncomingDamage();   // 本回合预计净伤害（随格挡实时变化）
+    const incBadge = incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '';
     renderUnit('enemy', e, e.name, intentHTML(game));
-    renderUnit('player', p, '你', `<span class="turn-tag">第 ${game.turn} 回合</span>`);
+    renderUnit('player', p, '你', `<span class="turn-tag">第 ${game.turn} 回合</span>`, incBadge);
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());
     $('battle-relics').innerHTML = relicIcons(game.relics);

@@ -91,13 +91,21 @@ window.CG = window.CG || {};
     const count = Math.max(1, weighted(cfg.count));
     const owned = [];
     const affixes = [];
-    for (let i = 0; i < count; i++) {           // 掉落卡只带 buff（无裸卡、无 debuff）
+    for (let i = 0; i < count; i++) {           // 先掷 buff（无裸卡）
       const id = CG.rollBuffId(owned, base);
       if (!id) break;
       owned.push(id);
       affixes.push({ id, level: weighted(cfg.levelW) });
     }
-    const limit = affixes.length + weighted(C().cardLimitExtra);   // 锻造上限 ≥ buff 数
+    const buffN = affixes.length;               // 奖励卡也带 debuff：每个 buff 配 1 个 1 级 debuff
+    const ownedD = [];
+    for (let i = 0; i < buffN; i++) {
+      const id = CG.rollDebuffId(ownedD);
+      if (!id) break;
+      ownedD.push(id);
+      affixes.push({ id, level: 1 });
+    }
+    const limit = buffN + weighted(C().cardLimitExtra);   // 锻造上限 = buff 数 + 额外
     return { base, affixes, limit };
   }
   function rollRewardCards(tier) {
