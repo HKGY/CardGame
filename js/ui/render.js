@@ -21,6 +21,10 @@ window.CG = window.CG || {};
     dexterity:  { label: '敏捷', cls: 'badge-buff' },
     vulnerable: { label: '易伤', cls: 'badge-vuln' },
     weak:       { label: '虚弱', cls: 'badge-weak' },
+    frail:      { label: '脆弱', cls: 'badge-vuln' },
+    poison:     { label: '中毒', cls: 'badge-poison' },
+    frozen:     { label: '冰冻', cls: 'badge-frozen' },
+    leech:      { label: '寄生', cls: 'badge-poison' },
   };
 
   function init(h) {
@@ -157,6 +161,7 @@ window.CG = window.CG || {};
     }).join('');
   }
   function intentHTML(game) {
+    if (game.enemy.statuses.frozen) return `<div class="intent intent-buff">❄️ 冰冻 ${game.enemy.statuses.frozen}</div>`;
     const p = game.intentPreview();
     if (!p) return '';
     const parts = [];

@@ -219,6 +219,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .badge-buff { background: #4a3c1e; color: var(--accent); }
 .badge-vuln { background: #5a2c3a; color: #ff9ab0; }
 .badge-weak { background: #2c4a3a; color: #8fe0b0; }
+.badge-poison { background: #2e4a1e; color: #a8d860; }
+.badge-frozen { background: #1e3a4a; color: #7fd4ee; }
 
 /* ===== 牌桌 ===== */
 .board { display: flex; align-items: flex-end; gap: 12px; min-height: 220px; }

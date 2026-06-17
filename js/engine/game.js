@@ -178,14 +178,30 @@ window.CG = window.CG || {};
       if (this.phase !== 'enemy') return;
       const e = this.enemy;
       e.block = 0;
-      const move = e.intent;
-      this.addLog(`${e.name} 使用了 ${move.name}。`);
-      (move.effects || []).forEach(eff => CG.Effects.apply(this, this._scaleEff(eff), e, this.player));
+      if (e.statuses.poison) this._dotDamage(e.statuses.poison, false);   // 中毒：持续伤害
+      if (e.statuses.leech) this._dotDamage(e.statuses.leech, true);      // 寄生：持续伤害 + 回血
+      this._checkEnd();
+      if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
+      if (e.statuses.frozen > 0) {                                        // 冰封：跳过行动
+        e.statuses.frozen -= 1;
+        if (e.statuses.frozen <= 0) delete e.statuses.frozen;
+        this.addLog(`${e.name} 被冰冻，无法行动。`);
+      } else {
+        const move = e.intent;
+        this.addLog(`${e.name} 使用了 ${move.name}。`);
+        (move.effects || []).forEach(eff => CG.Effects.apply(this, this._scaleEff(eff), e, this.player));
+      }
       this._tickStatuses(e);
       this._checkEnd();
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
       this._chooseEnemyIntent();
       this._startPlayerTurn();
+    }
+    _dotDamage(n, lifesteal) {                  // 对敌人造成 n 点持续伤害（无视格挡）
+      const before = this.enemy.hp;
+      this.enemy.hp = Math.max(0, this.enemy.hp - n);
+      const lost = before - this.enemy.hp;
+      if (lost > 0) { this._fire('damage', { side: 'enemy', hpLoss: lost, blocked: 0 }); if (lifesteal) this.heal(lost); }
     }
 
     // ---------- 玩家操作 ----------
@@ -207,12 +223,15 @@ window.CG = window.CG || {};
       this.hand.splice(idx, 1);
       this.addLog(`你打出了 ${s.name}。`);
 
+      const enemyHpBefore = this.enemy.hp;
       // 重复：整组效果结算 repeatTimes 次
       for (let r = 0; r < s.repeatTimes; r++) {
         (s.effects || []).forEach(eff => CG.Effects.apply(this, eff, this.player, this.enemy));
         if (this.player.hp <= 0 || this.enemy.hp <= 0) break;
       }
-      // 过载：累计下回合能量惩罚
+      // 吸血：按对敌人造成的伤害回血
+      if (s.lifesteal > 0) { const dealt = enemyHpBefore - this.enemy.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
+      // 透支：累计下回合能量惩罚
       if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
 
       // 锻造：随机锻造手中若干张牌（作用于本场克隆副本，加 buff+debuff）

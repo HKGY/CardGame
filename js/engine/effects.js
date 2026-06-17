@@ -55,6 +55,10 @@ window.CG = window.CG || {};
     selfStatus(game, eff, source) {
       game.applyStatus(source, eff.status, eff.value); // 减益词条：给自己施加易伤/虚弱/脆弱
     },
+    poison(game, eff, source, target) { game.applyStatus(target, 'poison', eff.value); },   // 淬毒：每回合受伤
+    frozen(game, eff, source, target) { game.applyStatus(target, 'frozen', eff.value); },   // 冰封：跳过行动
+    leech(game, eff, source, target)  { game.applyStatus(target, 'leech', eff.value); },    // 寄生：受伤并为你回血
+    silence(game, eff, source, target) { if (target.statuses.strength) delete target.statuses.strength; }, // 沉默：移除力量
   };
 
   CG.Effects = {

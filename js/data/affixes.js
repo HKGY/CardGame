@@ -25,6 +25,14 @@ window.CG = window.CG || {};
     overload:   { name: '过载', color: '#4fb8ee', score: 5, valuePct: 100, desc: n => `数值 +${100 * n}%` },
     repeat:     { name: '重复', color: '#ee82b8', score: 5, repeat: 1,  desc: n => `整张卡打出 ${1 + n} 次` },
     bright:     { name: '明亮', color: '#f0c850', score: 6, energy: 1,  desc: n => `回复 ${n} 点能量` },
+    // —— 借鉴《炉石传说》《宝可梦》——
+    lifesteal:  { name: '吸血', color: '#cf4f6a', score: 5, lifesteal: 0.5, desc: n => `对敌人造成伤害的 ${50 * n}% 转化为治疗` },
+    poison:     { name: '淬毒', color: '#8ab84a', score: 4, apply: { poison: 1 },  desc: n => `给敌人 ${n} 层中毒（每回合受等量伤害）` },
+    freeze:     { name: '冰封', color: '#6cc6e0', score: 5, apply: { frozen: 1 },  desc: n => `冰冻敌人 ${n} 回合（跳过其行动）` },
+    leech:      { name: '寄生', color: '#5fae6a', score: 4, apply: { leech: 1 },   desc: n => `给敌人 ${n} 层寄生（每回合受伤并为你回血）` },
+    silence:    { name: '沉默', color: '#aab0c4', score: 3, silence: 1, desc: () => `移除敌人的力量` },
+    recover:    { name: '回春', color: '#e89ab8', score: 3, heal: 4,    desc: n => `回复 ${4 * n} 点生命` },
+    thrift:     { name: '速记', color: '#bcd17a', score: 5, cost: -1,   desc: n => `耗能 -${n}` },
   };
 
   const DEBUFFS = {
@@ -36,6 +44,9 @@ window.CG = window.CG || {};
     clumsy: { name: '笨拙', color: '#5f86a4', score: -3, debuff: true, sapDex: 1,      desc: n => `失去 ${n} 层敏捷` },
     leak:   { name: '漏能', color: '#9a6ab0', score: -4, debuff: true, leak: 1,        desc: n => `失去 ${n} 点能量` },
     erode:  { name: '侵蚀', color: '#b06a8a', score: -4, debuff: true, erode: 1,       desc: n => `随机降级手中 ${n} 张牌` },
+    overdraft:  { name: '透支', color: '#5a8fb0', score: -3, debuff: true, nextEnergy: -1, desc: n => `下回合能量 -${n}` },
+    cumbersome: { name: '笨重', color: '#9a8a6a', score: -3, debuff: true, cost: 1,        desc: n => `耗能 +${n}` },
+    recoil:     { name: '反噬', color: '#b5616a', score: -3, debuff: true, hpLoss: 2,      desc: n => `失去 ${2 * n} 点生命` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);

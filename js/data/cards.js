@@ -33,7 +33,8 @@ window.CG = window.CG || {};
     const debuffs = all.filter(a => a.def.debuff).sort((x, y) => order(x.id) - order(y.id));
 
     let valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0, energy = 0,
-        drawN = 0, forge = 0, erode = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0;
+        drawN = 0, forge = 0, erode = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
+        costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silence = false;
     const statuses = {}, selfStatuses = {};
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
@@ -50,11 +51,17 @@ window.CG = window.CG || {};
       if (d.prepare)   prepare += d.prepare * L;
       if (d.sapStr)    sapStr  += d.sapStr * L;
       if (d.sapDex)    sapDex  += d.sapDex * L;
+      if (d.cost)      costD   += d.cost * L;         // 速记 / 笨重
+      if (d.nextEnergy) nextE  += d.nextEnergy * L;   // 透支
+      if (d.hpLoss)    hpLoss  += d.hpLoss * L;        // 反噬
+      if (d.heal)      healAmt += d.heal * L;          // 回春
+      if (d.lifesteal) lifesteal += d.lifesteal * L;   // 吸血
+      if (d.silence)   silence = true;                 // 沉默
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
     });
 
-    const cost = Math.max(0, b.cost);
+    const cost = Math.max(0, b.cost + costD);
     const value = Math.max(0, Math.floor((b.base + valFlat) * (1 + valPct / 100)) * valueMult);
     const hits = 1 + hitsD;
     const limit = inst.limit == null ? Math.max(1, buffs.length) : inst.limit;
@@ -65,6 +72,9 @@ window.CG = window.CG || {};
     for (const k in selfStatuses) effects.push({ type: 'selfStatus', status: k, value: selfStatuses[k] });
     if (energy)  effects.push({ type: 'energy', value: energy });
     if (drawN)   effects.push({ type: 'draw', value: drawN });
+    if (healAmt) effects.push({ type: 'heal', value: healAmt });
+    if (hpLoss)  effects.push({ type: 'loseHp', value: hpLoss });
+    if (silence) effects.push({ type: 'silence', value: 1 });
     const strDelta = (inst.base === 'strike' ? prepare : 0) - sapStr;
     const dexDelta = (inst.base === 'defend' ? prepare : 0) - sapDex;
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
@@ -76,8 +86,8 @@ window.CG = window.CG || {};
       base: inst.base, baseName: b.name, cost, type: b.type, kind: b.kind, limit, score,
       value, hits, effects, buffs, debuffs, baseText,
       repeatTimes: 1 + repeatX,
-      windfury,
-      nextEnergyPenalty: 0,
+      windfury, lifesteal,
+      nextEnergyPenalty: -nextE,
       forgeCount: forge,
       erodeCount: erode,
       name: buffs.map(a => a.name).join('') + b.name + (debuffs.length ? '(' + debuffs.map(a => a.name).join('') + ')' : '') + '+' + limit,
