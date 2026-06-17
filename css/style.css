@@ -234,8 +234,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ===== 卡牌 ===== */
 .card {
-  position: relative; width: 126px; height: 202px; background: var(--panel-2);
-  border: 2px solid #444a63; border-radius: 12px; padding: 12px 9px;
+  position: relative; width: 128px; height: 230px; background: var(--panel-2);
+  border: 2px solid #444a63; border-radius: 12px; padding: 10px 9px;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; user-select: none;
   overflow: hidden;
@@ -261,12 +261,17 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   background: var(--accent); color: #1a1d29; font-weight: 800;
   display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px #0007;
 }
-.card-name { font-size: 15px; font-weight: 700; margin-top: 6px; line-height: 1.25; }
+.card-name { font-size: 14px; font-weight: 700; margin-top: 5px; line-height: 1.22; }
 .card-name .aff { font-weight: 800; }
 .card-name .base-name { color: var(--ink); }
-.card-type { font-size: 11px; color: var(--muted); margin: 2px 0 8px; }
-.card-text { font-size: 12px; line-height: 1.45; color: #d2d6e4; }
-.affix-line { font-size: 11px; line-height: 1.35; margin-top: 3px; font-weight: 600; }
+.card-type { font-size: 11px; color: var(--muted); margin: 2px 0 7px; }
+.card-text { font-size: 11.5px; line-height: 1.4; color: #d2d6e4; }
+.affix-line { font-size: 10.5px; line-height: 1.28; margin-top: 2px; font-weight: 600; }
+.dbf-paren { color: var(--muted); font-weight: 700; }
+.forge-opt { display: flex; flex-direction: column; gap: 1px; text-align: left; min-width: 150px; }
+.forge-opt small { color: var(--muted); font-weight: 400; margin-bottom: 4px; }
+.forge-buff, .forge-dbf { font-weight: 800; }
+.codex-sub { font-weight: 800; color: var(--accent); margin: 10px 0 4px; border-bottom: 1px solid #34394d; padding-bottom: 3px; }
 .kw-dmg { color: #ff6b5e; font-weight: 700; }
 .kw-block { color: #6fa8dc; font-weight: 700; }
 

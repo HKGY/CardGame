@@ -88,13 +88,15 @@ window.CG = window.CG || {};
   function rollCard(tier) {
     const cfg = C().affix[tier];
     const count = Math.max(1, weighted(cfg.count));
-    const pool = [...CG.AFFIX_ORDER];
+    const owned = [];
     const affixes = [];
-    for (let i = 0; i < count && pool.length; i++) {
-      const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    for (let i = 0; i < count; i++) {           // 掉落卡只带 buff（无裸卡、无 debuff）
+      const id = CG.rollBuffId(owned);
+      if (!id) break;
+      owned.push(id);
       affixes.push({ id, level: weighted(cfg.levelW) });
     }
-    const limit = affixes.length + weighted(C().cardLimitExtra);   // 锻造上限 ≥ 词条数
+    const limit = affixes.length + weighted(C().cardLimitExtra);   // 锻造上限 ≥ buff 数
     return { base: pick(['strike', 'defend']), affixes, limit };
   }
   function rollRewardCards(tier) {
@@ -206,14 +208,13 @@ window.CG = window.CG || {};
     }
 
     // 事件祭坛：对选中的牌应用效果，然后离开
-    useAltar(uid) {
+    useAltar(uid, option) {
       const id = this.pending && this.pending.altar;
       const card = this.deck.find(c => c.uid === uid);
       if (id === 'remove') {
         if (this.deck.length > 1) this.deck = this.deck.filter(c => c.uid !== uid);
       } else if (card) {
-        if (id === 'upgrade') CG.upgradeInstance(card, { minLevel: this.forgeMinLevel() });
-        else if (id === 'forge') CG.upgradeInstance(card, { level: 3 });
+        if (id === 'upgrade' || id === 'forge') { if (option) CG.applyForge(card, option); }
         else if (id === 'copy') this.deck.push(CG.makeCard(card.base, card.affixes, card.limit));
         else if (id === 'reforge') CG.reforgeInstance(card);
       }
@@ -275,7 +276,7 @@ window.CG = window.CG || {};
       this.gainHp(Math.ceil(this.maxHp * C().rest.healPct));
       this._advance();
     }
-    restUpgrade(uid) { this._upgrade(uid); this._advance(); }
+    restUpgrade(uid, option) { this._forge(uid, option); this._advance(); }
 
     // ---- 商店 ----
     buyCard(i) {
@@ -286,11 +287,11 @@ window.CG = window.CG || {};
       this.deck.push(CG.makeCard(it.base, it.affixes, it.limit));
       this._emit();
     }
-    buyUpgrade(uid) {
+    buyUpgrade(uid, option) {
       const price = this.upgradeCost();
-      if (this.gold < price) return;
+      if (this.gold < price || !option) return;
       this.gold -= price;
-      this._upgrade(uid);
+      this._forge(uid, option);
       this._emit();
     }
     buyHeal() {
@@ -343,7 +344,7 @@ window.CG = window.CG || {};
       } else this.flags.freeRoute = true;
     }
 
-    _upgrade(uid) { const c = this.deck.find(c => c.uid === uid); if (c) CG.upgradeInstance(c, { minLevel: this.forgeMinLevel() }); }
+    _forge(uid, option) { const c = this.deck.find(c => c.uid === uid); if (c && option) CG.applyForge(c, option); }
 
     // 结算当前节点，前进到下一行（Boss 节点 -> 通关）
     _advance() {

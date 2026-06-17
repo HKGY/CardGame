@@ -1,11 +1,12 @@
 window.CG = window.CG || {};
 
 /* ===========================================================================
- *  卡牌 —— 两种基底卡「打击 / 防御」+ 若干词条（见 js/data/affixes.js）。
+ *  卡牌 —— 「打击/防御」基底 + 增益(buff)与减益(debuff)词条。
  * ===========================================================================
- *  卡牌实例 = { uid, base: 'strike'|'defend', affixes: [{ id, level }] }
- *  cardStats(inst) 把基底与所有词条聚合成一张卡当前的：
- *    名称(含更/最前缀)、耗能、数值、次数、结算效果、以及特殊行为标记。
+ *  卡牌实例 = { uid, base, affixes:[{id,level}], limit }
+ *    limit = 锻造上限（可拥有的 buff 数）。卡名后以 +X 显示。
+ *  锻造一次 = 加 1 个随机等级 buff + 1 个 1 级 debuff（交互式时二选一）。
+ *  cardStats(inst, opts) 把基底与所有词条聚合成当前数值/效果/卡名/分数。
  * ===========================================================================
  */
 (function (CG) {
@@ -17,69 +18,73 @@ window.CG = window.CG || {};
     defend: { name: '防御', cost: 1, type: 'skill',  kind: 'block',  base: 5 },
   };
 
-  // limit = 锻造上限（可拥有的词条上限）。不传时默认为词条数（至少 1）。起始卡为 1。
   CG.makeCard = (base, affixes = [], limit) =>
     ({ uid: CG.nextUid(), base, affixes: affixes.map(a => ({ id: a.id, level: a.level })),
-       limit: limit == null ? Math.max(1, affixes.length) : limit });
+       limit: limit == null ? Math.max(1, affixes.filter(a => !CG.isDebuff(a.id)).length) : limit });
 
+  // ---------- 取数 ----------
   CG.cardStats = function (inst, opts) {
-    const valueMult = (opts && opts.valueMult) || 1;     // 达摩克利斯：数值翻倍
+    const valueMult = (opts && opts.valueMult) || 1;
     const b = CG.BASE_CARDS[inst.base];
-    // 词条按固定顺序(AFFIX_ORDER)排列，保证卡名前缀顺序稳定
-    const affixes = (inst.affixes || [])
-      .slice()
-      .sort((x, y) => CG.AFFIX_ORDER.indexOf(x.id) - CG.AFFIX_ORDER.indexOf(y.id))
-      .map(a => {
-        const def = CG.AFFIXES[a.id];
-        return { id: a.id, level: a.level, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base), def };
-      });
+    const order = id => CG.AFFIX_ORDER.indexOf(id);
+    const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base) }; };
+    const all = (inst.affixes || []).map(resolve);
+    const buffs = all.filter(a => !a.def.debuff).sort((x, y) => order(x.id) - order(y.id));
+    const debuffs = all.filter(a => a.def.debuff).sort((x, y) => order(x.id) - order(y.id));
 
-    // 聚合词条机制（每个字段 ×等级）
-    let costD = 0, valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0,
-        energy = 0, nextE = 0, hpLoss = 0, drawN = 0, forge = 0, prepare = 0;
-    const statuses = {};
-    affixes.forEach(({ def: d, level: L }) => {
-      if (d.cost)       costD   += d.cost * L;
-      if (d.value)      valFlat += d.value * L;
-      if (d.valuePct)   valPct  += d.valuePct * L;
-      if (d.hits)       hitsD   += d.hits * L;
-      if (d.repeat)     repeatX += d.repeat * L;
-      if (d.windfury)   windfury += d.windfury * L;
-      if (d.energy)     energy  += d.energy * L;
-      if (d.nextEnergy) nextE   += d.nextEnergy * L;
-      if (d.hpLoss)     hpLoss  += d.hpLoss * L;
-      if (d.draw)       drawN   += d.draw * L;
-      if (d.forge)      forge   += d.forge * L;
-      if (d.prepare)    prepare += d.prepare * L;
+    let valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0, energy = 0,
+        drawN = 0, forge = 0, erode = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0;
+    const statuses = {}, selfStatuses = {};
+    all.forEach(({ def: d, level: L }) => {
+      score += (d.score || 0) * L;
+      if (d.value)     valFlat += d.value * L;
+      if (d.valuePct)  valPct  += d.valuePct * L;
+      if (d.hits)      hitsD   += d.hits * L;
+      if (d.repeat)    repeatX += d.repeat * L;
+      if (d.windfury)  windfury += d.windfury * L;
+      if (d.energy)    energy  += d.energy * L;       // 明亮
+      if (d.leak)      energy  -= d.leak * L;         // 漏能
+      if (d.draw)      drawN   += d.draw * L;
+      if (d.forge)     forge   += d.forge * L;
+      if (d.erode)     erode   += d.erode * L;
+      if (d.prepare)   prepare += d.prepare * L;
+      if (d.sapStr)    sapStr  += d.sapStr * L;
+      if (d.sapDex)    sapDex  += d.sapDex * L;
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
+      if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
     });
 
-    const cost = Math.max(0, b.cost + costD);
+    const cost = Math.max(0, b.cost);
     const value = Math.max(0, Math.floor((b.base + valFlat) * (1 + valPct / 100)) * valueMult);
     const hits = 1 + hitsD;
-    const limit = inst.limit == null ? Math.max(1, (inst.affixes || []).length) : inst.limit;
+    const limit = inst.limit == null ? Math.max(1, buffs.length) : inst.limit;
 
-    // 结算效果列表（复用效果系统；准备：打击→力量、防御→敏捷，加给自己）
+    // 结算效果
     const effects = [{ type: b.kind === 'damage' ? 'damage' : 'block', value, hits }];
-    for (const k in statuses) effects.push({ type: k, value: statuses[k] });
+    for (const k in statuses) effects.push({ type: k, value: statuses[k] });               // 给敌人
+    for (const k in selfStatuses) effects.push({ type: 'selfStatus', status: k, value: selfStatuses[k] });
     if (energy)  effects.push({ type: 'energy', value: energy });
-    if (hpLoss)  effects.push({ type: 'loseHp', value: hpLoss });
     if (drawN)   effects.push({ type: 'draw', value: drawN });
-    if (prepare) effects.push({ type: inst.base === 'defend' ? 'dexterity' : 'strength', value: prepare });
+    const strDelta = (inst.base === 'strike' ? prepare : 0) - sapStr;
+    const dexDelta = (inst.base === 'defend' ? prepare : 0) - sapDex;
+    if (strDelta) effects.push({ type: 'strength', value: strDelta });
+    if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
 
-    const name = affixes.map(a => a.name).join('') + b.name + '+' + limit;
     const baseText = (b.kind === 'damage' ? `造成 ${value} 点伤害` : `获得 ${value} 点格挡`) + (hits > 1 ? ` ×${hits}` : '') + '。';
 
     return {
-      base: inst.base, baseName: b.name, name, cost, type: b.type, kind: b.kind, limit,
-      value, hits, effects, affixes, baseText,
-      repeatTimes: 1 + repeatX,          // 重复：整组效果结算次数
-      windfury,                          // 风怒：本回合可回手次数
-      nextEnergyPenalty: -nextE,         // 过载：下回合能量惩罚（正数）
-      forgeCount: forge,                 // 锻造：随机升级手中 N 张牌
+      base: inst.base, baseName: b.name, cost, type: b.type, kind: b.kind, limit, score,
+      value, hits, effects, buffs, debuffs, baseText,
+      repeatTimes: 1 + repeatX,
+      windfury,
+      nextEnergyPenalty: 0,
+      forgeCount: forge,
+      erodeCount: erode,
+      name: buffs.map(a => a.name).join('') + b.name + (debuffs.length ? '(' + debuffs.map(a => a.name).join('') + ')' : '') + '+' + limit,
     };
   };
 
+  // ---------- 锻造 ----------
   function weightedPick(pairs) {
     const t = pairs.reduce((s, p) => s + p[1], 0);
     let r = Math.random() * t;
@@ -88,32 +93,64 @@ window.CG = window.CG || {};
   }
   CG.rollAffixLevel = () => weightedPick((CG.CONFIG && CG.CONFIG.upgradeLevelWeights) || [[1, 4], [2, 3], [3, 2]]);
 
-  // 升级一张卡 = 加一个【随机等级】的随机词条（≤3 词条；词条不再被升级）。
-  // opts.level 可指定等级（锻造祭坛固定 3 级）。Run 升级与「锻造」词条共用。
-  CG.upgradeInstance = function (inst, opts) {
-    inst.affixes = inst.affixes || [];
-    const limit = inst.limit == null ? Math.max(1, inst.affixes.length) : inst.limit;
-    if (inst.affixes.length >= limit) return;          // 达到锻造上限：任何方式都无法再锻造
-    const owned = new Set(inst.affixes.map(a => a.id));
-    const pool = CG.AFFIX_ORDER.filter(id => !owned.has(id));
-    if (!pool.length) return;
-    const id = pool[Math.floor(Math.random() * pool.length)];
+  function rollBuff(owned) {                       // 强力 buff 更稀有
+    const pool = CG.BUFF_ORDER.filter(id => !owned.has(id)).map(id => [id, Math.max(1, 8 - CG.AFFIXES[id].score)]);
+    return pool.length ? weightedPick(pool) : null;
+  }
+  function rollDebuff(owned) {                      // 严重 debuff 更稀有
+    const pool = CG.DEBUFF_ORDER.filter(id => !owned.has(id)).map(id => [id, Math.max(1, 6 + CG.AFFIXES[id].score)]);
+    return pool.length ? weightedPick(pool) : null;
+  }
+  CG.rollBuffId = ownedArr => rollBuff(new Set(ownedArr || []));   // 给掉落卡生成用
+
+  CG.buffCount = inst => (inst.affixes || []).filter(a => !CG.isDebuff(a.id)).length;
+  CG.canForge = inst => CG.buffCount(inst) < (inst.limit == null ? Math.max(1, CG.buffCount(inst)) : inst.limit);
+
+  // 生成一次锻造方案 { buff:{id,level}, debuff?:{id,level:1} }（达到上限返回 null）
+  CG.rollForge = function (inst, opts) {
+    if (!CG.canForge(inst)) return null;
+    const ownedB = new Set((inst.affixes || []).filter(a => !CG.isDebuff(a.id)).map(a => a.id));
+    const ownedD = new Set((inst.affixes || []).filter(a => CG.isDebuff(a.id)).map(a => a.id));
+    const buffId = rollBuff(ownedB);
+    if (!buffId) return null;
     let level = (opts && opts.level) || CG.rollAffixLevel();
     if (opts && opts.minLevel && level < opts.minLevel) level = opts.minLevel;   // 幸运脚
-    inst.affixes.push({ id, level });
+    const out = { buff: { id: buffId, level } };
+    const debuffId = rollDebuff(ownedD);
+    if (debuffId) out.debuff = { id: debuffId, level: 1 };
+    return out;
   };
+  // 交互式：二选一（两个方案 buff 不同）
+  CG.forgeChoices = function (inst, opts) {
+    const a = CG.rollForge(inst, opts);
+    if (!a) return null;
+    let b = CG.rollForge(inst, opts), tries = 0;
+    while (b && b.buff.id === a.buff.id && tries++ < 10) b = CG.rollForge(inst, opts);
+    return [a, b].filter(Boolean);
+  };
+  CG.applyForge = function (inst, opt) {
+    if (!opt) return;
+    inst.affixes = inst.affixes || [];
+    inst.affixes.push({ id: opt.buff.id, level: opt.buff.level });
+    if (opt.debuff) inst.affixes.push({ id: opt.debuff.id, level: opt.debuff.level });
+  };
+  // 非交互（临时/批量）：直接随机锻造一次
+  CG.upgradeInstance = function (inst, opts) { CG.applyForge(inst, CG.rollForge(inst, opts)); };
 
-  // 重铸一张卡 = 词条数量不变、全部重掷（随机词条 + 随机等级）
+  // 重铸：buff/debuff 数量不变，全部重掷
   CG.reforgeInstance = function (inst) {
-    const n = (inst.affixes || []).length;
+    const B = CG.buffCount(inst);
+    const D = (inst.affixes || []).length - B;
     inst.affixes = [];
-    for (let i = 0; i < n; i++) CG.upgradeInstance(inst);
+    const ob = new Set(), od = new Set();
+    for (let i = 0; i < B; i++) { const id = rollBuff(ob); if (!id) break; ob.add(id); inst.affixes.push({ id, level: CG.rollAffixLevel() }); }
+    for (let i = 0; i < D; i++) { const id = rollDebuff(od); if (!id) break; od.add(id); inst.affixes.push({ id, level: 1 }); }
   };
 
-  // 一张卡的售价：基础 20 + 每点词条等级 14（已下调）
-  CG.cardPrice = card => 20 + 14 * (card.affixes || []).reduce((s, a) => s + a.level, 0);
+  // 售价：基础 20 + 每点 buff 等级 14（debuff 不计入）
+  CG.cardPrice = card => 20 + 14 * (card.affixes || []).filter(a => !CG.isDebuff(a.id)).reduce((s, a) => s + a.level, 0);
 
-  // 初始牌组：5 打击 + 5 防御（无词条）
+  // 初始牌组：5 打击 + 5 防御（锻造上限 1）
   CG.STARTER_DECK = ['strike', 'strike', 'strike', 'strike', 'strike',
                      'defend', 'defend', 'defend', 'defend', 'defend'];
 })(window.CG);

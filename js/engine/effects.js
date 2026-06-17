@@ -52,6 +52,9 @@ window.CG = window.CG || {};
     frail(game, eff, source, target) {
       game.applyStatus(target, 'frail', eff.value);   // 破碎：目标获得的格挡 -25%
     },
+    selfStatus(game, eff, source) {
+      game.applyStatus(source, eff.status, eff.value); // 减益词条：给自己施加易伤/虚弱/脆弱
+    },
   };
 
   CG.Effects = {

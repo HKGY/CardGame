@@ -117,13 +117,15 @@ window.CG = window.CG || {};
             .replace(/格挡/g, '<span class="kw-block">格挡</span>');
   }
   function cardInner(s) {
-    const name = s.affixes.map(a => `<span class="aff" style="color:${a.color}">${a.name}</span>`).join('')
-               + `<span class="base-name">${s.baseName}</span><span class="card-limit" title="锻造上限">+${s.limit}</span>`;
-    const affixLines = s.affixes.map(a => `<div class="affix-line" style="color:${a.color}">${a.desc}</div>`).join('');
+    const span = a => `<span class="aff" style="color:${a.color}">${a.name}</span>`;
+    const buffNames = s.buffs.map(span).join('');
+    const dbf = s.debuffs.length ? `<span class="dbf-paren">(</span>${s.debuffs.map(span).join('')}<span class="dbf-paren">)</span>` : '';
+    const name = buffNames + `<span class="base-name">${s.baseName}</span>` + dbf + `<span class="card-limit" title="锻造上限">+${s.limit}</span>`;
+    const lines = s.buffs.concat(s.debuffs).map(a => `<div class="affix-line" style="color:${a.color}">${a.desc}</div>`).join('');
     return `<div class="card-cost">${s.cost}</div>
       <div class="card-name">${name}</div>
       <div class="card-type">${TYPE_LABEL[s.type] || s.type}</div>
-      <div class="card-text">${colorKeywords(s.baseText)}${affixLines}</div>`;
+      <div class="card-text">${colorKeywords(s.baseText)}${lines}</div>`;
   }
   function relicIcons(relics) {
     return (relics || []).map(id => { const r = CG.RELICS[id]; return `<span class="relic-icon" title="${r.name}：${r.desc}">${r.icon}</span>`; }).join('');

@@ -84,12 +84,15 @@ window.CG = window.CG || {};
     CODEX_TABS.forEach(t => $('codex-tab-' + t).classList.toggle('active', t === tab));
     let html = '';
     if (tab === 'affix') {
-      html = '<p class="codex-note">2/3 级名字前加「更/最」，数值 ×2 / ×3。</p>' +
-        CG.AFFIX_ORDER.map(id => {
-          const a = CG.AFFIXES[id];
-          return `<div class="codex-item"><span class="codex-name" style="color:${a.color}">${a.name}</span>` +
-                 `<span class="codex-desc">${a.desc(1, 'strike')}</span></div>`;
-        }).join('');
+      const row = id => {
+        const a = CG.AFFIXES[id];
+        return `<div class="codex-item"><span class="codex-name" style="color:${a.color}">${a.name}</span>` +
+               `<span class="codex-tag">${a.score > 0 ? '+' + a.score : a.score}</span>` +
+               `<span class="codex-desc">${a.desc(1, 'strike')}</span></div>`;
+      };
+      html = '<p class="codex-note">锻造一次 = 一个随机等级增益 + 一个 1 级减益（2/3 级前加「更/最」、数值 ×2/×3）。</p>' +
+        '<div class="codex-sub">增益（正分）</div>' + CG.BUFF_ORDER.map(row).join('') +
+        '<div class="codex-sub">减益（负分）</div>' + CG.DEBUFF_ORDER.map(row).join('');
     } else if (tab === 'tarot') {
       html = CG.TAROT_IDS.map(id => {
         const t = CG.TAROT[id];
@@ -251,7 +254,7 @@ window.CG = window.CG || {};
     if (br && !br.disabled) { CG.Audio.play('coin'); return H.onBuyRelic(+br.dataset.buyrelic); }
     const act = ev.target.closest('[data-act]');
     if (!act || act.disabled) return;
-    if (act.dataset.act === 'upgrade') openPicker('选择要升级的卡', uid => H.onBuyUpgrade(uid));
+    if (act.dataset.act === 'upgrade') forgeFlow(false, (uid, opt) => H.onBuyUpgrade(uid, opt));
     else if (act.dataset.act === 'remove') openPicker('选择要删除的卡', uid => H.onBuyRemove(uid));
     else if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onBuyHeal(); }
     else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveShop(); }
@@ -275,7 +278,7 @@ window.CG = window.CG || {};
     const act = ev.target.closest('[data-act]');
     if (!act) return;
     if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onRestHeal(); }
-    else if (act.dataset.act === 'upgrade') openPicker('选择要升级的卡', uid => H.onRestUpgrade(uid));
+    else if (act.dataset.act === 'upgrade') forgeFlow(false, (uid, opt) => H.onRestUpgrade(uid, opt));
   }
 
   // ---------- 事件（祭坛） ----------
@@ -296,8 +299,9 @@ window.CG = window.CG || {};
     const act = ev.target.closest('[data-act]');
     if (!act) return;
     if (act.dataset.act === 'use') {
-      const a = CG.ALTARS[H.getRun().pending.altar];
-      openPicker(a.name + '：选择一张牌', uid => H.onUseAltar(uid));
+      const id = H.getRun().pending.altar, a = CG.ALTARS[id];
+      if (id === 'upgrade' || id === 'forge') forgeFlow(id === 'forge', (uid, opt) => H.onUseAltar(uid, opt));
+      else openPicker(a.name + '：选择一张牌', uid => H.onUseAltar(uid));
     } else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveEvent(); }
   }
 
@@ -340,6 +344,24 @@ window.CG = window.CG || {};
     $('choice-modal').classList.remove('hidden');
   }
   function closeChoice() { $('choice-modal').classList.add('hidden'); chooseState = null; }
+
+  // 锻造：先选一张可锻造的牌，再二选一（buff+debuff）
+  function forgeFlow(level3, applyFn) {
+    const run = H.getRun();
+    const forgeable = run.deck.filter(c => CG.canForge(c));
+    openPicker('选择要锻造的卡', uid => {
+      const card = run.deck.find(c => c.uid === uid);
+      const opts = CG.forgeChoices(card, { level: level3 ? 3 : undefined, minLevel: run.forgeMinLevel() });
+      if (!opts) { applyFn(uid, null); return; }
+      choose('锻造 · 二选一', opts.map((o, i) => ({ label: forgeOptHtml(o, card.base), value: i })), v => applyFn(uid, opts[v]));
+    }, forgeable);
+  }
+  function forgeOptHtml(o, base) {
+    const b = CG.AFFIXES[o.buff.id];
+    let h = `<div class="forge-opt"><span class="forge-buff" style="color:${b.color}">＋ ${CG.affixDisplayName(o.buff.id, o.buff.level)}</span><small>${b.desc(o.buff.level, base)}</small>`;
+    if (o.debuff) { const d = CG.AFFIXES[o.debuff.id]; h += `<span class="forge-dbf" style="color:${d.color}">－ ${CG.affixDisplayName(o.debuff.id, o.debuff.level)}</span><small>${d.desc(o.debuff.level, base)}</small>`; }
+    return h + '</div>';
+  }
 
   // ---------- 牌库查看（顶栏） ----------
   function openDeckView() {

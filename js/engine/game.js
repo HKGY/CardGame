@@ -20,7 +20,7 @@ window.CG = window.CG || {};
 
   // 克隆一张卡（连词条）——战斗用副本，锻造/洗牌都不影响跑图原牌组
   function cloneCard(c) {
-    return { uid: c.uid, base: c.base, affixes: (c.affixes || []).map(a => ({ id: a.id, level: a.level })) };
+    return { uid: c.uid, base: c.base, limit: c.limit, affixes: (c.affixes || []).map(a => ({ id: a.id, level: a.level })) };
   }
 
   function shuffle(arr) {
@@ -204,11 +204,20 @@ window.CG = window.CG || {};
       // 过载：累计下回合能量惩罚
       if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
 
-      // 锻造：随机升级手中若干张牌（作用于本场克隆副本）
+      // 锻造：随机锻造手中若干张牌（作用于本场克隆副本，加 buff+debuff）
       if (s.forgeCount) {
         const pool = [...this.hand];
         for (let i = 0; i < s.forgeCount && pool.length; i++)
           CG.upgradeInstance(pool.splice(Math.floor(Math.random() * pool.length), 1)[0], { minLevel: this.forgeMinLevel });
+      }
+      // 侵蚀：随机降级手中若干张牌（移除一个随机词条）
+      if (s.erodeCount) {
+        for (let i = 0; i < s.erodeCount; i++) {
+          const pool = this.hand.filter(c => (c.affixes || []).length);
+          if (!pool.length) break;
+          const c = pool[Math.floor(Math.random() * pool.length)];
+          c.affixes.splice(Math.floor(Math.random() * c.affixes.length), 1);
+        }
       }
 
       // 风怒：本回合前 N 次打出后回到手牌，否则进弃牌堆
