@@ -5,7 +5,7 @@
 
 ## 运行
 
-直接用浏览器打开 `index.html`。或起本地静态服务器：
+直接用浏览器打开 `index.html`（已做**移动端响应式适配**，手机竖屏可玩）。或起本地静态服务器：
 
 ```bash
 cd cardgame && python3 -m http.server 8000   # 然后访问 http://localhost:8000
