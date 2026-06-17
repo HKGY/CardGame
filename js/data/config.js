@@ -44,5 +44,6 @@ CG.CONFIG = {
     cardCount: 3, upgradePrice: 50, healPrice: 25, healPct: 0.25,
     tarotCount: 2, tarotPrice: 45,        // 出售塔罗牌
     removeBase: 40, removeStep: 25,       // 删牌：每买一次，下次永久 +25
+    exorciseBase: 30, exorciseStep: 20,   // 驱魔：移除一张卡的全部减益，每买一次下次永久 +20
   },
 };

@@ -29,7 +29,7 @@ window.CG = window.CG || {};
     // —— 借鉴《炉石传说》《宝可梦》——
     lifesteal:  { name: '吸血', color: '#cf4f6a', score: 5, lifesteal: 0.5, damageOnly: true, desc: n => `吸血 ${50 * n}%`, long: n => `对敌人造成伤害的 ${50 * n}% 转化为治疗` },
     poison:     { name: '淬毒', color: '#8ab84a', score: 4, apply: { poison: 1 },  desc: n => `中毒 ${n}`, long: n => `给敌人 ${n} 层中毒（每回合受等量伤害，逐回合 -1）` },
-    freeze:     { name: '冰封', color: '#6cc6e0', score: 4, apply: { frozen: 1 },  desc: () => `冰冻 1 回合`, long: () => `冰冻敌人跳过其下一次行动（每场战斗仅第一次打出生效）` },
+    freeze:     { name: '冰封', color: '#6cc6e0', score: 3, apply: { frozen: 1 },  desc: () => `冰冻 1 回合`, long: () => `冰冻敌人跳过其下一次行动（每场战斗仅第一次打出生效）` },
     silence:    { name: '沉默', color: '#aab0c4', score: 4, silence: 1,            desc: n => `力量归零 -${n}`, long: n => `移除敌人当前力量，并使其力量 -${n}（永久）` },
     recover:    { name: '回春', color: '#e89ab8', score: 3, heal: 4,    desc: n => `回复 ${4 * n}` },
     thrift:     { name: '速记', color: '#bcd17a', score: 5, cost: -1,   desc: n => `耗能 -${n}` },
@@ -46,7 +46,7 @@ window.CG = window.CG || {};
     erode:  { name: '侵蚀', color: '#b06a8a', score: -4, debuff: true, erode: 1,       desc: n => `降级手牌 ${n}`, long: n => `随机降级手中 ${n} 张牌` },
     cumbersome: { name: '笨重', color: '#9a8a6a', score: -3, debuff: true, cost: 1,        desc: n => `耗能 +${n}` },
     recoil:     { name: '反噬', color: '#b5616a', score: -3, debuff: true, hpLoss: 2,      desc: n => `失去 ${2 * n} HP` },
-    destroy:    { name: '销毁', color: '#c75450', score: -3, debuff: true, exhaust: 1,     desc: () => `打出后销毁`, long: () => `打出后本场战斗移除（进入消耗堆）` },
+    destroy:    { name: '销毁', color: '#c75450', score: -4, debuff: true, exhaust: 1,     desc: () => `打出后销毁`, long: () => `打出后本场战斗移除（进入消耗堆）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);

@@ -97,9 +97,10 @@ window.CG = window.CG || {};
       owned.push(id);
       affixes.push({ id, level: weighted(cfg.levelW) });
     }
-    const buffN = affixes.length;               // 奖励卡也带 debuff：每个 buff 配 1 个 1 级 debuff
+    const buffN = affixes.length;               // 奖励卡带 debuff：至少 1 个、多 buff 卡 = buff 数 - 1（可驱魔清除）
+    const debuffN = Math.max(1, buffN - 1);
     const ownedD = [];
-    for (let i = 0; i < buffN; i++) {
+    for (let i = 0; i < debuffN; i++) {
       const id = CG.rollDebuffId(ownedD);
       if (!id) break;
       ownedD.push(id);
@@ -328,6 +329,17 @@ window.CG = window.CG || {};
       this.gold -= this.removePrice();
       this.removeCount = (this.removeCount || 0) + 1;
       this.deck = this.deck.filter(c => c.uid !== uid);
+      this._emit();
+    }
+    exorcisePrice() { return Math.floor((C().shop.exorciseBase + C().shop.exorciseStep * (this.exorciseCount || 0)) * this.shopMult()); }
+    canExorcise() { return this.deck.some(c => (c.affixes || []).some(a => CG.isDebuff(a.id))); }   // 牌组中有带减益的卡
+    buyExorcise(uid) {                                    // 商店驱魔：移除一张卡的全部减益，价格逐次永久提高
+      const card = this.deck.find(c => c.uid === uid);
+      if (!card || this.gold < this.exorcisePrice()) return;
+      if (!(card.affixes || []).some(a => CG.isDebuff(a.id))) return;   // 无减益不可驱魔
+      this.gold -= this.exorcisePrice();
+      this.exorciseCount = (this.exorciseCount || 0) + 1;
+      card.affixes = (card.affixes || []).filter(a => !CG.isDebuff(a.id));
       this._emit();
     }
     leaveShop() { this.pending = null; this._advance(); }

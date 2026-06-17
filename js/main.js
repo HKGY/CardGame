@@ -124,6 +124,7 @@ window.CG = window.CG || {};
       onBuyRelic:     i => run.buyRelic(i),
       onBuyUpgrade:   (uid, opt) => run.buyUpgrade(uid, opt),
       onBuyRemove:    uid => run.buyRemove(uid),
+      onBuyExorcise:  uid => run.buyExorcise(uid),
       onBuyHeal:      () => run.buyHeal(),
       onLeaveShop:    () => run.leaveShop(),
       onRestart:      () => newRun(),

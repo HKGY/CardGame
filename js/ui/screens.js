@@ -233,7 +233,7 @@ window.CG = window.CG || {};
       </div>`;
     }).join('');
     const healAmt = Math.ceil(run.maxHp * cfg.healPct);
-    const rmPrice = run.removePrice(), upPrice = run.upgradeCost(), hlPrice = run.healCost();
+    const rmPrice = run.removePrice(), upPrice = run.upgradeCost(), hlPrice = run.healCost(), exPrice = run.exorcisePrice();
     $('screen-shop').innerHTML = `
       <div class="panel">
         <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span></h2>
@@ -241,6 +241,7 @@ window.CG = window.CG || {};
         <div class="shop-services">
           <button class="big-btn" data-act="upgrade" ${run.gold < upPrice ? 'disabled' : ''}>升级一张卡（💰 ${upPrice}）</button>
           <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
+          <button class="big-btn" data-act="exorcise" ${(run.gold < exPrice || !run.canExorcise()) ? 'disabled' : ''}>驱魔·净化减益（💰 ${exPrice}）</button>
           <button class="big-btn" data-act="heal" ${(run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>治疗 +${healAmt}（💰 ${hlPrice}）</button>
           <button class="big-btn leave" data-act="leave">离开</button>
         </div>
@@ -257,6 +258,7 @@ window.CG = window.CG || {};
     if (!act || act.disabled) return;
     if (act.dataset.act === 'upgrade') forgeFlow(false, (uid, opt) => H.onBuyUpgrade(uid, opt));
     else if (act.dataset.act === 'remove') openPicker('选择要删除的卡', uid => H.onBuyRemove(uid));
+    else if (act.dataset.act === 'exorcise') openPicker('选择要驱魔的卡（移除全部减益）', uid => H.onBuyExorcise(uid), H.getRun().deck.filter(c => (c.affixes || []).some(a => CG.isDebuff(a.id))));
     else if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onBuyHeal(); }
     else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveShop(); }
   }
