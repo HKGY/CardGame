@@ -14,8 +14,11 @@ window.CG = window.CG || {};
   CG.nextUid = () => ++_uid;
 
   CG.BASE_CARDS = {
-    strike: { name: '打击', cost: 1, type: 'attack', kind: 'damage', base: 6 },
-    defend: { name: '防御', cost: 1, type: 'skill',  kind: 'block',  base: 5 },
+    strike:     { name: '打击', cost: 1, type: 'attack', kind: 'damage',   base: 6 },
+    defend:     { name: '防御', cost: 1, type: 'skill',  kind: 'block',    base: 5 },
+    shieldbash: { name: '盾击', cost: 1, type: 'attack', kind: 'damage',   base: 3, block: 2 },  // 盾兵专属：造成伤害并获得格挡
+    heal:       { name: '治疗', cost: 1, type: 'skill',  kind: 'heal',     base: 2 },             // 牧师：回复生命
+    pray:       { name: '祈祷', cost: 1, type: 'power',  kind: 'randbuff', base: 1 },             // 牧师：获得随机增益
   };
 
   CG.makeCard = (base, affixes = [], limit) =>
@@ -34,7 +37,7 @@ window.CG = window.CG || {};
 
     let valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0, energy = 0,
         drawN = 0, forge = 0, erode = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
-        costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, exhaust = false;
+        costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false;
     const statuses = {}, selfStatuses = {};
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
@@ -57,6 +60,7 @@ window.CG = window.CG || {};
       if (d.heal)      healAmt += d.heal * L;          // 回春
       if (d.lifesteal) lifesteal += d.lifesteal * L;   // 吸血
       if (d.silence)   silenceLv = L;                  // 沉默：按等级削减敌人力量
+      if (d.pierce)    pierceN  += d.pierce * L;        // 穿刺：额外命中右侧敌人
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -69,7 +73,9 @@ window.CG = window.CG || {};
     const limit = inst.limit == null ? Math.max(1, buffs.length) : inst.limit;
 
     // 结算效果
-    const effects = [{ type: b.kind === 'damage' ? 'damage' : 'block', value, hits }];
+    const KIND_TYPE = { damage: 'damage', block: 'block', heal: 'heal', randbuff: 'randbuff' };
+    const effects = [{ type: KIND_TYPE[b.kind] || 'block', value, hits }];
+    if (b.block) effects.push({ type: 'block', value: b.block });   // 盾击：附带固定格挡
     for (const k in statuses) effects.push({ type: k, value: statuses[k] });               // 给敌人
     for (const k in selfStatuses) effects.push({ type: 'selfStatus', status: k, value: selfStatuses[k] });
     if (energy)  effects.push({ type: 'energy', value: energy });
@@ -82,13 +88,18 @@ window.CG = window.CG || {};
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
 
-    const baseText = (b.kind === 'damage' ? `造成 ${value} 点伤害` : `获得 ${value} 点格挡`) + (hits > 1 ? ` ×${hits}` : '') + '。';
+    const baseText = ({
+      damage:   `造成 ${value} 点伤害`,
+      block:    `获得 ${value} 点格挡`,
+      heal:     `回复 ${value} 点生命`,
+      randbuff: `获得 ${value} 层随机增益`,
+    }[b.kind] || `获得 ${value} 点格挡`) + (hits > 1 ? ` ×${hits}` : '') + (b.block ? `，获得 ${b.block} 点格挡` : '') + '。';
 
     return {
       base: inst.base, baseName: b.name, cost, type: b.type, kind: b.kind, limit, score,
       value, hits, effects, buffs, debuffs, baseText,
       repeatTimes: 1 + repeatX,
-      windfury, lifesteal, exhaust,
+      windfury, lifesteal, exhaust, pierce: pierceN,
       nextEnergyPenalty: -nextE,
       forgeCount: forge,
       erodeCount: erode,
@@ -168,4 +179,22 @@ window.CG = window.CG || {};
   // 初始牌组：5 打击 + 5 防御（锻造上限 1）
   CG.STARTER_DECK = ['strike', 'strike', 'strike', 'strike', 'strike',
                      'defend', 'defend', 'defend', 'defend', 'defend'];
+
+  // ---------- 职业 / 初始牌组 ----------
+  CG.CLASS_IDS = ['warrior', 'shield', 'priest'];
+  CG.CLASSES = {
+    warrior: { name: '战士', icon: '⚔️', desc: '5 打击 + 5 防御，各有一张附带随机增益；攻守均衡。', shopCard: 'defend' },
+    shield:  { name: '盾兵', icon: '🛡️', desc: '4 打击 + 4 防御 + 2 盾击（造成 3 伤害并获得 2 格挡）。', shopCard: 'shieldbash' },
+    priest:  { name: '牧师', icon: '✚',  desc: '3 打击 + 3 防御 + 2 治疗（回复 2）+ 2 祈祷（获得随机增益）。', shopCard: 'pray' },
+  };
+  // 按职业构建初始牌组（所有初始牌锻造上限 +1）
+  CG.buildDeck = function (cls) {
+    const mk = (base, affixes) => CG.makeCard(base, affixes || [], 1);
+    const rb = base => { const id = CG.rollBuffId([], base); return id ? [{ id, level: 1 }] : []; };
+    const rep = (base, n) => Array.from({ length: n }, () => mk(base));
+    if (cls === 'shield') return [...rep('strike', 4), ...rep('defend', 4), ...rep('shieldbash', 2)];
+    if (cls === 'priest') return [...rep('strike', 3), ...rep('defend', 3), ...rep('heal', 2), ...rep('pray', 2)];
+    // warrior（默认）：5 打击 + 5 防御，各一张带随机增益
+    return [mk('strike', rb('strike')), ...rep('strike', 4), mk('defend', rb('defend')), ...rep('defend', 4)];
+  };
 })(window.CG);

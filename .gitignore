@@ -14,3 +14,7 @@ dist/
 
 # 美术原始素材暂存（已抠图分类进 assets/，原图作本地备份不入库）
 tmp/
+
+# 临时任务清单（本地）
+todoList.md
+todolist.md

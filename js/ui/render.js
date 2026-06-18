@@ -50,10 +50,30 @@ window.CG = window.CG || {};
       <path d="M50 18 V45 M39 30 H61" stroke="#f0c040" stroke-width="3.2" stroke-linecap="round"/>
       <path d="M30 15 L41 12" stroke="#ffffff" stroke-width="2.2" opacity=".5" stroke-linecap="round"/>
     </svg>`,
+    heal: `<svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid meet" class="art">
+      <circle cx="50" cy="64" r="44" fill="#2fa05a" opacity=".30"/><circle cx="50" cy="64" r="30" fill="#3fbf6e" opacity=".22"/>
+      <rect x="40" y="30" width="20" height="68" rx="6" fill="#8af0b0" stroke="#2f8f50" stroke-width="3"/>
+      <rect x="20" y="54" width="60" height="20" rx="6" fill="#8af0b0" stroke="#2f8f50" stroke-width="3"/>
+      <circle cx="26" cy="106" r="3" fill="#bff5d2"/><circle cx="76" cy="100" r="2.5" fill="#bff5d2"/>
+    </svg>`,
+    pray: `<svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid meet" class="art">
+      <g stroke="#f0d36a" stroke-width="3" opacity=".5" stroke-linecap="round">
+        <line x1="50" y1="22" x2="50" y2="4"/><line x1="50" y1="22" x2="28" y2="9"/><line x1="50" y1="22" x2="72" y2="9"/><line x1="50" y1="22" x2="18" y2="26"/><line x1="50" y1="22" x2="82" y2="26"/></g>
+      <polygon points="50,16 57,41 83,41 62,56 70,82 50,66 30,82 38,56 17,41 43,41" fill="#f3da72" stroke="#b8901e" stroke-width="2"/>
+      <path d="M37 90 q13 -11 26 0 l-5 34 q-8 6 -16 0z" fill="#cfd6ea" stroke="#8a93b0" stroke-width="2"/>
+    </svg>`,
   };
   const CARD_ART_FALLBACK = `<svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" class="art">
     <path d="M50 12 l7 18 19 1 -15 12 6 19 -17 -11 -17 11 6 -19 -15 -12 19 -1z" fill="#7a83a8" opacity=".85"/></svg>`;
-  CG.CardArt = { get: base => CARD_ART[base] || CARD_ART_FALLBACK };
+  const CARD_ART_IMG = { strike: 'assets/cardart/strike.png', defend: 'assets/cardart/defend.png' };
+  const ART_V = 'v33';
+  function getArt(base) {
+    if (base === 'shieldbash')   // 盾兵：盾 + 剑 组合贴图
+      return `<span class="art art-combo"><img class="combo-shield" alt="" src="assets/cardart/defend.png?${ART_V}"><img class="combo-sword" alt="" src="assets/cardart/strike.png?${ART_V}"></span>`;
+    if (CARD_ART_IMG[base]) return `<img class="art" alt="" src="${CARD_ART_IMG[base]}?${ART_V}">`;
+    return CARD_ART[base] || CARD_ART_FALLBACK;
+  }
+  CG.CardArt = { get: getArt };
 
   // ---------- 卡牌飞行动画（抽牌 / 弃牌 / 消耗 / 洗牌） ----------
   const REDUCE = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -89,7 +109,7 @@ window.CG = window.CG || {};
     el.animate([
       { transform: `translate(${a.x - b.x}px, ${a.y - b.y}px) scale(.5) rotate(-14deg)`, opacity: 0 },
       { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 }
-    ], { duration: 320, delay: delay || 0, easing: 'cubic-bezier(.2,.7,.3,1)' });
+    ], { duration: 320, delay: delay || 0, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'backwards' });
   }
   function shuffleFx() {                              // 洗牌：几张牌背从弃牌堆弧线飞回抽牌堆
     const dr = pileRect('draw-pile'), di = pileRect('discard-pile');
@@ -148,6 +168,14 @@ window.CG = window.CG || {};
       CG.Audio.play('select');
       handlers.onUseTarot(Number(b.dataset.ti));
     });
+
+    // 点击敌人 -> 设为当前攻击目标
+    $('enemy-group').addEventListener('click', ev => {
+      const est = ev.target.closest('.estage');
+      if (!est || est.classList.contains('dead') || !current || !current.setTarget) return;
+      CG.Audio.play('select');
+      current.setTarget(Number(est.dataset.ei));
+    });
   }
 
   // 塔罗消耗栏（战斗 / 地图通用）。context:'battle'|'map'；active:当前是否可操作
@@ -192,8 +220,10 @@ window.CG = window.CG || {};
     fxTimer = setTimeout(drainFx, 230);
   }
   function playFx(type, payload) {
-    const sprite = $(payload.side + '-sprite');
-    const stage = $(payload.side + '-stage');
+    const isP = payload.side === 'player';
+    const sprite = isP ? $('player-sprite') : $('enemy-sprite-' + payload.ei);
+    const stage = isP ? $('player-stage') : $('enemy-stage-' + payload.ei);
+    if (!sprite || !stage) return;
     if (type === 'attack') {
       animate(sprite, 'attacking', 320);
       CG.Audio.play('swing');
@@ -233,12 +263,15 @@ window.CG = window.CG || {};
     const buffNames = s.buffs.map(span).join('');
     const dbf = s.debuffs.length ? `<span class="dbf-paren">(</span>${s.debuffs.map(span).join('')}<span class="dbf-paren">)</span>` : '';
     const name = buffNames + `<span class="base-name">${s.baseName}</span>` + dbf + `<span class="card-limit" title="锻造上限">+${s.limit}</span>`;
-    const lines = s.buffs.concat(s.debuffs).map(a => `<div class="affix-line" style="color:${a.color}">${a.desc}</div>`).join('');
+    // 词条说明并入一段（颜色区分各词条），避免数量多时撑破卡面
+    const affs = s.buffs.concat(s.debuffs);
+    const lines = affs.length
+      ? '<div class="affix-lines">' + affs.map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>') + '</div>'
+      : '';
     return `<div class="card-cost">${s.cost}</div>
       <div class="card-art">${CG.CardArt.get(s.base)}</div>
       <div class="card-body">
         <div class="card-name">${name}</div>
-        <div class="card-type">${TYPE_LABEL[s.type] || s.type}</div>
         <div class="card-text">${colorKeywords(s.baseText)}${lines}</div>
       </div>`;
   }
@@ -281,9 +314,10 @@ window.CG = window.CG || {};
       return `<span class="badge ${m.cls}">${m.label} ${s[k]}</span>`;
     }).join('');
   }
-  function intentHTML(game) {
-    if (game.enemy.statuses.frozen) return `<div class="intent intent-buff">❄️ 冰冻 ${game.enemy.statuses.frozen}</div>`;
-    const p = game.intentPreview();
+  function intentHTML(game, e) {
+    e = e || game.enemy;
+    if (e.statuses.frozen) return `<div class="intent intent-buff">❄️ 冰冻 ${e.statuses.frozen}</div>`;
+    const p = game.intentPreview(e);
     if (!p) return '';
     const parts = [];
     if (p.damage != null) parts.push(`<span class="intent-attack">⚔️ ${p.damage}${p.hits > 1 ? '×' + p.hits : ''}</span>`);
@@ -292,23 +326,55 @@ window.CG = window.CG || {};
     return `<div class="intent" title="${p.name}">意图 ${parts.join(' ')}</div>`;
   }
 
+  // 敌人组：精灵 DOM 持久（否则每帧重建会清掉正在播放的受击动画），每次只刷新头顶信息框 / 目标高亮
+  function tierClass(t) { return t === 'boss' ? 'tier-boss' : (t === 'elite' ? 'tier-elite' : 'tier-normal'); }
+  const HUMANOID = new Set(['cultist', 'berserker', 'nob', 'chrono']);   // 人型敌人 -> 接近主角大小
+  let enemyBuilt = 0;
+  function buildEnemies(game) {
+    $('enemy-group').innerHTML = game.enemies.map((e, k) =>
+      `<div class="estage" data-ei="${k}">
+        <div class="einfo" id="enemy-info-${k}"></div>
+        <div class="stage" id="enemy-stage-${k}"><div class="sprite" id="enemy-sprite-${k}">${CG.Sprites.get(e.def.sprite || 'blob')}</div></div>
+      </div>`).join('');
+    enemyBuilt = game.enemies.length;
+  }
+  function renderEnemies(game) {
+    const eg = $('enemy-group');
+    if (!eg) return;
+    if (enemyBuilt !== game.enemies.length) buildEnemies(game);
+    const tcls = tierClass(game.tier);
+    game.enemies.forEach((e, k) => {
+      const est = eg.children[k];
+      if (!est) return;
+      const dead = !e.alive || e.hp <= 0;
+      const targeted = !dead && k === game.target;
+      est.className = 'estage ' + tcls + (HUMANOID.has(e.def.sprite) ? ' humanoid' : '') + (targeted ? ' targeted' : '') + (dead ? ' dead' : '');
+      const key = 'enemy' + k, newPct = Math.max(0, (e.hp / e.maxHp) * 100);
+      const oldPct = lastHp[key] == null ? newPct : lastHp[key];
+      $('enemy-info-' + k).innerHTML =
+        `<div class="unit enemy">
+          <div class="unit-top"><span class="unit-name">${e.name}</span>${dead ? '' : intentHTML(game, e)}</div>
+          <div class="hpbar"><div class="hpfill" id="${key}-hpfill" style="width:${oldPct}%"></div><span class="hptext">${Math.max(0, e.hp)} / ${e.maxHp}</span></div>
+          <div class="badges">${blockBadge(e.block)}${statusBadges(e.statuses)}</div>
+        </div>`;
+      const fill = $(key + '-hpfill');
+      if (fill && fill.style) { void fill.offsetWidth; fill.style.width = newPct + '%'; }
+      lastHp[key] = newPct;
+    });
+  }
+
   // ---------- 主渲染 ----------
   function render(game) {
-    const freshGame = current !== game;        // 新一场战斗：重置手牌动画基准
+    const freshGame = current !== game;        // 新一场战斗：重置手牌与血条动画基准
     current = game;
-    if (freshGame) { prevHand = []; prevLogLen = (game.log || []).length; }
-    const p = game.player, e = game.enemy;
+    if (freshGame) { prevHand = []; prevLogLen = (game.log || []).length; lastHp = {}; enemyBuilt = 0; }
+    const p = game.player;
 
-    if (enemySpriteId !== e.def.id) {
-      $('enemy-sprite').innerHTML = CG.Sprites.get(e.def.sprite || 'blob');
-      enemySpriteId = e.def.id;
-      lastHp = {};                       // 换敌人时重置血条动画基准，避免跨场跳动
-    }
+    renderEnemies(game);
 
     const incoming = game.playerIncomingDamage();   // 本回合预计净伤害（随格挡实时变化）
     const incBadge = incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '';
-    renderUnit('enemy', e, e.name, intentHTML(game));
-    renderUnit('player', p, '你', `<span class="turn-tag">第 ${game.turn} 回合</span>`, incBadge);
+    renderUnit('player', p, '你', '', incBadge);
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());
     $('battle-relics').innerHTML = relicIcons(game.relics);
@@ -330,7 +396,9 @@ window.CG = window.CG || {};
     prevLogLen = logs.length;
     prevHand = newUids;
 
-    $('end-turn').disabled = game.phase !== 'player';
+    const et = $('end-turn');
+    et.textContent = '结束第 ' + game.turn + ' 回合';
+    et.disabled = game.phase !== 'player';
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
   }
 

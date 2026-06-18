@@ -48,14 +48,14 @@ window.CG = window.CG || {};
   }
 
   function startBattle() {
-    const { enemyId } = run.pending;
+    const enemyIds = run.pending.enemyIds || (run.pending.enemyId ? [run.pending.enemyId] : []);
     let hpMult = 1;
     if (run.flags.enemyHpDown && run.current.type !== 'boss') {     // 女祭司：下一个非Boss敌人减血
       hpMult = 1 - run.flags.enemyHpDown;
       run.flags.enemyHpDown = 0;
     }
     battle = new CG.Game({
-      enemyId, deck: run.deck, hp: run.hp, maxHp: run.maxHp,
+      enemyIds, tier: run.pending.tier, deck: run.deck, hp: run.hp, maxHp: run.maxHp,
       tarot: run.tarot, relics: run.relics, run, actScale: CG.CONFIG.actScale[run.act], hpMult,
     });
     battle.onChange(b => CG.UI.render(b));
@@ -75,10 +75,18 @@ window.CG = window.CG || {};
     CG.UI.render(battle);
   }
 
-  function newRun() {
-    run = new CG.Run();
+  function newRun(cls) {
+    run = new CG.Run(cls);
     run.onChange(route);
     route();
+  }
+  // 选择职业（初始牌组）后开始
+  function chooseClassAndStart() {
+    const opts = CG.CLASS_IDS.map(id => {
+      const c = CG.CLASSES[id];
+      return { label: `${c.icon} ${c.name}<br><small>${c.desc}</small>`, value: id };
+    });
+    CG.Screens.choose('选择初始牌组', opts, cls => newRun(cls), false);
   }
 
   // 使用一张塔罗牌（战斗 / 地图通用）
@@ -134,7 +142,7 @@ window.CG = window.CG || {};
     setupMute();
     CG.UI.init(battleHandlers);
     CG.Screens.init({
-      onStart:        () => newRun(),
+      onStart:        () => chooseClassAndStart(),
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
       onTakeTarot:    () => run.takeTarot(),
@@ -151,7 +159,7 @@ window.CG = window.CG || {};
       onBuyExorcise:  uid => run.buyExorcise(uid),
       onBuyHeal:      () => run.buyHeal(),
       onLeaveShop:    () => run.leaveShop(),
-      onRestart:      () => newRun(),
+      onRestart:      () => chooseClassAndStart(),
       getRun:         () => run,
     });
     CG.Screens.showMenu();          // 先进开始菜单，点「开始攀登」再创建跑图

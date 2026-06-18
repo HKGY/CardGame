@@ -32,7 +32,12 @@ window.CG = window.CG || {};
       source.energy += eff.value;             // 明亮：回复能量
     },
     heal(game, eff, source) {
-      source.hp = Math.min(source.maxHp, source.hp + eff.value);
+      if (source === game.player) game.heal(eff.value);            // 玩家：走 game.heal（动画 / 人寿保险）
+      else source.hp = Math.min(source.maxHp, source.hp + eff.value);
+    },
+    randbuff(game, eff, source) {                                  // 祈祷：随机获得一种增益
+      const pool = ['strength', 'dexterity'];
+      game.applyStatus(source, pool[Math.floor(Math.random() * pool.length)], eff.value);
     },
     loseHp(game, eff, source) {
       source.hp = Math.max(0, source.hp - eff.value);  // 腐化：直接失去生命（不经格挡）

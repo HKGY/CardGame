@@ -45,7 +45,7 @@ window.CG = window.CG || {};
     });
     // 三选一弹窗（太阳）
     $('choice-close').addEventListener('click', closeChoice);
-    $('choice-modal').addEventListener('click', e => { if (e.target.id === 'choice-modal') closeChoice(); });
+    $('choice-modal').addEventListener('click', e => { if (e.target.id === 'choice-modal' && chooseState && chooseState.cancelable) closeChoice(); });
     $('choice-options').addEventListener('click', ev => {
       const b = ev.target.closest('[data-ci]');
       if (!b || b.disabled || !chooseState) return;
@@ -245,10 +245,10 @@ window.CG = window.CG || {};
         <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span></h2>
         <div class="shop-cards">${cardItems}${tarotItems}${relicItems}</div>
         <div class="shop-services">
-          <button class="big-btn" data-act="upgrade" ${run.gold < upPrice ? 'disabled' : ''}>升级一张卡（💰 ${upPrice}）</button>
-          <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
-          <button class="big-btn" data-act="exorcise" ${(run.gold < exPrice || !run.canExorcise()) ? 'disabled' : ''}>驱魔·净化减益（💰 ${exPrice}）</button>
-          <button class="big-btn" data-act="heal" ${(run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>治疗 +${healAmt}（💰 ${hlPrice}）</button>
+          <button class="big-btn" data-act="upgrade" ${(run.svcUsed('upgrade') || run.gold < upPrice) ? 'disabled' : ''}>${run.svcUsed('upgrade') ? '已升级一张卡' : `升级一张卡（💰 ${upPrice}）`}</button>
+          <button class="big-btn" data-act="remove" ${(run.svcUsed('remove') || run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>${run.svcUsed('remove') ? '已删除一张卡' : `删除一张卡（💰 ${rmPrice}）`}</button>
+          <button class="big-btn" data-act="exorcise" ${(run.svcUsed('exorcise') || run.gold < exPrice || !run.canExorcise()) ? 'disabled' : ''}>${run.svcUsed('exorcise') ? '已净化一张卡' : `驱魔·净化减益（💰 ${exPrice}）`}</button>
+          <button class="big-btn" data-act="heal" ${(run.svcUsed('heal') || run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>${run.svcUsed('heal') ? '已治疗' : `治疗 +${healAmt}（💰 ${hlPrice}）`}</button>
           <button class="big-btn leave" data-act="leave">离开</button>
         </div>
       </div>`;
@@ -294,12 +294,13 @@ window.CG = window.CG || {};
   function showEvent(run) {
     showScreen('event');
     const a = CG.ALTARS[run.pending.altar];
+    const noTarget = run.pending.altar === 'exorcise' && !run.canExorcise();   // 驱魔祭坛但牌组无减益牌
     $('screen-event').innerHTML = `
       <div class="panel center">
         <h2>${a.icon} ${a.name}</h2>
-        <p class="altar-desc">${a.desc}</p>
+        <p class="altar-desc">${a.desc}${noTarget ? '<br>（牌组中没有带减益的牌可净化）' : ''}</p>
         <div class="event-actions">
-          <button class="big-btn" data-act="use">使用</button>
+          <button class="big-btn" data-act="use" ${noTarget ? 'disabled' : ''}>使用</button>
           <button class="big-btn leave" data-act="leave">离开</button>
         </div>
       </div>`;
@@ -310,6 +311,8 @@ window.CG = window.CG || {};
     if (act.dataset.act === 'use') {
       const id = H.getRun().pending.altar, a = CG.ALTARS[id];
       if (id === 'upgrade' || id === 'forge') forgeFlow(id === 'forge', (uid, opt) => H.onUseAltar(uid, opt));
+      else if (id === 'exorcise') openPicker(a.name + '：选择一张牌（净化全部减益）', uid => H.onUseAltar(uid),
+        H.getRun().deck.filter(c => (c.affixes || []).some(x => CG.isDebuff(x.id))));
       else openPicker(a.name + '：选择一张牌', uid => H.onUseAltar(uid));
     } else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveEvent(); }
   }
@@ -347,11 +350,13 @@ window.CG = window.CG || {};
   function closePicker() { $('picker-modal').classList.add('hidden'); pickerHandler = null; }
   function pickCardList(title, cards, cb) { openPicker(title, cb, cards); }   // 魔术师等：从指定牌堆选
 
-  function choose(title, options, cb) {                                       // 太阳：三选一
+  function choose(title, options, cb, cancelable) {                           // 太阳：三选一 / 锻造：二选一
+    cancelable = cancelable !== false;                                        // 锻造时不可取消，防止反复刷词条
     $('choice-title').textContent = title;
     $('choice-options').innerHTML = options.map((o, i) =>
       `<button class="big-btn" data-ci="${i}" ${o.enabled === false ? 'disabled' : ''}>${o.label}</button>`).join('');
-    chooseState = { options, cb };
+    $('choice-close').style.display = cancelable ? '' : 'none';
+    chooseState = { options, cb, cancelable };
     $('choice-modal').classList.remove('hidden');
   }
   function closeChoice() { $('choice-modal').classList.add('hidden'); chooseState = null; }
@@ -364,7 +369,7 @@ window.CG = window.CG || {};
       const card = run.deck.find(c => c.uid === uid);
       const opts = CG.forgeChoices(card, { level: level3 ? 3 : undefined, minLevel: run.forgeMinLevel() });
       if (!opts) { applyFn(uid, null); return; }
-      choose('锻造 · 二选一', opts.map((o, i) => ({ label: forgeOptHtml(o, card.base), value: i })), v => applyFn(uid, opts[v]));
+      choose('锻造 · 二选一', opts.map((o, i) => ({ label: forgeOptHtml(o, card.base), value: i })), v => applyFn(uid, opts[v]), false);
     }, forgeable);
   }
   function forgeOptHtml(o, base) {

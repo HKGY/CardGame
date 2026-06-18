@@ -58,10 +58,24 @@ window.CG = window.CG || {};
     onEvent(fn) { this.eventListeners.push(fn); return this; }
     _fire(type, payload) { this.eventListeners.forEach(fn => fn(type, payload)); }
     _sideOf(entity) { return entity === this.player ? 'player' : 'enemy'; }
+    _idxOf(entity) { return this.enemies.indexOf(entity); }
+    aliveEnemies() { return this.enemies.filter(e => e.alive && e.hp > 0); }
+    currentTarget() {
+      let e = this.enemies[this.target];
+      if (!e || !e.alive || e.hp <= 0) { e = this.aliveEnemies()[0] || this.enemies[this.target] || this.enemies[0]; this.target = Math.max(0, this.enemies.indexOf(e)); }
+      return e;
+    }
+    setTarget(i) { const e = this.enemies[i]; if (e && e.alive && e.hp > 0) { this.target = i; this.enemy = e; this._emit(); } }
+    _refreshTarget() { this.enemy = this.currentTarget(); }
+    _makeEnemy(id, sc, hpMult) {
+      const def = CG.ENEMIES[id];
+      const ehp = Math.round(def.maxHp * sc.hp * (hpMult || 1));
+      return { def, name: def.name, maxHp: ehp, hp: ehp, block: 0, statuses: {}, history: [], intent: null, dmgScale: sc.dmg, alive: true };
+    }
 
     // 数值膨胀：把敌人招式的伤害/格挡按层数倍率放大
-    _scaleEff(eff) {
-      const sc = this.enemy.dmgScale || 1;
+    _scaleEff(eff, enemy) {
+      const sc = (enemy || this.enemy).dmgScale || 1;
       return (sc !== 1 && (eff.type === 'damage' || eff.type === 'block'))
         ? Object.assign({}, eff, { value: Math.round(eff.value * sc) }) : eff;
     }
@@ -69,11 +83,11 @@ window.CG = window.CG || {};
     // ---- 塔罗牌在战斗中触发的效果 ----
     addTempStrength(n) { this.applyStatus(this.player, 'strength', n); this._tempStrength = (this._tempStrength || 0) + n; this._emit(); }
 
-    damageAll(n) {                              // 死亡：所有人受到 n 点伤害（过格挡）
-      [this.enemy, this.player].forEach(t => {
+    damageAll(n) {                              // 死亡塔罗：所有人受到 n 点伤害（过格挡）
+      [...this.aliveEnemies(), this.player].forEach(t => {
         const beforeHp = t.hp, beforeBlock = t.block;
         this._dealRaw(t, n);
-        this._fire('damage', { side: this._sideOf(t), hpLoss: beforeHp - t.hp, blocked: Math.min(beforeBlock, n) });
+        this._fire('damage', { side: this._sideOf(t), ei: this._idxOf(t), hpLoss: beforeHp - t.hp, blocked: Math.min(beforeBlock, n) });
       });
       this._checkEnd();
       this._emit();
@@ -87,22 +101,22 @@ window.CG = window.CG || {};
     }
 
     restart() {                                 // 愚者：重开本场（保留当前血量，不退道具）
-      const e = this.enemy;
-      e.hp = e.maxHp; e.block = 0; e.statuses = {}; e.history = []; e.intent = null;
+      this.enemies.forEach(e => { e.hp = e.maxHp; e.block = 0; e.statuses = {}; e.history = []; e.intent = null; e.alive = true; });
+      this.target = 0; this.enemy = this.enemies[0];
       this.player.block = 0; this.player.statuses = {};
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
       this.turn = 0; this.phase = 'player';
       this.addLog('重新开始了战斗。');
-      this._chooseEnemyIntent();
+      this.enemies.forEach(e => this._chooseEnemyIntent(e));
       this._startPlayerTurn();
     }
     addLog(msg) { this.log.push(msg); if (this.log.length > 60) this.log.shift(); }
 
-    _startBattle({ enemyId, deck, hp, maxHp, tarot, actScale, hpMult, relics, run }) {
-      const def = CG.ENEMIES[enemyId];
+    _startBattle({ enemyIds, tier, deck, hp, maxHp, tarot, actScale, hpMult, relics, run }) {
       const sc = actScale || { hp: 1, dmg: 1 };
+      this.tier = tier || 'normal';
       this.tarot = tarot || [];                // 与 Run 共享的消耗品栏（同一数组引用）
       this.relics = relics || [];              // 与 Run 共享的遗物（引用）
       this.run = run || null;                  // 反向引用 Run（老虎机/人寿保险等需要）
@@ -118,11 +132,9 @@ window.CG = window.CG || {};
         name: '你', maxHp, hp, block: 0,
         energy: maxEnergy, maxEnergy, statuses: {},
       };
-      const ehp = Math.round(def.maxHp * sc.hp * (hpMult || 1));   // 数值膨胀 + 女祭司减血
-      this.enemy = {
-        def, name: def.name, maxHp: ehp, hp: ehp, block: 0,
-        statuses: {}, history: [], intent: null, dmgScale: sc.dmg,
-      };
+      this.enemies = (enemyIds || []).map(id => this._makeEnemy(id, sc, hpMult));   // 数值膨胀 + 女祭司减血
+      this.target = 0;
+      this.enemy = this.enemies[0];            // this.enemy 始终指向「当前目标」，兼容遗物/塔罗
       this._computeCardMult();                 // 达摩克利斯
       this.drawPile = shuffle(deck.map(cloneCard));  // 克隆副本：洗牌/锻造不影响原牌组
       this.hand = [];
@@ -130,9 +142,9 @@ window.CG = window.CG || {};
       this.exhaustPile = [];
       this.turn = 0;
       this.phase = 'player'; // 'player' | 'enemy' | 'won' | 'lost'
-      this.addLog(`遭遇了 ${this.enemy.name}！`);
+      this.addLog(`遭遇了 ${this.enemies.map(e => e.name).join('、')}！`);
       this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.battleStart) r.battleStart(this); });  // 尖矛/青石…
-      this._chooseEnemyIntent();
+      this.enemies.forEach(e => this._chooseEnemyIntent(e));
       this._startPlayerTurn();
     }
     _computeCardMult() {
@@ -156,7 +168,7 @@ window.CG = window.CG || {};
         const bt = typeof r.blockTurn === 'function' ? r.blockTurn(this) : r.blockTurn;
         if (bt) this.gainBlock(this.player, bt);                          // 永恒之心/铁棒
         if (r.regenTurn) this.heal(r.regenTurn);                          // 再生肿块
-        if (r.turnDamage && this.enemy.hp > 0) this.dealAttackDamage(this.player, this.enemy, r.turnDamage); // 小斯蒂文
+        if (r.turnDamage) { const t = this.currentTarget(); if (t && t.hp > 0) this.dealAttackDamage(this.player, t, r.turnDamage); } // 小斯蒂文
       });
       this._checkEnd();
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
@@ -177,32 +189,35 @@ window.CG = window.CG || {};
 
     runEnemyTurn() {
       if (this.phase !== 'enemy') return;
-      const e = this.enemy;
-      e.block = 0;
-      if (e.statuses.poison) this._dotDamage(e.statuses.poison, false);   // 中毒：持续伤害
-      if (e.statuses.leech) this._dotDamage(e.statuses.leech, true);      // 寄生：持续伤害 + 回血
-      this._checkEnd();
-      if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
-      if (e.statuses.frozen > 0) {                                        // 冰封：跳过行动
-        e.statuses.frozen -= 1;
-        if (e.statuses.frozen <= 0) delete e.statuses.frozen;
-        this.addLog(`${e.name} 被冰冻，无法行动。`);
-      } else {
-        const move = e.intent;
-        this.addLog(`${e.name} 使用了 ${move.name}。`);
-        (move.effects || []).forEach(eff => CG.Effects.apply(this, this._scaleEff(eff), e, this.player));
+      for (const e of this.enemies) {                                    // 每个存活敌人依次行动
+        if (!e.alive || e.hp <= 0) continue;
+        e.block = 0;
+        if (e.statuses.poison) this._dotDamage(e, e.statuses.poison, false);   // 中毒：持续伤害
+        if (e.statuses.leech) this._dotDamage(e, e.statuses.leech, true);      // 寄生：持续伤害 + 回血
+        this._checkEnd();
+        if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
+        if (e.hp <= 0) continue;                                        // 持续伤害致死则不再行动
+        if (e.statuses.frozen > 0) {                                    // 冰封：跳过行动
+          e.statuses.frozen -= 1;
+          if (e.statuses.frozen <= 0) delete e.statuses.frozen;
+          this.addLog(`${e.name} 被冰冻，无法行动。`);
+        } else if (e.intent) {
+          const move = e.intent;
+          this.addLog(`${e.name} 使用了 ${move.name}。`);
+          (move.effects || []).forEach(eff => CG.Effects.apply(this, this._scaleEff(eff, e), e, this.player));
+        }
+        this._tickStatuses(e);
+        this._checkEnd();
+        if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
       }
-      this._tickStatuses(e);
-      this._checkEnd();
-      if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
-      this._chooseEnemyIntent();
+      this.enemies.forEach(e => { if (e.alive && e.hp > 0) this._chooseEnemyIntent(e); });
       this._startPlayerTurn();
     }
-    _dotDamage(n, lifesteal) {                  // 对敌人造成 n 点持续伤害（无视格挡）
-      const before = this.enemy.hp;
-      this.enemy.hp = Math.max(0, this.enemy.hp - n);
-      const lost = before - this.enemy.hp;
-      if (lost > 0) { this._fire('damage', { side: 'enemy', hpLoss: lost, blocked: 0 }); if (lifesteal) this.heal(lost); }
+    _dotDamage(enemy, n, lifesteal) {           // 对某敌人造成 n 点持续伤害（无视格挡）
+      const before = enemy.hp;
+      enemy.hp = Math.max(0, enemy.hp - n);
+      const lost = before - enemy.hp;
+      if (lost > 0) { this._fire('damage', { side: 'enemy', ei: this._idxOf(enemy), hpLoss: lost, blocked: 0 }); if (lifesteal) this.heal(lost); }
     }
 
     // ---------- 玩家操作 ----------
@@ -224,14 +239,21 @@ window.CG = window.CG || {};
       this.hand.splice(idx, 1);
       this.addLog(`你打出了 ${s.name}。`);
 
-      const enemyHpBefore = this.enemy.hp;
+      const target = this.currentTarget();
+      const enemyHpBefore = target.hp;
+      // 穿刺：额外命中当前目标右侧的若干存活敌人（仅伤害类效果）
+      const pierce = s.pierce || 0;
+      const extra = pierce > 0 ? this.enemies.slice(this.target + 1).filter(e => e.alive && e.hp > 0).slice(0, pierce) : [];
       // 重复：整组效果结算 repeatTimes 次
       for (let r = 0; r < s.repeatTimes; r++) {
-        (s.effects || []).forEach(eff => CG.Effects.apply(this, eff, this.player, this.enemy));
-        if (this.player.hp <= 0 || this.enemy.hp <= 0) break;
+        (s.effects || []).forEach(eff => {
+          CG.Effects.apply(this, eff, this.player, target);
+          if (eff.type === 'damage') extra.forEach(t => { if (t.hp > 0) CG.Effects.apply(this, eff, this.player, t); });
+        });
+        if (this.player.hp <= 0 || this.aliveEnemies().length === 0) break;
       }
-      // 吸血：按对敌人造成的伤害回血
-      if (s.lifesteal > 0) { const dealt = enemyHpBefore - this.enemy.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
+      // 吸血：按对主目标造成的伤害回血
+      if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
       // 透支：累计下回合能量惩罚
       if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
 
@@ -253,7 +275,7 @@ window.CG = window.CG || {};
 
       // 风怒：本回合前 N 次打出后回到手牌（销毁优先，不回手）
       let returned = false;
-      if (!s.exhaust && s.windfury > 0 && this.player.hp > 0 && this.enemy.hp > 0 && this.hand.length < HAND_LIMIT) {
+      if (!s.exhaust && s.windfury > 0 && this.player.hp > 0 && this.aliveEnemies().length > 0 && this.hand.length < HAND_LIMIT) {
         this._turnPlays = this._turnPlays || {};
         const cnt = (this._turnPlays[card.uid] || 0) + 1;
         this._turnPlays[card.uid] = cnt;
@@ -300,14 +322,14 @@ window.CG = window.CG || {};
         if (dmg > 0 && this.relics.some(id => CG.RELICS[id].holyMantle) && !this._holyUsed) { dmg = 0; this._holyUsed = true; this.addLog('圣盾披风挡下一击！'); }
       }
 
-      this._fire('attack', { side: this._sideOf(source) });
+      this._fire('attack', { side: this._sideOf(source), ei: this._idxOf(source) });
       const beforeHp = target.hp, beforeBlock = target.block;
       this._dealRaw(target, dmg);
-      this._fire('damage', { side: this._sideOf(target), hpLoss: beforeHp - target.hp, blocked: Math.min(beforeBlock, dmg) });
+      this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: beforeHp - target.hp, blocked: Math.min(beforeBlock, dmg) });
 
-      if (target === this.player) {                                 // 荆棘：敌人攻击你后反伤
+      if (target === this.player && source !== this.player) {       // 荆棘：攻击你的敌人受反伤
         const th = this._relicSum('thorns');
-        if (th > 0 && this.enemy.hp > 0) { const eh = this.enemy.hp, eb = this.enemy.block; this._dealRaw(this.enemy, th); this._fire('damage', { side: 'enemy', hpLoss: eh - this.enemy.hp, blocked: Math.min(eb, th) }); }
+        if (th > 0 && source.hp > 0) { const eh = source.hp, eb = source.block; this._dealRaw(source, th); this._fire('damage', { side: 'enemy', ei: this._idxOf(source), hpLoss: eh - source.hp, blocked: Math.min(eb, th) }); }
       }
     }
 
@@ -356,7 +378,7 @@ window.CG = window.CG || {};
       if (target.statuses.frail) b = Math.floor(b * 0.75);              // 脆弱：获得格挡 -25%
       b = Math.max(0, b);
       target.block += b;
-      if (b > 0) this._fire('gainblock', { side: this._sideOf(target), amount: b });
+      if (b > 0) this._fire('gainblock', { side: this._sideOf(target), ei: this._idxOf(target), amount: b });
     }
 
     applyStatus(target, key, amount) {
@@ -376,7 +398,9 @@ window.CG = window.CG || {};
     }
 
     _checkEnd() {
-      if (this.enemy.hp <= 0) { this.phase = 'won'; this.addLog('胜利！'); return; }
+      this.enemies.forEach(e => { if (e.alive && e.hp <= 0) { e.alive = false; e.block = 0; this.addLog(`${e.name} 被击败了。`); } });
+      this._refreshTarget();
+      if (this.aliveEnemies().length === 0) { this.phase = 'won'; this.addLog('胜利！'); return; }
       if (this.player.hp <= 0) {
         if (this.relics.some(id => CG.RELICS[id].fullRevive) && !this._oneupUsed) {  // 1up：满血复活
           this._oneupUsed = true;
@@ -394,8 +418,8 @@ window.CG = window.CG || {};
       }
     }
 
-    _chooseEnemyIntent() {
-      const e = this.enemy;
+    _chooseEnemyIntent(enemy) {
+      const e = enemy || this.enemy;
       const move = typeof e.def.chooseMove === 'function'
         ? e.def.chooseMove(this, e.history)
         : defaultEnemyAI(e.def.moves, e.history);
@@ -404,36 +428,39 @@ window.CG = window.CG || {};
     }
 
     // 给界面用：把当前敌人意图换算成显示信息（已计入力量 / 虚弱 / 易伤）
-    intentPreview() {
-      const move = this.enemy.intent;
+    intentPreview(enemy) {
+      const e = enemy || this.enemy;
+      const move = e.intent;
       if (!move) return null;
       const info = { intent: move.intent, name: move.name };
-      const sc = this.enemy.dmgScale || 1;
-      const dmg = (move.effects || []).find(e => e.type === 'damage');
+      const sc = e.dmgScale || 1;
+      const dmg = (move.effects || []).find(x => x.type === 'damage');
       if (dmg) {
-        let v = Math.round(dmg.value * sc) + (this.enemy.statuses.strength || 0);
-        if (this.enemy.statuses.weak) v = Math.floor(v * 0.75);
+        let v = Math.round(dmg.value * sc) + (e.statuses.strength || 0);
+        if (e.statuses.weak) v = Math.floor(v * 0.75);
         if (this.player.statuses.vulnerable) v = Math.floor(v * 1.5);
         info.damage = Math.max(0, v);
         info.hits = dmg.hits || 1;
       }
-      const blk = (move.effects || []).find(e => e.type === 'block');
+      const blk = (move.effects || []).find(x => x.type === 'block');
       if (blk) {
-        let bl = Math.round(blk.value * sc) + (this.enemy.statuses.dexterity || 0);
-        if (this.enemy.statuses.frail) bl = Math.floor(bl * 0.75);
+        let bl = Math.round(blk.value * sc) + (e.statuses.dexterity || 0);
+        if (e.statuses.frail) bl = Math.floor(bl * 0.75);
         info.block = bl;
       }
       return info;
     }
 
     // 给界面用：本回合（敌人下一次行动）预计对玩家造成的净伤害（已计入格挡 / 减伤 / 圣盾 / 冰冻）
-    playerIncomingDamage() {
-      if (this.enemy.statuses.frozen) return 0;                 // 敌人将被冰冻跳过
-      const p = this.intentPreview();
-      if (!p || p.damage == null) return 0;
-      const perHit = Math.max(0, p.damage - this._relicSum('flatReduce'));   // 薄饼：每段 -2
-      let raw = perHit * (p.hits || 1);
-      if (raw > 0 && this.relics.some(id => CG.RELICS[id].holyMantle) && !this._holyUsed) raw -= perHit;  // 圣盾挡首段
+    playerIncomingDamage() {                                    // 所有存活敌人本回合预计净伤害合计
+      let raw = 0;
+      for (const e of this.aliveEnemies()) {
+        if (e.statuses.frozen) continue;                        // 该敌人将被冰冻跳过
+        const p = this.intentPreview(e);
+        if (!p || p.damage == null) continue;
+        const perHit = Math.max(0, p.damage - this._relicSum('flatReduce'));   // 薄饼：每段 -2
+        raw += perHit * (p.hits || 1);
+      }
       return Math.max(0, raw - this.player.block);
     }
   }

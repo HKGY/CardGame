@@ -22,6 +22,13 @@ window.CG = window.CG || {};
     const pool = CG.ENEMY_POOLS[tier].filter(id => (CG.ENEMIES[id].acts || [1, 2, 3]).includes(act));
     return pick(pool.length ? pool : CG.ENEMY_POOLS[tier]);
   }
+  function pickEncounter(tier, act) {                                 // 一场战斗的敌人组（数量按 encounter 权重）
+    const w = (C().encounter && C().encounter[tier] && C().encounter[tier][act]) || [[1, 1]];
+    const n = Math.max(1, weighted(w));
+    const ids = [];
+    for (let i = 0; i < n; i++) ids.push(pickEnemy(tier, act));
+    return ids;
+  }
 
   // 事件祭坛
   CG.ALTARS = {
@@ -30,8 +37,9 @@ window.CG = window.CG || {};
     copy:    { name: '复制祭坛', icon: '🪞', desc: '复制一张牌，副本加入牌组。' },
     remove:  { name: '删牌祭坛', icon: '🗑️', desc: '从牌组中移除一张牌。' },
     reforge: { name: '重铸祭坛', icon: '♻️', desc: '重铸一张牌的全部词条（数量不变，重新随机）。' },
+    exorcise:{ name: '驱魔祭坛', icon: '🪬', desc: '净化一张牌的全部减益词条（保留增益）。' },
   };
-  CG.ALTAR_IDS = ['upgrade', 'forge', 'copy', 'remove', 'reforge'];
+  CG.ALTAR_IDS = ['upgrade', 'forge', 'copy', 'remove', 'reforge', 'exorcise'];
 
   // ---------- 地图生成 ----------
   function pickNodeType(r, contentRows) {
@@ -114,13 +122,13 @@ window.CG = window.CG || {};
     for (let i = 0; i < C().reward.count; i++) out.push(rollCard(tier));
     return out;
   }
-  function rollShopStock(mult) {
+  function rollShopStock(mult, shopCard) {
     mult = mult || 1;
-    const cards = [];
-    for (let i = 0; i < C().shop.cardCount; i++) {
-      const c = rollCard(pick(['monster', 'monster', 'elite']));   // 商店以普通货为主，偶有精英货
-      cards.push({ base: c.base, affixes: c.affixes, limit: c.limit, price: Math.floor(CG.cardPrice(c) * mult), bought: false });
-    }
+    // 商店固定出售「打击」+ 该职业专属卡（盾兵→盾击 / 牧师→祈祷 / 战士→防御）
+    const cards = ['strike', shopCard || 'defend'].map(base => {
+      const c = { base, affixes: [], limit: 1 };
+      return { base, affixes: [], limit: 1, price: Math.floor(CG.cardPrice(c) * mult), bought: false };
+    });
     const tarot = [];
     for (let i = 0; i < C().shop.tarotCount; i++)
       tarot.push({ id: pick(CG.TAROT_IDS), price: Math.floor(C().shop.tarotPrice * mult), bought: false });
@@ -128,14 +136,15 @@ window.CG = window.CG || {};
   }
 
   class Run {
-    constructor() {
+    constructor(cls) {
       this.listeners = [];
+      this.cls = CG.CLASSES[cls] ? cls : 'warrior';
       this.maxHp = C().startHp;
       this.hp = this.maxHp;
       this.gold = C().startGold;
       this.act = 1;
       this.maxActs = C().acts;
-      this.deck = CG.STARTER_DECK.map(b => CG.makeCard(b));  // 起始卡锻造上限 1
+      this.deck = CG.buildDeck(this.cls);                   // 按职业构建初始牌组（上限 +1）
       this.tarot = [];                         // 消耗品栏（塔罗牌）
       this.relics = [];                        // 遗物
       this.overheal = 0;                       // 人寿保险的过量治疗池
@@ -193,10 +202,10 @@ window.CG = window.CG || {};
       this.current = node;
       if (node.type === 'monster' || node.type === 'elite' || node.type === 'boss') {
         const tier = node.type === 'monster' ? 'normal' : node.type;
-        this.pending = { tier: node.type, enemyId: pickEnemy(tier, this.act) };
+        this.pending = { tier: node.type, enemyIds: pickEncounter(tier, this.act) };
         this.phase = 'battle';
       } else if (node.type === 'shop') {
-        this.pending = rollShopStock(this.shopMult());
+        this.pending = rollShopStock(this.shopMult(), CG.CLASSES[this.cls].shopCard);
         const avail = CG.RELIC_IDS.filter(id => !this.hasRelic(id));   // 商店遗物（未拥有）
         this.pending.relics = [];
         for (let i = 0; i < C().relic.shopCount && avail.length; i++) {
@@ -228,6 +237,7 @@ window.CG = window.CG || {};
         if (id === 'upgrade' || id === 'forge') { if (option) CG.applyForge(card, option); }
         else if (id === 'copy') this.deck.push(CG.makeCard(card.base, card.affixes, card.limit));
         else if (id === 'reforge') CG.reforgeInstance(card);
+        else if (id === 'exorcise') card.affixes = (card.affixes || []).filter(a => !CG.isDebuff(a.id));
       }
       this._advance();
     }
@@ -298,18 +308,24 @@ window.CG = window.CG || {};
       this.deck.push(CG.makeCard(it.base, it.affixes, it.limit));
       this._emit();
     }
+    // 商店服务（升级/删除/驱魔/治疗）每次进店只可使用一次
+    svcUsed(k) { return !!(this.pending && this.pending.usedSvc && this.pending.usedSvc[k]); }
+    _markSvc(k) { if (this.pending) { this.pending.usedSvc = this.pending.usedSvc || {}; this.pending.usedSvc[k] = true; } }
+
     buyUpgrade(uid, option) {
       const price = this.upgradeCost();
-      if (this.gold < price || !option) return;
+      if (this.svcUsed('upgrade') || this.gold < price || !option) return;
       this.gold -= price;
       this._forge(uid, option);
+      this._markSvc('upgrade');
       this._emit();
     }
     buyHeal() {
       const price = this.healCost();
-      if (this.gold < price || this.hp >= this.maxHp) return;
+      if (this.svcUsed('heal') || this.gold < price || this.hp >= this.maxHp) return;
       this.gold -= price;
       this.gainHp(Math.ceil(this.maxHp * C().shop.healPct));
+      this._markSvc('heal');
       this._emit();
     }
     buyTarot(i) {                                         // 商店买塔罗牌
@@ -325,21 +341,23 @@ window.CG = window.CG || {};
     }
     removePrice() { return Math.floor((C().shop.removeBase + C().shop.removeStep * (this.removeCount || 0)) * this.shopMult()); }
     buyRemove(uid) {                                      // 商店删牌，价格逐次永久提高
-      if (this.gold < this.removePrice() || this.deck.length <= 1) return;
+      if (this.svcUsed('remove') || this.gold < this.removePrice() || this.deck.length <= 1) return;
       this.gold -= this.removePrice();
       this.removeCount = (this.removeCount || 0) + 1;
       this.deck = this.deck.filter(c => c.uid !== uid);
+      this._markSvc('remove');
       this._emit();
     }
     exorcisePrice() { return Math.floor((C().shop.exorciseBase + C().shop.exorciseStep * (this.exorciseCount || 0)) * this.shopMult()); }
     canExorcise() { return this.deck.some(c => (c.affixes || []).some(a => CG.isDebuff(a.id))); }   // 牌组中有带减益的卡
     buyExorcise(uid) {                                    // 商店驱魔：移除一张卡的全部减益，价格逐次永久提高
       const card = this.deck.find(c => c.uid === uid);
-      if (!card || this.gold < this.exorcisePrice()) return;
+      if (this.svcUsed('exorcise') || !card || this.gold < this.exorcisePrice()) return;
       if (!(card.affixes || []).some(a => CG.isDebuff(a.id))) return;   // 无减益不可驱魔
       this.gold -= this.exorcisePrice();
       this.exorciseCount = (this.exorciseCount || 0) + 1;
       card.affixes = (card.affixes || []).filter(a => !CG.isDebuff(a.id));
+      this._markSvc('exorcise');
       this._emit();
     }
     leaveShop() { this.pending = null; this._advance(); }
@@ -348,7 +366,7 @@ window.CG = window.CG || {};
     fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(pick(CG.TAROT_IDS)); }
     gotoActBoss() {                                       // 皇帝：传送到本层 Boss
       this.current = this.map[this.map.length - 1][0];
-      this.pending = { tier: 'boss', enemyId: pickEnemy('boss', this.act) };
+      this.pending = { tier: 'boss', enemyIds: pickEncounter('boss', this.act) };
       this.phase = 'battle';
       this._emit();
     }
