@@ -23,10 +23,18 @@ window.CG = window.CG || {};
     }
   }
 
+  // 当前阶段 -> 背景音乐 key（通关单独一曲；战败暂无 BGM -> 静音）
+  function musicFor() {
+    if (run.phase === 'victory') return 'victory';
+    if (run.phase === 'dead') return 'none';
+    return sceneFor();
+  }
+
   // 按当前阶段切换界面
   function route() {
     CG.Screens.updateHeader(run, run.phase !== 'battle');
     CG.Background.setScene(sceneFor());
+    CG.Music.playScene(musicFor());
     switch (run.phase) {
       case 'battle':   return startBattle();
       case 'map':      return CG.Screens.showMap(run);
@@ -116,12 +124,13 @@ window.CG = window.CG || {};
   function setupMute() {
     const btns = [document.getElementById('mute-btn'), document.getElementById('mute-btn-2')].filter(Boolean);
     const sync = () => btns.forEach(b => (b.textContent = CG.Audio.isMuted() ? '🔇' : '🔊'));
-    btns.forEach(b => b.addEventListener('click', () => { CG.Audio.toggle(); sync(); }));
+    btns.forEach(b => b.addEventListener('click', () => { CG.Audio.toggle(); CG.Music.setMuted(CG.Audio.isMuted()); sync(); }));
     sync();
   }
 
   window.addEventListener('DOMContentLoaded', () => {
     CG.Background.init();
+    CG.Music.init();
     setupMute();
     CG.UI.init(battleHandlers);
     CG.Screens.init({

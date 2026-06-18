@@ -66,7 +66,7 @@ window.CG = window.CG || {};
     $('menu-codex').addEventListener('click', () => openCodex());
   }
 
-  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); showScreen('menu'); }
+  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); CG.Music.playScene('menu'); showScreen('menu'); }
 
   // ---------- 百科大全 ----------
   const CODEX_TABS = ['affix', 'tarot', 'relic', 'enemy'];
@@ -106,11 +106,17 @@ window.CG = window.CG || {};
         return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span><span class="codex-desc">${r.desc}</span></div>`;
       }).join('');
     } else {
-      html = Object.keys(CG.ENEMIES).map(id => {
+      const entry = (sprite, name, tag, hp, body) =>
+        `<div class="codex-enemy"><div class="codex-portrait">${CG.Sprites.get(sprite)}</div>` +
+        `<div class="codex-enemy-info"><div class="codex-enemy-head"><b>${name}</b>` +
+        `<span class="codex-tag">${tag}</span><span class="codex-hp">❤ ${hp}</span></div>${body}</div></div>`;
+      const startHp = (CG.CONFIG && CG.CONFIG.startHp) || 75;
+      const hero = entry('knight', '第一女骑士（你）', '主角', startHp,
+        `<div class="codex-move">王国第一女骑士，为夺取古代遗物登上残响之塔。初始牌组：5 张打击 + 5 张防御。</div>`);
+      html = hero + Object.keys(CG.ENEMIES).map(id => {
         const e = CG.ENEMIES[id];
         const moves = e.moves.map(m => `<div class="codex-move">${m.name}：${moveSummary(m)}</div>`).join('');
-        return `<div class="codex-enemy"><div class="codex-enemy-head"><b>${e.name}</b>` +
-               `<span class="codex-tag">${TIER_LABEL[enemyTier(id)]}</span><span class="codex-hp">❤ ${e.maxHp}</span></div>${moves}</div>`;
+        return entry(e.sprite || 'blob', e.name, TIER_LABEL[enemyTier(id)], e.maxHp, moves);
       }).join('');
     }
     $('codex-body').innerHTML = html;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>残响之塔 · 卡牌爬塔</title>
-  <link rel="stylesheet" href="css/style.css?v=20">
+  <link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body>
   <!-- 内联定位作兜底：即使样式表被浏览器缓存成旧版，画布也不会挤出空白条 -->
@@ -61,29 +61,29 @@
       </div>
 
       <div class="battlefield">
-        <div class="flank flank-left"><div class="info" id="player-info"></div></div>
+        <div class="flank flank-left">
+          <div class="info" id="player-info"></div>
+          <div class="energy" id="energy"></div>
+          <div class="tarot-bar" id="tarot-bar"></div>
+        </div>
         <div class="arena">
           <div class="stage side-player" id="player-stage"><div class="sprite" id="player-sprite"></div></div>
           <div class="versus">VS</div>
           <div class="stage side-enemy" id="enemy-stage"><div class="sprite" id="enemy-sprite"></div></div>
         </div>
-        <div class="flank flank-right"><div class="info" id="enemy-info"></div></div>
+        <div class="flank flank-right">
+          <div class="info" id="enemy-info"></div>
+          <button id="end-turn" class="end-turn">结束回合</button>
+          <div class="log" id="log"></div>
+        </div>
       </div>
 
+      <!-- 卡牌固定在屏幕最下方 -->
       <div class="board">
         <div class="pile" id="draw-pile" title="点击查看抽牌堆"></div>
         <div class="hand" id="hand"></div>
         <div class="pile" id="discard-pile" title="点击查看弃牌堆"></div>
       </div>
-
-      <div class="tarot-bar" id="tarot-bar"></div>
-
-      <div class="controls">
-        <div class="energy" id="energy"></div>
-        <button id="end-turn" class="end-turn">结束回合</button>
-      </div>
-
-      <div class="log" id="log"></div>
     </section>
 
     <!-- ===== 其它屏（内容由 JS 填充） ===== -->
@@ -133,20 +133,21 @@
   </div>
 
   <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
-  <script src="js/data/cards.js?v=20"></script>
-  <script src="js/data/affixes.js?v=20"></script>
-  <script src="js/data/tarot.js?v=20"></script>
-  <script src="js/data/relics.js?v=20"></script>
-  <script src="js/data/config.js?v=20"></script>
-  <script src="js/data/enemies.js?v=20"></script>
-  <script src="js/engine/effects.js?v=20"></script>
-  <script src="js/engine/game.js?v=20"></script>
-  <script src="js/engine/run.js?v=20"></script>
-  <script src="js/ui/sprites.js?v=20"></script>
-  <script src="js/ui/audio.js?v=20"></script>
-  <script src="js/ui/background.js?v=20"></script>
-  <script src="js/ui/render.js?v=20"></script>
-  <script src="js/ui/screens.js?v=20"></script>
-  <script src="js/main.js?v=20"></script>
+  <script src="js/data/cards.js?v=26"></script>
+  <script src="js/data/affixes.js?v=26"></script>
+  <script src="js/data/tarot.js?v=26"></script>
+  <script src="js/data/relics.js?v=26"></script>
+  <script src="js/data/config.js?v=26"></script>
+  <script src="js/data/enemies.js?v=26"></script>
+  <script src="js/engine/effects.js?v=26"></script>
+  <script src="js/engine/game.js?v=26"></script>
+  <script src="js/engine/run.js?v=26"></script>
+  <script src="js/ui/sprites.js?v=26"></script>
+  <script src="js/ui/audio.js?v=26"></script>
+  <script src="js/ui/music.js?v=26"></script>
+  <script src="js/ui/background.js?v=26"></script>
+  <script src="js/ui/render.js?v=26"></script>
+  <script src="js/ui/screens.js?v=26"></script>
+  <script src="js/main.js?v=26"></script>
 </body>
 </html>

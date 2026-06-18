@@ -10,9 +10,8 @@
   --attack: #c0392b;
   --skill: #2e5f8a;
   --power: #b8860b;
-  /* 八角矩形斜面边框默认色：左上高光 / 右下阴影（克制、低对比，避免塑料感） */
-  --oct-hi: #ffffff3a;
-  --oct-lo: #0000004d;
+  /* 控件外观：大圆角 + 较粗白色外边框 + 内圈彩色细描边 */
+  --edge: #eef1f8;     /* 最外圈白边 */
 }
 
 * { box-sizing: border-box; }
@@ -57,37 +56,49 @@ body::before {
 #app { position: relative; z-index: 1; }
 
 /* ===========================================================================
- *  八角矩形通用外观
- *  透明边框 + 双层背景（padding-box 填充 / border-box 斜面渐变）+ clip-path 切角。
- *  135° 渐变让斜面左上高光、右下阴影；drop-shadow 给整体一层渐变投影。
- *  用 :where() 包裹使基础规则零特异度，各组件用普通选择器即可改 --oct-fill / --oct-rim / --cut。
+ *  控件通用外观：大圆角矩形 + 较粗白色外边框 + 内圈彩色细描边 + 柔和投影。
+ *  外边 border = --edge 白边；inset box-shadow = --oct-rim 彩色内圈；填充为轻竖向渐变。
+ *  用 :where() 包裹使基础规则零特异度，各组件用普通选择器即可改
+ *  --oct-fill（填充）/ --oct-rim（内圈色）/ --radius（圆角）/ --ring（内圈粗细）。
  * ======================================================================== */
 :where(
   button:not(.map-node), .big-btn, .menu-story, .panel, .run-header,
   .shop-tarot-face, .card, .unit, .energy, .log, .pile, .modal-box
 ) {
-  --cut: 10px;
-  --bw: 1.5px;
+  --radius: 18px;
+  --bw: 3px;
+  --ring: 2px;
   --oct-fill: var(--panel-2);
   --oct-rim: #4a5172;
-  border: var(--bw) solid transparent !important;
-  border-radius: 0 !important;
-  /* 填充：极轻的竖向渐变（顶亮底暗）让面板有体积但不刺眼；
-     描边：四周同色，仅左上/右下角点微微亮/暗，斜面更内敛。 */
+  /* 外圈较粗白边；内圈一圈彩色细描边（--oct-rim）；轻微竖向渐变填充 + 投影 */
+  border: var(--bw) solid var(--edge) !important;
+  border-radius: var(--radius) !important;
   background:
-    linear-gradient(170deg,
-      color-mix(in srgb, var(--oct-fill) 90%, #ffffff 10%) 0%,
-      var(--oct-fill) 40%,
-      color-mix(in srgb, var(--oct-fill) 93%, #000000 7%) 100%) padding-box,
-    linear-gradient(135deg,
-      var(--oct-hi) 0%, var(--oct-rim) 34%, var(--oct-rim) 66%, var(--oct-lo) 100%) border-box !important;
-  clip-path: polygon(
-    var(--cut) 0, calc(100% - var(--cut)) 0,
-    100% var(--cut), 100% calc(100% - var(--cut)),
-    calc(100% - var(--cut)) 100%, var(--cut) 100%,
-    0 calc(100% - var(--cut)), 0 var(--cut));
-  filter: drop-shadow(0 2px 5px #00000055);
+    linear-gradient(168deg,
+      color-mix(in srgb, var(--oct-fill) 92%, #ffffff 8%) 0%,
+      var(--oct-fill) 46%,
+      color-mix(in srgb, var(--oct-fill) 94%, #000000 6%) 100%) !important;
+  box-shadow: inset 0 0 0 var(--ring) var(--oct-rim), 0 3px 9px #00000055;
 }
+
+/* ===========================================================================
+ *  9-slice 金属花纹边框（assets/ui/frame.png 切 3×3，中央为纯色填充）
+ *  用于较大的面板类控件；透明缝隙由元素自身的深蓝底填充，整体连成花边。
+ * ======================================================================== */
+.panel, .menu-story, .modal-box, .unit, .log, .shop-tarot-face {
+  border-style: solid !important;
+  border-color: transparent !important;
+  border-image: url(../assets/ui/frame.png?v=24) 418 fill stretch !important;
+  border-radius: 0 !important;
+  background: #161e2f !important;
+  box-shadow: 0 4px 12px #00000066 !important;
+}
+.panel       { border-width: 40px !important; }
+.menu-story  { border-width: 34px !important; }
+.modal-box   { border-width: 36px !important; }
+.unit        { border-width: 22px !important; }
+.log         { border-width: 20px !important; }
+.shop-tarot-face { border-width: 18px !important; }
 
 /* ===== 开始菜单 ===== */
 #screen-menu.active { display: flex; }
@@ -96,17 +107,17 @@ body::before {
   background: linear-gradient(#ffe9a8, #f0c040 55%, #b8860b); -webkit-background-clip: text; background-clip: text; color: transparent;
   text-shadow: 0 4px 24px #f0c04033; }
 .menu-sub { margin: -6px 0 4px; color: var(--muted); letter-spacing: 3px; }
-.menu-story { --oct-fill: #1c1f2c; --oct-rim: #46506f; --cut: 16px; width: 100%; padding: 18px 22px; line-height: 1.9; color: #cfd4e4; text-align: left; }
+.menu-story { --oct-fill: #1c1f2c; --oct-rim: #46506f; --radius: 20px; width: 100%; padding: 18px 22px; line-height: 1.9; color: #cfd4e4; text-align: left; }
 .menu-story p { margin: 0 0 10px; }
 .menu-story p:last-child { margin: 0; }
 .menu-actions { display: flex; gap: 14px; margin-top: 6px; }
 
-#app { max-width: 1060px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+#app { max-width: 1600px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
 button {
   font-family: inherit; cursor: pointer; border: none;
   padding: 8px 16px; color: var(--ink);
-  --cut: 8px;
+  --radius: 14px;
   transition: filter .15s, transform .08s;
 }
 button:hover { filter: brightness(1.16) drop-shadow(2px 5px 6px #00000077); }
@@ -120,7 +131,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ===== 顶栏 ===== */
 .run-header {
-  --oct-fill: var(--panel); --cut: 10px;
+  --oct-fill: var(--panel); --radius: 15px;
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 16px;
 }
@@ -134,12 +145,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* ===== 塔罗消耗栏 ===== */
 .tarot-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 34px; }
 .tarot-label { color: var(--muted); font-size: 12px; }
-.tarot-btn { --oct-fill: var(--panel); --oct-rim: #7a68a8; --cut: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
+.tarot-btn { --oct-fill: var(--panel); --oct-rim: #7a68a8; --radius: 14px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
 .tarot-btn:disabled { opacity: .45; }
 .tarot-slot.empty { width: 24px; height: 24px; border: 1px dashed #3a3f55; border-radius: 6px; }
 #map-tarot-bar { justify-content: center; margin-top: 8px; }
 .choice-options { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 8px; }
-.shop-tarot-face { --oct-rim: #7a68a8; --cut: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 126px; height: 150px; padding: 10px; }
+.shop-tarot-face { --oct-rim: #7a68a8; --radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 126px; height: 150px; padding: 10px; }
 .shop-tarot-icon { font-size: 34px; }
 .shop-tarot-face small { color: var(--muted); font-size: 11px; text-align: center; line-height: 1.3; }
 
@@ -182,10 +193,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 
 /* ===== 通用面板（奖励/商店/休息/结算） ===== */
-.panel { --oct-fill: var(--panel); --oct-rim: #46506f; --cut: 16px; max-width: 760px; margin: 10px auto; padding: 24px; }
+.panel { --oct-fill: var(--panel); --oct-rim: #46506f; --radius: 20px; max-width: 760px; margin: 10px auto; padding: 24px; }
 .panel.center { text-align: center; }
 .panel h2 { margin-top: 0; }
-.big-btn { --cut: 10px; font-size: 15px; font-weight: 700; padding: 14px 22px; line-height: 1.4; }
+.big-btn { --radius: 15px; font-size: 15px; font-weight: 700; padding: 14px 22px; line-height: 1.4; }
 .big-btn.leave { --oct-fill: #5a3a3a; --oct-rim: #8a5a5a; }
 .reward-gold { color: var(--accent); font-weight: 800; }
 .reward-cards, .shop-cards { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 16px 0; }
@@ -205,16 +216,16 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .reward-relics { color: var(--accent); font-weight: 700; }
 .reward-relics .relic-got { margin: 0 6px; cursor: help; }
 .shop-tarot-face.relic-card { --oct-rim: var(--accent); }
-/* 立绘居中为主视觉，血条等控件分散到屏幕左右两侧 */
-.battlefield { display: flex; align-items: stretch; justify-content: space-between; gap: 14px; min-height: 340px; padding: 6px 0 0; }
-.flank { flex: 0 0 190px; display: flex; align-items: center; }
-.flank-left  { justify-content: flex-start; }
-.flank-right { justify-content: flex-end; }
-.arena { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 18px; }
+/* 立绘居中为主视觉；血条 + 能量/塔罗（左）、结束回合/日志（右）分散到两侧；卡牌沉底 */
+#screen-battle.active { min-height: calc(100vh - 40px); }
+.battlefield { flex: 1; display: flex; align-items: stretch; justify-content: space-between; gap: 14px; min-height: 340px; padding: 6px 0 0; }
+.flank { flex: 0 0 240px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; justify-content: flex-start; }
+.flank .tarot-bar { margin-top: 2px; }
+.arena { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 40px; }
 .versus { align-self: center; color: var(--muted); font-weight: 800; font-size: 24px; opacity: .5; text-shadow: 0 2px 8px #000; margin-bottom: 96px; }
 
 /* 立绘舞台：放大为主视觉，脚下渲染椭圆阴影（贴近画面底部） */
-.stage { position: relative; flex: 0 1 300px; height: 330px; display: flex; align-items: flex-end; justify-content: center; }
+.stage { position: relative; flex: 0 1 400px; height: 360px; display: flex; align-items: flex-end; justify-content: center; }
 .stage::after {
   content: ''; position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%);
   width: 60%; height: 28px; z-index: 0; pointer-events: none;
@@ -223,7 +234,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   animation: shadowpulse 2.6s ease-in-out infinite;
 }
 @keyframes shadowpulse { 0%,100% { transform: translateX(-50%) scale(1); opacity: 1; } 50% { transform: translateX(-50%) scale(.88); opacity: .82; } }
-.sprite { position: relative; z-index: 1; width: 100%; max-width: 300px; height: 320px; }
+.sprite { position: relative; z-index: 1; width: 100%; max-width: 400px; height: 350px; }
 .sprite .char { width: 100%; height: 100%; display: block; object-fit: contain; object-position: center bottom; animation: idle 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
@@ -269,7 +280,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 /* 脚下的紧凑状态条：限制宽度，贴在立绘下方 */
 .info { width: 100%; }
-.unit { --oct-fill: var(--panel); --oct-rim: #515a7c; --cut: 9px; padding: 9px 12px; }
+.unit { --oct-fill: var(--panel); --oct-rim: #515a7c; --radius: 14px; padding: 9px 12px; }
 .unit.enemy { --oct-rim: #8a4040; }
 .unit-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .unit-name { font-size: 14px; font-weight: 700; }
@@ -297,7 +308,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* ===== 牌桌（卡牌居于屏幕下方） ===== */
 .board { display: flex; align-items: flex-end; gap: 12px; min-height: 220px; margin-top: auto; }
 .pile {
-  --oct-fill: var(--panel); --oct-rim: #4a517a; --cut: 9px;
+  --oct-fill: var(--panel); --oct-rim: #4a517a; --radius: 14px;
   width: 92px; flex-shrink: 0; text-align: center; color: var(--muted); font-size: 13px;
   padding: 14px 6px; cursor: pointer; transition: filter .15s, transform .1s;
 }
@@ -308,7 +319,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ===== 卡牌（长宽比 ~5:7，上半为贴图，下半为文字） ===== */
 .card {
-  --oct-fill: var(--panel-2); --oct-rim: #535d80; --cut: 12px;
+  --oct-fill: var(--panel-2); --oct-rim: #535d80; --radius: 16px;
   position: relative; width: 150px; height: 212px; padding: 8px;
   display: flex; flex-direction: column; align-items: stretch; text-align: center;
   cursor: pointer; transition: transform .12s ease, filter .12s ease; user-select: none;
@@ -341,17 +352,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   position: absolute; top: 4px; left: 4px; width: 30px; height: 30px; z-index: 3;
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 16px; color: #1a1d29;
-  --c-cut: 7px; --c-bw: 1.5px;
-  border: var(--c-bw) solid transparent;
-  background:
-    linear-gradient(var(--accent), var(--accent)) padding-box,
-    linear-gradient(135deg, #fff4cf 0%, #d8a52a 55%, #8a6410 100%) border-box;
-  clip-path: polygon(
-    var(--c-cut) 0, calc(100% - var(--c-cut)) 0,
-    100% var(--c-cut), 100% calc(100% - var(--c-cut)),
-    calc(100% - var(--c-cut)) 100%, var(--c-cut) 100%,
-    0 calc(100% - var(--c-cut)), 0 var(--c-cut));
-  filter: drop-shadow(0 1px 3px #000a);
+  border-radius: 11px;
+  border: 2.5px solid var(--edge);
+  background: linear-gradient(#fbe28e, var(--accent) 58%, #d8a52a);
+  box-shadow: 0 1px 3px #000a;
 }
 .card-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; }
 .card-name .aff { font-weight: 800; }
@@ -379,26 +383,24 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 .dealing { pointer-events: none; }   /* 抽牌/洗牌演出期间禁手牌点击 */
 
-/* ===== 操作区 / 日志 ===== */
+/* ===== 操作区 / 日志（位于左右两侧 flank 内） ===== */
 .controls { display: flex; align-items: center; justify-content: space-between; }
-.energy { --oct-fill: var(--panel); --oct-rim: #6a5f3a; --cut: 9px; font-size: 20px; font-weight: 800; padding: 8px 18px; }
+.energy { --oct-fill: var(--panel); --oct-rim: #6a5f3a; --radius: 14px; font-size: 20px; font-weight: 800; padding: 10px 14px; text-align: center; }
 .energy-orb { color: var(--accent); }
-.end-turn { font-size: 16px; font-weight: 700; padding: 12px 28px; }
-.log { --oct-fill: #11131c; --oct-rim: #3a4055; --cut: 9px; padding: 10px 14px; font-size: 13px; color: var(--muted); min-height: 56px; line-height: 1.7; }
+.end-turn { width: 100%; font-size: 16px; font-weight: 700; padding: 14px 20px; }
+.log { --oct-fill: #11131c; --oct-rim: #3a4055; --radius: 14px; padding: 10px 14px; font-size: 12.5px; color: var(--muted); min-height: 56px; flex: 1; overflow: auto; line-height: 1.65; }
 
 /* 绿色渐变按钮（开始 / 结束回合）：保留绿渐变填充，斜面改绿色 */
 button.menu-start, button.end-turn {
-  --oct-rim: #6fbf6f;
-  background:
-    linear-gradient(#3a6f3a, #2c5530) padding-box,
-    linear-gradient(135deg, #a7e8a7 0%, #6fbf6f 48%, #143618 100%) border-box !important;
+  --oct-rim: #7fd87f;
+  background: linear-gradient(#3f7a3f, #29512a) !important;
 }
 .menu-start { font-size: 18px; padding: 14px 34px; }
 
 /* ===== 弹窗 ===== */
 .modal { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000a; z-index: 20; }
 .modal.hidden { display: none; }
-.modal-box { --oct-fill: var(--panel); --oct-rim: #4a5170; --cut: 15px; padding: 18px; width: min(800px, 92vw); max-height: 84vh; display: flex; flex-direction: column; }
+.modal-box { --oct-fill: var(--panel); --oct-rim: #4a5170; --radius: 20px; padding: 18px; width: min(800px, 92vw); max-height: 84vh; display: flex; flex-direction: column; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .modal-head h3 { margin: 0; font-size: 17px; }
 .modal-cards { display: flex; flex-wrap: wrap; gap: 10px; overflow: auto; justify-content: center; padding: 4px; }
@@ -414,7 +416,14 @@ button.menu-start, button.end-turn {
 .codex-name { font-weight: 800; min-width: 86px; flex-shrink: 0; }
 .codex-tag { font-size: 11px; color: var(--muted); border: 1px solid #3a3f55; border-radius: 6px; padding: 0 6px; flex-shrink: 0; }
 .codex-desc { color: #d2d6e4; font-size: 13px; }
-.codex-enemy { padding: 8px 4px; border-bottom: 1px solid #2e3347; }
+.codex-enemy { display: flex; gap: 12px; align-items: flex-start; padding: 10px 4px; border-bottom: 1px solid #2e3347; }
+.codex-portrait {
+  width: 78px; height: 92px; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center;
+  background: radial-gradient(120% 90% at 50% 18%, #ffffff10 0%, #00000040 72%), #11182a;
+  border: 1px solid #34394d; border-radius: 8px; overflow: hidden;
+}
+.codex-portrait img, .codex-portrait svg { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.codex-enemy-info { flex: 1; min-width: 0; }
 .codex-enemy-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .codex-hp { color: var(--hp); font-size: 13px; }
 .codex-move { color: var(--muted); font-size: 12px; margin-left: 10px; line-height: 1.6; }
@@ -471,6 +480,14 @@ button.menu-start, button.end-turn {
   .codex-box { width: 96vw; }
   .panel { padding: 16px; }
   .big-btn { font-size: 14px; padding: 12px 16px; }
+
+  /* 移动端收窄 9-slice 花边，避免边框过粗吃掉内容 */
+  .panel       { border-width: 26px !important; }
+  .menu-story  { border-width: 22px !important; }
+  .modal-box   { border-width: 24px !important; }
+  .unit        { border-width: 16px !important; }
+  .log         { border-width: 16px !important; }
+  .shop-tarot-face { border-width: 14px !important; }
   .choice-options { flex-direction: column; }
 }
 @media (max-width: 400px) {
