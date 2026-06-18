@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>残响之塔 · 卡牌爬塔</title>
-  <link rel="stylesheet" href="css/style.css?v=33">
+  <link rel="stylesheet" href="css/style.css?v=45">
 </head>
 <body>
   <!-- 内联定位作兜底：即使样式表被浏览器缓存成旧版，画布也不会挤出空白条 -->
@@ -21,6 +21,7 @@
           <p>身为王国第一女骑士，你自请前往。塔中盘踞的魔物正是入侵的先锋——清剿它们，也是替前线分忧。</p>
           <p>你握着一副最朴素的牌，踏入第一层。用你的牌组、运气与抉择，一层层向上——去取回那件传说之物。</p>
         </div>
+        <input id="seed-input" class="seed-input" type="text" maxlength="24" placeholder="🌱 随机种子（留空则随机）" autocomplete="off">
         <div class="menu-actions">
           <button id="menu-start" class="big-btn menu-start">⚔️ 开始攀登</button>
           <button id="menu-codex" class="big-btn">📖 百科</button>
@@ -32,6 +33,7 @@
     <header id="run-header" class="run-header">
       <div class="run-title">🗼 第 <span id="run-act">1</span> 层</div>
       <div class="run-stats">
+        <span id="run-seed" class="run-seed" title="本局随机种子"></span>
         <span id="run-hp">❤️ 0/0</span>
         <span id="run-gold">💰 0</span>
         <span id="run-potions" class="run-potions" title="消耗品栏"></span>
@@ -133,21 +135,22 @@
   </div>
 
   <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
-  <script src="js/data/cards.js?v=33"></script>
-  <script src="js/data/affixes.js?v=33"></script>
-  <script src="js/data/tarot.js?v=33"></script>
-  <script src="js/data/relics.js?v=33"></script>
-  <script src="js/data/config.js?v=33"></script>
-  <script src="js/data/enemies.js?v=33"></script>
-  <script src="js/engine/effects.js?v=33"></script>
-  <script src="js/engine/game.js?v=33"></script>
-  <script src="js/engine/run.js?v=33"></script>
-  <script src="js/ui/sprites.js?v=33"></script>
-  <script src="js/ui/audio.js?v=33"></script>
-  <script src="js/ui/music.js?v=33"></script>
-  <script src="js/ui/background.js?v=33"></script>
-  <script src="js/ui/render.js?v=33"></script>
-  <script src="js/ui/screens.js?v=33"></script>
-  <script src="js/main.js?v=33"></script>
+  <script src="js/util/rng.js?v=45"></script>
+  <script src="js/data/cards.js?v=45"></script>
+  <script src="js/data/affixes.js?v=45"></script>
+  <script src="js/data/tarot.js?v=45"></script>
+  <script src="js/data/relics.js?v=45"></script>
+  <script src="js/data/config.js?v=45"></script>
+  <script src="js/data/enemies.js?v=45"></script>
+  <script src="js/engine/effects.js?v=45"></script>
+  <script src="js/engine/game.js?v=45"></script>
+  <script src="js/engine/run.js?v=45"></script>
+  <script src="js/ui/sprites.js?v=45"></script>
+  <script src="js/ui/audio.js?v=45"></script>
+  <script src="js/ui/music.js?v=45"></script>
+  <script src="js/ui/background.js?v=45"></script>
+  <script src="js/ui/render.js?v=45"></script>
+  <script src="js/ui/screens.js?v=45"></script>
+  <script src="js/main.js?v=45"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@ window.CG = window.CG || {};
   const BASE = 'assets/bgm/';
   const V = 'v26';
   const VOL = 0.42;          // 背景音乐音量（低于音效，作铺垫）
-  const FADE = 900;          // 交叉淡变时长 ms
+  const FADE = 1300;         // 交叉淡变时长 ms
 
   // 场景 → 曲目（缺省/未知 → 静音，例如战败暂无 BGM）
   const TRACKS = {
@@ -51,9 +51,11 @@ window.CG = window.CG || {};
 
   function playActive() {
     if (!active || !active.src || muted || !started) return;
-    const p = active.play();
-    if (p && p.catch) p.catch(() => {});   // 手势前被拦截则静默忽略
-    fade(active, VOL);
+    const el = active;
+    el.volume = 0;                          // 从静音开始，待真正播放后再淡入
+    const p = el.play();
+    if (p && p.then) p.then(() => fade(el, VOL)).catch(() => {});   // 等播放真正开始再淡入，避免加载期间空跑
+    else fade(el, VOL);
   }
 
   // 切到某场景的 BGM；同场景不重启，未知场景淡出静音

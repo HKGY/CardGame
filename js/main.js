@@ -75,18 +75,19 @@ window.CG = window.CG || {};
     CG.UI.render(battle);
   }
 
-  function newRun(cls) {
+  function newRun(cls, seed) {
+    const s = (seed && seed.trim()) ? seed.trim() : CG.RNG.randomSeed();
+    CG.RNG.seed(s);                          // 设定随机种子（覆盖 Math.random）—— 同种子同地图
     run = new CG.Run(cls);
+    run.seed = s;
     run.onChange(route);
     route();
   }
-  // 选择职业（初始牌组）后开始
+  // 读取种子输入、选择职业后开始
   function chooseClassAndStart() {
-    const opts = CG.CLASS_IDS.map(id => {
-      const c = CG.CLASSES[id];
-      return { label: `${c.icon} ${c.name}<br><small>${c.desc}</small>`, value: id };
-    });
-    CG.Screens.choose('选择初始牌组', opts, cls => newRun(cls), false);
+    // 职业 / 卡组选择暂时禁用：默认「战士」直接开始（保留 CLASSES/buildDeck 备用）
+    const seedEl = document.getElementById('seed-input');
+    newRun('warrior', seedEl ? seedEl.value : '');
   }
 
   // 使用一张塔罗牌（战斗 / 地图通用）

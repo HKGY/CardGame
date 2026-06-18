@@ -34,6 +34,8 @@ window.CG = window.CG || {};
     recover:    { name: '回春', color: '#e89ab8', score: 3, heal: 4,    desc: n => `回复 ${4 * n}` },
     thrift:     { name: '速记', color: '#bcd17a', score: 5, cost: -1,   desc: n => `耗能 -${n}` },
     pierce:     { name: '穿刺', color: '#e0a83a', score: 4, pierce: 1, damageOnly: true, desc: n => `穿刺 ${n}`, long: n => `攻击额外命中右侧相邻的 ${n} 个敌人` },
+    regen:      { name: '再生', color: '#7fd6a0', score: 3, selfStatus: 'regen',  desc: n => `再生 ${n}`,  long: n => `每回合开始回复 ${n} 点生命（逐回合 -1）` },
+    barbs:      { name: '荆棘', color: '#c98a5a', score: 3, selfStatus: 'thorns', desc: n => `荆棘 ${n}`,  long: n => `本场战斗中，受到攻击时反弹 ${n} 点伤害` },
   };
 
   const DEBUFFS = {

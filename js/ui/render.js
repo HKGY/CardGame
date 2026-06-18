@@ -25,6 +25,8 @@ window.CG = window.CG || {};
     poison:     { label: '中毒', cls: 'badge-poison' },
     frozen:     { label: '冰冻', cls: 'badge-frozen' },
     leech:      { label: '寄生', cls: 'badge-poison' },
+    regen:      { label: '再生', cls: 'badge-buff' },
+    thorns:     { label: '荆棘', cls: 'badge-buff' },
   };
 
   // ---------- 卡牌贴图（占据卡牌上半张） ----------
@@ -65,19 +67,25 @@ window.CG = window.CG || {};
   };
   const CARD_ART_FALLBACK = `<svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" class="art">
     <path d="M50 12 l7 18 19 1 -15 12 6 19 -17 -11 -17 11 6 -19 -15 -12 19 -1z" fill="#7a83a8" opacity=".85"/></svg>`;
-  const CARD_ART_IMG = { strike: 'assets/cardart/strike.png', defend: 'assets/cardart/defend.png' };
-  const ART_V = 'v33';
-  function getArt(base) {
-    if (base === 'shieldbash')   // 盾兵：盾 + 剑 组合贴图
-      return `<span class="art art-combo"><img class="combo-shield" alt="" src="assets/cardart/defend.png?${ART_V}"><img class="combo-sword" alt="" src="assets/cardart/strike.png?${ART_V}"></span>`;
-    if (CARD_ART_IMG[base]) return `<img class="art" alt="" src="${CARD_ART_IMG[base]}?${ART_V}">`;
-    return CARD_ART[base] || CARD_ART_FALLBACK;
-  }
+  // 整卡贴图（AI 重绘的「外框 + 中央图案」一体图），按基底取
+  function getArt(base) { return CARD_ART[base] || (base === 'shieldbash' ? CARD_ART.defend : CARD_ART_FALLBACK); }
   CG.CardArt = { get: getArt };
 
   // ---------- 卡牌飞行动画（抽牌 / 弃牌 / 消耗 / 洗牌） ----------
   const REDUCE = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-  let prevHand = [], prevLogLen = 0;
+  let prevHand = [], prevLogLen = 0, prevPhase = null;
+  function flashSprite(cls, ms) {            // 给主角精灵加一次性动画 class（入场）
+    const ps = $('player-sprite'); if (!ps) return;
+    ps.classList.remove(cls); void ps.offsetWidth; ps.classList.add(cls);
+    setTimeout(() => ps && ps.classList.remove(cls), ms);
+  }
+  function showTurnBanner(text, enemy) {     // 回合切换横幅提示（我方 / 敌方回合）
+    let el = $('turn-banner');
+    if (!el) { el = document.createElement('div'); el.id = 'turn-banner'; document.body.appendChild(el); }
+    el.textContent = text;
+    el.className = 'turn-banner'; void el.offsetWidth;
+    el.className = 'turn-banner show' + (enemy ? ' enemy' : '');
+  }
   function rcen(r) { return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
   function pileRect(id) { const el = $(id); return el ? el.getBoundingClientRect() : null; }
 
@@ -367,7 +375,7 @@ window.CG = window.CG || {};
   function render(game) {
     const freshGame = current !== game;        // 新一场战斗：重置手牌与血条动画基准
     current = game;
-    if (freshGame) { prevHand = []; prevLogLen = (game.log || []).length; lastHp = {}; enemyBuilt = 0; }
+    if (freshGame) { prevHand = []; prevLogLen = (game.log || []).length; lastHp = {}; enemyBuilt = 0; prevPhase = null; if (!REDUCE) flashSprite('enter', 600); }
     const p = game.player;
 
     renderEnemies(game);
@@ -399,6 +407,11 @@ window.CG = window.CG || {};
     const et = $('end-turn');
     et.textContent = '结束第 ' + game.turn + ' 回合';
     et.disabled = game.phase !== 'player';
+    if (prevPhase !== game.phase) {                                 // 回合切换提示
+      if (game.phase === 'player') showTurnBanner('我方回合', false);
+      else if (game.phase === 'enemy') showTurnBanner('敌方回合', true);
+    }
+    prevPhase = game.phase;
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
   }
 

@@ -126,6 +126,7 @@ window.CG = window.CG || {};
 
   function updateHeader(run, show) {
     $('run-header').classList.toggle('hidden', !show);
+    const seedEl = $('run-seed'); if (seedEl) seedEl.textContent = run.seed ? '🌱 ' + run.seed : '';
     $('run-act').textContent = run.act;
     $('run-hp').textContent = `❤️ ${run.hp}/${run.maxHp}`;
     $('run-gold').textContent = `💰 ${run.gold}`;

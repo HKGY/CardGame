@@ -172,6 +172,7 @@ window.CG = window.CG || {};
       });
       this._checkEnd();
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
+      if (this.player.statuses.regen) this.heal(this.player.statuses.regen);   // 再生：回合开始回血
       this.drawCards(CARDS_PER_TURN + drawBonus);
       this._emit();
     }
@@ -328,7 +329,7 @@ window.CG = window.CG || {};
       this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: beforeHp - target.hp, blocked: Math.min(beforeBlock, dmg) });
 
       if (target === this.player && source !== this.player) {       // 荆棘：攻击你的敌人受反伤
-        const th = this._relicSum('thorns');
+        const th = this._relicSum('thorns') + (this.player.statuses.thorns || 0);   // 遗物荆棘 + 荆棘词条
         if (th > 0 && source.hp > 0) { const eh = source.hp, eb = source.block; this._dealRaw(source, th); this._fire('damage', { side: 'enemy', ei: this._idxOf(source), hpLoss: eh - source.hp, blocked: Math.min(eb, th) }); }
       }
     }
@@ -389,7 +390,7 @@ window.CG = window.CG || {};
 
     // 计时类减益每回合结束 -1（力量 / 敏捷是永久的，不在此列）
     _tickStatuses(entity) {     // 非负数状态每回合 -1（力量/敏捷可为负，不衰减）
-      ['vulnerable', 'weak', 'frail', 'poison', 'leech'].forEach(s => {
+      ['vulnerable', 'weak', 'frail', 'poison', 'leech', 'regen'].forEach(s => {
         if (entity.statuses[s] > 0) {
           entity.statuses[s] -= 1;
           if (entity.statuses[s] <= 0) delete entity.statuses[s];

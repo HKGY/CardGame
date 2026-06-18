@@ -18,3 +18,7 @@ tmp/
 # 临时任务清单（本地）
 todoList.md
 todolist.md
+
+# 已停用的重绘控件素材 + 待重绘参考图（本地保留，不入库）
+assets/ui/
+docs/

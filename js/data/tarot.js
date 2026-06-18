@@ -61,6 +61,16 @@ window.CG = window.CG || {};
                   apply: (run, battle) => battle.hand.forEach(c => CG.upgradeInstance(c)) },
     world:      { name: '世界', icon: '🌍', where: 'any', desc: '下次卡牌奖励变为随机祭坛事件',
                   apply: (run) => { run.flags.rewardAsAltar = true; } },
+
+    // —— 逆位塔罗：发挥与正位相反方向的效果（参考《以撒的结合》逆位牌） ——
+    rev_empress:    { name: '女皇·逆', icon: '🔻', where: 'battle', desc: '获得 3 层敏捷（攻转守）',
+                      apply: (run, battle) => battle.applyStatus(battle.player, 'dexterity', 3) },
+    rev_death:      { name: '死亡·逆', icon: '🔻', where: 'any', desc: '回复 18 点生命（伤转愈）',
+                      apply: (run, battle) => heal(run, battle, 18) },
+    rev_lovers:     { name: '恋人·逆', icon: '🔻', where: 'any', desc: '失去 6 点生命，换取 30 金币',
+                      apply: (run, battle) => { if (battle) battle.player.hp = Math.max(1, battle.player.hp - 6); else run.hp = Math.max(1, run.hp - 6); run.gold += 30; } },
+    rev_temperance: { name: '节制·逆', icon: '🔻', where: 'any', desc: '花费 20 金币，回复 10 点生命',
+                      apply: (run, battle) => { if (run.gold >= 20) { run.gold -= 20; heal(run, battle, 10); } } },
   };
 
   CG.TAROT_IDS = Object.keys(CG.TAROT);

@@ -91,6 +91,14 @@ window.CG = window.CG || {};
                    onPickup: r => { r.maxHp = Math.max(1, r.maxHp - 8); if (r.hp > r.maxHp) r.hp = r.maxHp; }, battleStart: b => b.applyStatus(b.player, 'strength', 3) },
     whore_babylon:{ name: '巴比伦之妓', icon: '👹', desc: '若战斗开始时生命低于一半，则获得 3 力量',
                    battleStart: b => { if (b.player.hp < b.player.maxHp / 2) b.applyStatus(b.player, 'strength', 3); } },
+    warbanner:   { name: '燃血战旗', icon: '🚩', desc: '每回合开始失去 2 生命，但获得 2 力量',
+                   onTurnStart: b => { b.player.hp = Math.max(1, b.player.hp - 2); b.applyStatus(b.player, 'strength', 2); } },
+    scholar:     { name: '学者之书', icon: '📖', desc: '第一回合额外抽 2 张牌',
+                   firstTurn: b => b.drawCards(2) },
+    thorncrown:  { name: '荆棘之冠', icon: '🌿', desc: '每场战斗开始获得 3 层荆棘（受击反伤）',
+                   battleStart: b => b.applyStatus(b.player, 'thorns', 3) },
+    gamblersdie: { name: '赌徒骰', icon: '🎲', desc: '每回合开始有 50% 概率获得 1 点能量',
+                   onTurnStart: b => { if (Math.random() < 0.5) b.player.energy += 1; } },
   };
 
   CG.RELIC_IDS = Object.keys(CG.RELICS);

@@ -144,7 +144,6 @@ window.CG = window.CG || {};
       this.gold = C().startGold;
       this.act = 1;
       this.maxActs = C().acts;
-      this.deck = CG.buildDeck(this.cls);                   // 按职业构建初始牌组（上限 +1）
       this.tarot = [];                         // 消耗品栏（塔罗牌）
       this.relics = [];                        // 遗物
       this.overheal = 0;                       // 人寿保险的过量治疗池
@@ -153,7 +152,8 @@ window.CG = window.CG || {};
       this.current = null;
       this.pending = null;                     // 暂存：本场战斗信息 / 奖励 / 商店货架
       this.phase = 'map';
-      this._newMap();
+      this._newMap();                          // 先生成地图：同种子下地图最先确定，不受职业牌组随机影响
+      this.deck = CG.buildDeck(this.cls);      // 按职业构建初始牌组（上限 +1）
     }
 
     _newMap() {

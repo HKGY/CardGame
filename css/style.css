@@ -11,7 +11,8 @@
   --skill: #2e5f8a;
   --power: #b8860b;
   /* 控件外观：大圆角 + 较粗白色外边框 + 内圈彩色细描边 */
-  --edge: #eef1f8;     /* 最外圈白边 */
+  --edge: #eef1f8;
+  --corner: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2040%2040%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23d9b24a%27%20stroke-width%3D%272.6%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M3%2024%20V3%20H24%27%2F%3E%3Cpath%20d%3D%27M3%2024%20L24%203%27%2F%3E%3Cpath%20d%3D%27M9%2015%20H16%20M15%209%20V16%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");   /* 左上角折角图案 */
 }
 
 * { box-sizing: border-box; }
@@ -65,40 +66,22 @@ body::before {
   button:not(.map-node), .big-btn, .menu-story, .panel, .run-header,
   .shop-tarot-face, .card, .unit, .energy, .log, .pile, .modal-box
 ) {
-  --radius: 18px;
-  --bw: 3px;
-  --ring: 2px;
-  --oct-fill: var(--panel-2);
-  --oct-rim: #4a5172;
-  /* 外圈较粗白边；内圈一圈彩色细描边（--oct-rim）；轻微竖向渐变填充 + 投影 */
-  border: var(--bw) solid var(--edge) !important;
-  border-radius: var(--radius) !important;
-  background:
-    linear-gradient(168deg,
-      color-mix(in srgb, var(--oct-fill) 92%, #ffffff 8%) 0%,
-      var(--oct-fill) 46%,
-      color-mix(in srgb, var(--oct-fill) 94%, #000000 6%) 100%) !important;
-  box-shadow: inset 0 0 0 var(--ring) var(--oct-rim), 0 3px 9px #00000055;
+  --oct-fill: #2b3242;
+  position: relative;
+  border: none !important;
+  border-radius: 3px !important;
+  background: linear-gradient(140deg,
+    color-mix(in srgb, var(--oct-fill) 72%, transparent) 0%,
+    color-mix(in srgb, #0b0d14 62%, transparent) 100%) !important;
+  box-shadow: none !important;
+}
+/* 左上角对称折角（Art Deco 极简）；卡牌除外（左上为耗能徽标） */
+:where(button:not(.map-node), .big-btn, .menu-story, .panel, .run-header, .shop-tarot-face, .unit, .energy, .log, .pile, .modal-box)::before {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 19px; height: 19px;
+  background: var(--corner) center/contain no-repeat; opacity: .82; pointer-events: none;
+  transition: opacity .15s, filter .15s;
 }
 
-/* ===========================================================================
- *  9-slice 金属花纹边框（assets/ui/frame.png 切 3×3，中央为纯色填充）
- *  用于较大的面板类控件；透明缝隙由元素自身的深蓝底填充，整体连成花边。
- * ======================================================================== */
-.panel, .menu-story, .modal-box, .unit, .log, .shop-tarot-face {
-  border-style: solid !important;
-  border-color: transparent !important;
-  border-image: url(../assets/ui/frame.png?v=24) 418 fill stretch !important;
-  border-radius: 0 !important;
-  background: #161e2f !important;
-  box-shadow: 0 4px 12px #00000066 !important;
-}
-.panel       { border-width: 40px !important; }
-.menu-story  { border-width: 34px !important; }
-.modal-box   { border-width: 36px !important; }
-.unit        { border-width: 22px !important; }
-.log         { border-width: 20px !important; }
-.shop-tarot-face { border-width: 18px !important; }
 
 /* ===== 开始菜单 ===== */
 #screen-menu.active { display: flex; }
@@ -111,6 +94,10 @@ body::before {
 .menu-story p { margin: 0 0 10px; }
 .menu-story p:last-child { margin: 0; }
 .menu-actions { display: flex; gap: 14px; margin-top: 6px; }
+.seed-input { width: 100%; max-width: 340px; padding: 11px 16px; font-family: inherit; font-size: 14px;
+  color: var(--ink); background: #11141ccc; border: 2px solid var(--edge); border-radius: 12px; text-align: center; }
+.seed-input::placeholder { color: var(--muted); }
+.run-seed { color: #9fd4a0; font-size: 13px; font-weight: 700; letter-spacing: .5px; }
 
 #app { max-width: 1600px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
@@ -349,45 +336,33 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ===== 卡牌（长宽比 ~5:7，上半为贴图，下半为文字） ===== */
 .card {
-  --oct-fill: var(--panel-2); --oct-rim: #535d80; --radius: 16px;
   position: relative; width: 150px; height: 212px; padding: 8px;
   display: flex; flex-direction: column; align-items: stretch; text-align: center;
-  cursor: pointer; transition: transform .12s ease, filter .12s ease; user-select: none;
+  cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; user-select: none;
 }
-.card:hover { transform: translateY(-12px); filter: drop-shadow(3px 12px 16px #000a); }
+.card:hover { transform: translateY(-10px); }   /* 金边/光晕由通用 :hover 增强规则提供 */
 .card.disabled { opacity: .55; cursor: not-allowed; filter: grayscale(.45); }
 .card.disabled:hover { transform: none; }
 .card.static { cursor: default; }
-.card.static:hover { transform: translateY(-4px); filter: drop-shadow(2px 6px 10px #0008); }
+.card.static:hover { transform: translateY(-4px); }
 .card.clickable:hover { --oct-rim: var(--accent); }
 .card.type-attack { --oct-rim: var(--attack); }
 .card.type-skill { --oct-rim: var(--skill); }
 .card.type-power { --oct-rim: var(--power); }
 
-/* 上半张：技能贴图 */
-.card-art {
-  position: absolute; inset: 0; z-index: 0;
-  border-radius: 11px; overflow: hidden;
-  background: radial-gradient(120% 100% at 50% 0%, #ffffff14 0%, #00000040 70%), #0000002e;
-}
+/* 上半张：SVG 贴图（纯矢量，无外部素材） */
+.card-art { position: relative; height: 86px; flex-shrink: 0; margin: -1px -1px 6px; border-radius: 8px; overflow: hidden;
+  background: radial-gradient(120% 100% at 50% 0%, #ffffff10, #00000040 72%), #00000033; }
 .card-art svg { width: 100%; height: 100%; display: block; object-fit: contain; }
-.card-art img.art { width: 100%; height: 100%; display: block; object-fit: cover; }   /* 贴图铺满整卡 */
-/* 盾击：盾 + 剑 组合贴图 */
-.card-art .art-combo { position: relative; display: block; width: 100%; height: 100%; }
-.card-art .art-combo img { position: absolute; }
-.art-combo .combo-shield { width: 78%; left: 11%; top: 50%; transform: translateY(-50%); filter: drop-shadow(0 2px 5px #000b); }
-.art-combo .combo-sword { width: 40%; left: 31%; top: 47%; transform: translateY(-50%) rotate(10deg); filter: drop-shadow(0 2px 5px #000c); }
-.card.type-attack .card-art { background: radial-gradient(120% 100% at 50% 0%, #c0392b33 0%, #2a0f0caa 72%), #1a0e0c; }
-.card.type-skill  .card-art { background: radial-gradient(120% 100% at 50% 0%, #2e5f8a44 0%, #0c1a2aaa 72%), #0c1622; }
-.card.type-power  .card-art { background: radial-gradient(120% 100% at 50% 0%, #b8860b44 0%, #261c08aa 72%), #1c1608; }
+.card.type-attack .card-art { background: radial-gradient(120% 100% at 50% 0%, #c0392b30, #2a0f0caa 72%), #1a0e0c; }
+.card.type-skill  .card-art { background: radial-gradient(120% 100% at 50% 0%, #2e5f8a40, #0c1a2aaa 72%), #0c1622; }
+.card.type-power  .card-art { background: radial-gradient(120% 100% at 50% 0%, #b8860b40, #261c08aa 72%), #1c1608; }
 
-.card-body { position: relative; z-index: 1; flex: none; display: flex; flex-direction: column; align-items: center;
-  margin: -8px -8px 0; padding: 7px 8px 9px;
-  background: linear-gradient(#0b0e16f2, #0b0e16b8 58%, #0b0e1600);
-  border-radius: 11px 11px 0 0; }
+/* 下半张：文字 */
+.card-body { flex: 1; display: flex; flex-direction: column; align-items: center; min-height: 0; overflow: hidden; }
 
 .card-cost {
-  position: absolute; top: -10px; left: -10px; width: 32px; height: 32px; z-index: 4;
+  position: absolute; top: 5px; left: 5px; width: 30px; height: 30px; z-index: 4;
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 16px; color: #1a1d29;
   border-radius: 11px;
@@ -395,11 +370,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   background: linear-gradient(#fbe28e, var(--accent) 58%, #d8a52a);
   box-shadow: 0 1px 3px #000a;
 }
-.card-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; color: #fff; text-shadow: 0 1px 3px #000, 0 0 2px #000; }
+.card-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 2px #000a; }
 .card-name .aff { font-weight: 800; }
 .card-name .base-name { color: var(--ink); }
 .card-type { font-size: 11px; color: var(--muted); margin: 2px 0 6px; }
-.card-text { font-size: 11.5px; line-height: 1.36; color: #e8ecf6; text-shadow: 0 1px 2px #000c; }
+.card-text { font-size: 11.5px; line-height: 1.36; color: #d2d6e4; }
 .affix-lines { margin-top: 3px; font-size: 10.5px; line-height: 1.3; }
 .affix-line { font-weight: 700; }
 .affix-sep { color: var(--muted); margin: 0 2px; }
@@ -468,6 +443,28 @@ button.menu-start, button.end-turn {
 .codex-hp { color: var(--hp); font-size: 13px; }
 .codex-move { color: var(--muted); font-size: 12px; margin-left: 10px; line-height: 1.6; }
 
+
+
+/* ===== 角色入场动画 + 回合切换提示横幅 ===== */
+.side-player .sprite.enter { animation: enter-slide .55s cubic-bezier(.2,.8,.3,1); }
+@keyframes enter-slide { 0%{ transform:translateX(-70px); opacity:0; } 60%{ opacity:1; } 100%{ transform:translateX(0); opacity:1; } }
+.turn-banner { position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); z-index:50; pointer-events:none;
+  font-size:40px; font-weight:900; letter-spacing:8px; white-space:nowrap; opacity:0;
+  color:#f0c040; text-shadow:0 2px 14px #000, 0 0 22px #f0c04088; }
+.turn-banner.enemy { color:#ff6a5a; text-shadow:0 2px 14px #000, 0 0 22px #ff6a5a99; }
+.turn-banner.show { animation: turn-flash 1.15s ease forwards; }
+@keyframes turn-flash { 0%{ opacity:0; transform:translate(-50%,-50%) scale(.82); } 18%{ opacity:1; transform:translate(-50%,-50%) scale(1); } 72%{ opacity:1; } 100%{ opacity:0; transform:translate(-50%,-50%) scale(1.06); } }
+
+/* ===== 交互 / 文字效果增强（纯 CSS，无外部素材） ===== */
+:where(button:not(.map-node), .card, .pile, .shop-tarot-face):hover {
+  box-shadow: inset 0 0 0 1px #f0c04077, 0 0 16px #f0c04044 !important;
+}
+:where(button:not(.map-node), .big-btn, .pile, .shop-tarot-face):hover::before { opacity: 1; filter: drop-shadow(0 0 4px #f0c040); }
+button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008, 0 0 9px #00000040; }
+.menu-sub { text-shadow: 0 0 12px #6fa8dc66; }
+.run-title, .unit-name { text-shadow: 0 1px 3px #000, 0 0 10px #00000055; }
+.hptext, .card-type { text-shadow: 0 1px 2px #000; }
+
 /* ===== 移动端适配 ===== */
 @media (max-width: 680px) {
   #app { padding: 10px; gap: 10px; }
@@ -521,13 +518,6 @@ button.menu-start, button.end-turn {
   .panel { padding: 16px; }
   .big-btn { font-size: 14px; padding: 12px 16px; }
 
-  /* 移动端收窄 9-slice 花边，避免边框过粗吃掉内容 */
-  .panel       { border-width: 26px !important; }
-  .menu-story  { border-width: 22px !important; }
-  .modal-box   { border-width: 24px !important; }
-  .unit        { border-width: 16px !important; }
-  .log         { border-width: 16px !important; }
-  .shop-tarot-face { border-width: 14px !important; }
   .choice-options { flex-direction: column; }
 }
 @media (max-width: 400px) {
