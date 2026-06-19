@@ -1,0 +1,9 @@
+{
+  "name": "echoing-spire",
+  "version": "1.0.0",
+  "private": true,
+  "description": "残响之塔 · 卡牌爬塔（Noita 风格法杖/宝石系统，纯前端无构建）",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -4,9 +4,9 @@ window.CG = window.CG || {};
  *  词条 —— 分「增益(buff)」与「减益(debuff)」两类，各带分数(score)衡量强弱。
  * ===========================================================================
  *  buff 分数为正、debuff 分数为负；分数越大/越小越强、生成越稀有。
- *  每次锻造 = 一个随机等级的 buff + 一个 1 级的 debuff。
+ *  词条被打包进「宝石」（见 cards.js）：宝石镶进卡牌孔位后，其词条对该卡生效。
  *  机制字段（每级 ×等级 L）：
- *    value/valuePct/hits/repeat/windfury/energy/draw/forge/erode/prepare
+ *    value/valuePct/hits/repeat/windfury/energy/draw/prepare
  *    apply{status:每级层数}  给敌人施加状态
  *    selfStatus / sapStr / sapDex / leak  自身减益
  *    silence 移除并削减敌人力量    exhaust 打出后销毁
@@ -22,7 +22,6 @@ window.CG = window.CG || {};
     draw:       { name: '抽取', color: '#efe9da', score: 3, draw: 1,    desc: n => `抽 ${n} 张` },
     multi:      { name: '多重', color: '#e89030', score: 4, hits: 1,    desc: n => `+${n} 次攻击` },
     windfury:   { name: '风怒', color: '#b06fd6', score: 4, windfury: 1, desc: n => `回手 ${n} 次`, long: n => `打出后回到手牌（每回合最多 ${n} 次）` },
-    forge:      { name: '锻造', color: '#f2d23a', score: 4, forge: 1,   desc: n => `锻造手牌 ${n}`, long: n => `随机锻造手中 ${n} 张牌（限本场）` },
     overload:   { name: '过载', color: '#4fb8ee', score: 5, valuePct: 100, desc: n => `数值 +${100 * n}%` },
     repeat:     { name: '重复', color: '#ee82b8', score: 5, repeat: 1,  desc: n => `打出 ${1 + n} 次` },
     bright:     { name: '明亮', color: '#f0c850', score: 6, energy: 1,  desc: n => `+${n} 能量` },
@@ -46,7 +45,6 @@ window.CG = window.CG || {};
     coward: { name: '怯懦', color: '#a0763c', score: -3, debuff: true, sapStr: 1,      desc: n => `失去 ${n} 力量` },
     clumsy: { name: '笨拙', color: '#5f86a4', score: -3, debuff: true, sapDex: 1,      desc: n => `失去 ${n} 敏捷` },
     leak:   { name: '漏能', color: '#9a6ab0', score: -4, debuff: true, leak: 1,        desc: n => `能量 -${n}` },
-    erode:  { name: '侵蚀', color: '#b06a8a', score: -4, debuff: true, erode: 1,       desc: n => `降级手牌 ${n}`, long: n => `随机降级手中 ${n} 张牌` },
     cumbersome: { name: '笨重', color: '#9a8a6a', score: -3, debuff: true, cost: 1,        desc: n => `耗能 +${n}` },
     recoil:     { name: '反噬', color: '#b5616a', score: -3, debuff: true, hpLoss: 2,      desc: n => `失去 ${2 * n} HP` },
     destroy:    { name: '销毁', color: '#c75450', score: -4, debuff: true, exhaust: 1,     desc: () => `打出后销毁`, long: () => `打出后本场战斗移除（进入消耗堆）` },

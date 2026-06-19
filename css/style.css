@@ -50,9 +50,10 @@ body::before {
   opacity: 0; transition: opacity .5s ease;
 }
 #scene-bg.show { opacity: 1; }
+/* 纯 CSS 场景渐变已偏暗，这里只加轻微暗角（vignette）保留层次，不再压成纯黑 */
 #scene-bg::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, #14161faa 0%, #14161fcc 100%);
+  background: radial-gradient(120% 85% at 50% 28%, transparent 42%, #14161f99 100%);
 }
 #app { position: relative; z-index: 1; }
 
@@ -465,6 +466,51 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
 .run-title, .unit-name { text-shadow: 0 1px 3px #000, 0 0 10px #00000055; }
 .hptext, .card-type { text-shadow: 0 1px 2px #000; }
 
+/* ===== 场景背景（纯 CSS 渐变，无图片素材） ===== */
+#scene-bg.scene-menu  { background-image: radial-gradient(60% 80% at 50% 8%,  #3a2d6b66, transparent 70%), linear-gradient(180deg, #1a1838, #0c0a18); }
+#scene-bg.scene-act1  { background-image: radial-gradient(72% 60% at 50% 100%, #2f5a3866, transparent 72%), linear-gradient(180deg, #16241c, #0b110d); }
+#scene-bg.scene-act2  { background-image: radial-gradient(72% 60% at 50% 100%, #2b5a7a66, transparent 72%), linear-gradient(180deg, #16242e, #0a1016); }
+#scene-bg.scene-act3  { background-image: radial-gradient(72% 60% at 50% 100%, #6a2a3a66, transparent 72%), linear-gradient(180deg, #2a1622, #120a10); }
+#scene-bg.scene-boss  { background-image: radial-gradient(60% 70% at 50% 40%,  #7a1f2a77, transparent 70%), linear-gradient(180deg, #200f16, #0a0608); }
+#scene-bg.scene-shop  { background-image: radial-gradient(60% 70% at 50% 20%,  #6a4a1f66, transparent 72%), linear-gradient(180deg, #241c10, #0f0b06); }
+#scene-bg.scene-event { background-image: radial-gradient(60% 70% at 50% 25%,  #4a2d6b66, transparent 72%), linear-gradient(180deg, #1e1830, #0c0a16); }
+
+/* ===== 卡名里的宝石分组 / 空孔 ===== */
+.gem-chip { font-weight: 800; }
+.aff-plus { color: var(--muted); font-weight: 700; margin: 0 1px; }
+.socket-empty { color: #5a6080; font-weight: 900; margin-left: 2px; letter-spacing: 1px; }
+.gem-sep { color: #4a5170; }
+
+/* ===== 宝石贴面（背包 / 商店 / 奖励 / 工作台 / 选择器） ===== */
+.gem {
+  position: relative; width: 132px; min-height: 150px; padding: 10px 8px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
+  border-radius: 10px; cursor: default; user-select: none;
+  --gem: #9aa0b5;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gem) 26%, #1a1d29) 0%, #0c0e16 92%);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gem) 60%, transparent), 0 3px 10px #0007;
+}
+.gem.clickable { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.gem.clickable:hover { transform: translateY(-5px); box-shadow: inset 0 0 0 1.5px var(--gem), 0 0 16px color-mix(in srgb, var(--gem) 50%, transparent); }
+.gem.disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); }
+.gem.disabled:hover { transform: none; }
+.gem.selected { box-shadow: inset 0 0 0 2px var(--accent), 0 0 18px #f0c04088; transform: translateY(-3px); }
+.gem-orb { font-size: 30px; line-height: 1; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gem) 70%, transparent)); }
+.gem-name { font-weight: 800; font-size: 13px; line-height: 1.25; }
+.gem-name .aff { font-weight: 800; }
+.gem-text { font-size: 10.5px; line-height: 1.34; color: #cdd2e2; }
+.gem-tag { margin-top: auto; font-size: 10px; color: var(--muted); border: 1px solid #3a3f55; border-radius: 6px; padding: 0 6px; }
+
+/* ===== 商店分区 / 工作台 ===== */
+.shop-section-title { font-weight: 800; color: var(--accent); margin: 14px 0 4px; letter-spacing: 1px; }
+.shop-bench-hint { font-size: 12px; color: var(--muted); font-weight: 600; }
+#bench-btn b { color: var(--accent); }
+.bench-box { width: min(1040px, 95vw); }
+.bench-body { overflow: auto; }
+.bench-hint { color: var(--muted); font-size: 13px; margin-bottom: 8px; text-align: center; }
+.bench-sub { font-weight: 800; color: var(--accent); margin: 10px 0 6px; border-bottom: 1px solid #34394d; padding-bottom: 3px; }
+.bench-gems, .bench-cards { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
 /* ===== 移动端适配 ===== */
 @media (max-width: 680px) {
   #app { padding: 10px; gap: 10px; }
@@ -520,9 +566,17 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
 
   .choice-options { flex-direction: column; }
 }
+@media (max-width: 680px) {
+  .gem { width: 110px; min-height: 130px; padding: 8px 6px; }
+  .gem-orb { font-size: 25px; }
+  .gem-name { font-size: 12px; }
+  .gem-text { font-size: 9.5px; }
+  .shop-section-title { font-size: 14px; }
+}
 @media (max-width: 400px) {
   .card { width: 92px; height: 180px; }
   .card-name { font-size: 11px; }
   .pile { width: 52px; }
   .menu-title { font-size: 30px; letter-spacing: 4px; }
+  .gem { width: 92px; }
 }

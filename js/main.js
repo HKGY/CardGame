@@ -17,7 +17,6 @@ window.CG = window.CG || {};
       case 'map':
       case 'reward': return 'act' + act;
       case 'shop':   return 'shop';
-      case 'rest':   return 'rest';
       case 'event':  return 'event';
       default:       return 'menu';     // dead / victory
     }
@@ -40,7 +39,6 @@ window.CG = window.CG || {};
       case 'map':      return CG.Screens.showMap(run);
       case 'reward':   return CG.Screens.showReward(run);
       case 'shop':     return CG.Screens.showShop(run);
-      case 'rest':     return CG.Screens.showRest(run);
       case 'event':    return CG.Screens.showEvent(run);
       case 'dead':
       case 'victory':  return CG.Screens.showGameOver(run);
@@ -148,16 +146,23 @@ window.CG = window.CG || {};
       onChooseReward: spec => run.chooseReward(spec),
       onTakeTarot:    () => run.takeTarot(),
       onUseTarot:     i => useTarot(i),
-      onUseAltar:     (uid, opt) => run.useAltar(uid, opt),
       onLeaveEvent:   () => run.leaveEvent(),
-      onRestHeal:     () => run.restHeal(),
-      onRestUpgrade:  (uid, opt) => run.restUpgrade(uid, opt),
+      // 宝石工作台（免费镶嵌）
+      onInstallGem:   (gemUid, cardUid) => run.installGemInv(gemUid, cardUid),
+      // 事件祭坛（宝石）
+      onAltarInstall: (gemUid, cardUid) => run.altarInstall(gemUid, cardUid),
+      onAltarPurify:  gemUid => run.altarPurify(gemUid),
+      onAltarBore:    cardUid => run.altarBore(cardUid),
+      onAltarFindGem: () => run.altarFindGem(),
+      onAltarRecut:   gemUid => run.altarRecut(gemUid),
+      // 商店
+      onBuyGem:       i => run.buyGem(i),
       onBuyCard:      i => run.buyCard(i),
       onBuyTarot:     i => run.buyTarot(i),
       onBuyRelic:     i => run.buyRelic(i),
-      onBuyUpgrade:   (uid, opt) => run.buyUpgrade(uid, opt),
       onBuyRemove:    uid => run.buyRemove(uid),
-      onBuyExorcise:  uid => run.buyExorcise(uid),
+      onBuyUninstall: (cardUid, idx) => run.buyUninstall(cardUid, idx),
+      onBuyAddSocket: uid => run.buyAddSocket(uid),
       onBuyHeal:      () => run.buyHeal(),
       onLeaveShop:    () => run.leaveShop(),
       onRestart:      () => chooseClassAndStart(),

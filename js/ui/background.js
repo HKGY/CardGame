@@ -50,15 +50,16 @@ window.CG = window.CG || {};
     start();
   }
 
-  // 场景背景：根据当前界面/层数切换 #scene-bg 的全屏立绘（粒子与星云仍叠在其上）。
+  // 场景背景：根据当前界面/层数切换 #scene-bg 的纯 CSS 渐变（粒子与星云仍叠在其上）。
+  // 无任何图片资源——每个场景对应 css 里的 .scene-<key> 渐变。
   let curScene = null;
   function setScene(key) {
     const el = document.getElementById('scene-bg');
     if (!el || key === curScene) return;
     curScene = key;
-    if (!key) { el.classList.remove('show'); el.style.backgroundImage = ''; return; }
-    el.style.backgroundImage = `url("assets/bg/${key}.png?v=20")`;
-    el.classList.add('show');
+    el.className = '';                                  // 清掉上一场景类（保留行内定位样式）
+    if (!key) return;
+    el.classList.add('show', 'scene-' + key);
   }
 
   CG.Background = { init, setScene };

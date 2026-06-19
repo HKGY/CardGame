@@ -1,12 +1,19 @@
 window.CG = window.CG || {};
 
 /* ===========================================================================
- *  卡牌 —— 「打击/防御」基底 + 增益(buff)与减益(debuff)词条。
+ *  卡牌（法杖）+ 宝石（效果载体）—— 借鉴《Noita》法杖系统。
  * ===========================================================================
- *  卡牌实例 = { uid, base, affixes:[{id,level}], limit }
- *    limit = 锻造上限（可拥有的 buff 数）。卡名后以 +X 显示。
- *  锻造一次 = 加 1 个随机等级 buff + 1 个 1 级 debuff（交互式时二选一）。
- *  cardStats(inst, opts) 把基底与所有词条聚合成当前数值/效果/卡名/分数。
+ *  效果不再绑定在卡牌上，而是绑定在「宝石」上；宝石可镶嵌进卡牌的孔位，也可卸下。
+ *
+ *  宝石实例 = { uid, affixes:[{id,level}] }      —— 若干增益(buff) + 若干减益(debuff)
+ *    实践中：要么「小增益」（1 个低分 buff），要么「大增益 + debuff」（强 buff + 减益）。
+ *  卡牌实例 = { uid, base, sockets:[gem|...], limit }
+ *    base   = 基底（打击/防御…）决定基础数值与贴图。
+ *    sockets= 已镶嵌的宝石（紧凑数组，长度 ≤ limit）。
+ *    limit  = 孔位总数（空孔 = limit - sockets.length）。
+ *
+ *  cardStats(inst, opts) 把基底与所有宝石里的词条聚合成当前数值/效果/卡名。
+ *  宝石获取：战斗奖励 / 商店 / 事件；安装免费；卸下花钱并随机附带一个 debuff。
  * ===========================================================================
  */
 (function (CG) {
@@ -21,22 +28,60 @@ window.CG = window.CG || {};
     pray:       { name: '祈祷', cost: 1, type: 'power',  kind: 'randbuff', base: 1 },             // 牧师：获得随机增益
   };
 
-  CG.makeCard = (base, affixes = [], limit) =>
-    ({ uid: CG.nextUid(), base, affixes: affixes.map(a => ({ id: a.id, level: a.level })),
-       limit: limit == null ? Math.max(1, affixes.filter(a => !CG.isDebuff(a.id)).length) : limit });
+  const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
+  CG.MAX_SOCKETS = MAX_SOCKETS;
+
+  // ---------- 构造 ----------
+  CG.makeGem = (affixes = []) =>
+    ({ uid: CG.nextUid(), affixes: affixes.map(a => ({ id: a.id, level: a.level })) });
+  CG.cloneGem = g => CG.makeGem(g.affixes);   // 复制宝石（新 uid）
+
+  // makeCard(base, limit, gems[])：gems 会被深拷贝进新卡（各得新 uid）
+  CG.makeCard = (base, limit = 1, gems = []) =>
+    ({ uid: CG.nextUid(), base,
+       sockets: (gems || []).map(CG.cloneGem),
+       limit: Math.max(limit, (gems || []).length) });
+  CG.cloneCard = c =>                          // 跑图层深拷贝（保留 uid，用于战斗副本）
+    ({ uid: c.uid, base: c.base, limit: c.limit,
+       sockets: (c.sockets || []).map(g => ({ uid: g.uid, affixes: g.affixes.map(a => ({ id: a.id, level: a.level })) })) });
+
+  CG.cardEmptySockets = c => Math.max(0, (c.limit || 0) - (c.sockets || []).length);
+  CG.gemHasDebuff = g => (g.affixes || []).some(a => CG.isDebuff(a.id));
+
+  // 宝石显示名：增益名 + (减益名)。用于日志/列表标题。
+  CG.gemName = function (gem) {
+    const bs = (gem.affixes || []).filter(a => !CG.isDebuff(a.id));
+    const ds = (gem.affixes || []).filter(a => CG.isDebuff(a.id));
+    const nm = bs.map(a => CG.affixDisplayName(a.id, a.level)).join('+');
+    return (nm || '空') + (ds.length ? '(' + ds.map(a => CG.affixDisplayName(a.id, a.level)).join('+') + ')' : '');
+  };
+  CG.gemPrimaryColor = function (gem) {        // 取分数最高的增益颜色作宝石主色
+    const bs = (gem.affixes || []).filter(a => !CG.isDebuff(a.id));
+    if (!bs.length) return '#9aa0b5';
+    bs.sort((a, b) => CG.AFFIXES[b.id].score - CG.AFFIXES[a.id].score);
+    return CG.AFFIXES[bs[0].id].color;
+  };
 
   // ---------- 取数 ----------
   CG.cardStats = function (inst, opts) {
     const valueMult = (opts && opts.valueMult) || 1;
     const b = CG.BASE_CARDS[inst.base];
     const order = id => CG.AFFIX_ORDER.indexOf(id);
-    const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base) }; };
-    const all = (inst.affixes || []).map(resolve);
-    const buffs = all.filter(a => !a.def.debuff).sort((x, y) => order(x.id) - order(y.id));
-    const debuffs = all.filter(a => a.def.debuff).sort((x, y) => order(x.id) - order(y.id));
+    const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, debuff: !!def.debuff, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base) }; };
+    const bySort = (x, y) => order(x.id) - order(y.id);
+    const sockets = inst.sockets || [];
+
+    // 每个孔位（宝石）单独分组，供卡面分组显示「(增益+减益)」
+    const gemViews = sockets.map(g => {
+      const list = (g.affixes || []).map(resolve);
+      return { buffs: list.filter(a => !a.debuff).sort(bySort), debuffs: list.filter(a => a.debuff).sort(bySort) };
+    });
+    const all = sockets.flatMap(g => (g.affixes || []).map(resolve));
+    const buffs = all.filter(a => !a.debuff).sort(bySort);
+    const debuffs = all.filter(a => a.debuff).sort(bySort);
 
     let valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0, energy = 0,
-        drawN = 0, forge = 0, erode = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
+        drawN = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
         costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false;
     const statuses = {}, selfStatuses = {};
     all.forEach(({ def: d, level: L }) => {
@@ -49,8 +94,6 @@ window.CG = window.CG || {};
       if (d.energy)    energy  += d.energy * L;       // 明亮
       if (d.leak)      energy  -= d.leak * L;         // 漏能
       if (d.draw)      drawN   += d.draw * L;
-      if (d.forge)     forge   += d.forge * L;
-      if (d.erode)     erode   += d.erode * L;
       if (d.prepare)   prepare += d.prepare * L;
       if (d.sapStr)    sapStr  += d.sapStr * L;
       if (d.sapDex)    sapDex  += d.sapDex * L;
@@ -70,7 +113,8 @@ window.CG = window.CG || {};
     const cost = Math.max(0, b.cost + costD);
     const value = Math.max(0, Math.floor((b.base + valFlat) * (1 + valPct / 100)) * valueMult);
     const hits = 1 + hitsD;
-    const limit = inst.limit == null ? Math.max(1, buffs.length) : inst.limit;
+    const limit = inst.limit == null ? sockets.length : inst.limit;
+    const emptySockets = Math.max(0, limit - sockets.length);
 
     // 结算效果
     const KIND_TYPE = { damage: 'damage', block: 'block', heal: 'heal', randbuff: 'randbuff' };
@@ -95,19 +139,21 @@ window.CG = window.CG || {};
       randbuff: `获得 ${value} 层随机增益`,
     }[b.kind] || `获得 ${value} 点格挡`) + (hits > 1 ? ` ×${hits}` : '') + (b.block ? `，获得 ${b.block} 点格挡` : '') + '。';
 
+    // 卡名：基底 + 各宝石分组 (增益+减益) + 空孔 ◇
+    const gemText = gemViews.map(g => '(' + g.buffs.concat(g.debuffs).map(a => a.name).join('+') + ')').join('');
+    const name = b.name + gemText + '◇'.repeat(emptySockets);
+
     return {
-      base: inst.base, baseName: b.name, cost, type: b.type, kind: b.kind, limit, score,
-      value, hits, effects, buffs, debuffs, baseText,
+      base: inst.base, baseName: b.name, cost, type: b.type, kind: b.kind, limit, emptySockets, score,
+      value, hits, effects, buffs, debuffs, gemViews, baseText,
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
       nextEnergyPenalty: -nextE,
-      forgeCount: forge,
-      erodeCount: erode,
-      name: buffs.map(a => a.name).join('') + b.name + (debuffs.length ? '(' + debuffs.map(a => a.name).join('') + ')' : '') + '+' + limit,
+      name,
     };
   };
 
-  // ---------- 锻造 ----------
+  // ---------- 随机词条 / 宝石生成 ----------
   function weightedPick(pairs) {
     const t = pairs.reduce((s, p) => s + p[1], 0);
     let r = Math.random() * t;
@@ -116,85 +162,106 @@ window.CG = window.CG || {};
   }
   CG.rollAffixLevel = () => weightedPick((CG.CONFIG && CG.CONFIG.upgradeLevelWeights) || [[1, 4], [2, 3], [3, 2]]);
 
-  function rollBuff(owned, base) {                 // 强力 buff 更稀有；防御牌排除「仅攻击」词条
-    const pool = CG.BUFF_ORDER
-      .filter(id => !owned.has(id) && !(base === 'defend' && CG.AFFIXES[id].damageOnly))
-      .map(id => [id, Math.max(1, 8 - CG.AFFIXES[id].score)]);
+  // strong=true 偏向高分（强力）增益；否则偏向低分（朴素）增益
+  function pickBuffId(owned, strong) {
+    const pool = CG.BUFF_ORDER.filter(id => !owned.has(id))
+      .map(id => [id, strong ? Math.max(1, CG.AFFIXES[id].score) : Math.max(1, 8 - CG.AFFIXES[id].score)]);
     return pool.length ? weightedPick(pool) : null;
   }
-  function rollDebuff(owned) {                      // 严重 debuff 更稀有
+  function pickDebuffId(owned) {                    // 严重 debuff 更稀有（score 越负越稀有）
     const pool = CG.DEBUFF_ORDER.filter(id => !owned.has(id)).map(id => [id, Math.max(1, 6 + CG.AFFIXES[id].score)]);
     return pool.length ? weightedPick(pool) : null;
   }
-  CG.rollBuffId = (ownedArr, base) => rollBuff(new Set(ownedArr || []), base);   // 给掉落卡生成用
-  CG.rollDebuffId = ownedArr => rollDebuff(new Set(ownedArr || []));             // 奖励卡附带 debuff 用
 
-  CG.buffCount = inst => (inst.affixes || []).filter(a => !CG.isDebuff(a.id)).length;
-  CG.canForge = inst => CG.buffCount(inst) < (inst.limit == null ? Math.max(1, CG.buffCount(inst)) : inst.limit);
-
-  // 生成一次锻造方案 { buff:{id,level}, debuff?:{id,level:1} }（达到上限返回 null）
-  CG.rollForge = function (inst, opts) {
-    if (!CG.canForge(inst)) return null;
-    const ownedB = new Set((inst.affixes || []).filter(a => !CG.isDebuff(a.id)).map(a => a.id));
-    const ownedD = new Set((inst.affixes || []).filter(a => CG.isDebuff(a.id)).map(a => a.id));
-    const buffId = rollBuff(ownedB, inst.base);
-    if (!buffId) return null;
-    let level = (opts && opts.level) || CG.rollAffixLevel();
-    if (opts && opts.minLevel && level < opts.minLevel) level = opts.minLevel;   // 幸运脚
-    const out = { buff: { id: buffId, level } };
-    const debuffId = rollDebuff(ownedD);
-    if (debuffId) out.debuff = { id: debuffId, level: 1 };
-    return out;
-  };
-  // 交互式：二选一（两个方案 buff 不同）
-  CG.forgeChoices = function (inst, opts) {
-    const a = CG.rollForge(inst, opts);
-    if (!a) return null;
-    let b = CG.rollForge(inst, opts), tries = 0;
-    while (b && b.buff.id === a.buff.id && tries++ < 10) b = CG.rollForge(inst, opts);
-    return [a, b].filter(Boolean);
-  };
-  CG.applyForge = function (inst, opt) {
-    if (!opt) return;
-    inst.affixes = inst.affixes || [];
-    inst.affixes.push({ id: opt.buff.id, level: opt.buff.level });
-    if (opt.debuff) inst.affixes.push({ id: opt.debuff.id, level: opt.debuff.level });
-  };
-  // 非交互（临时/批量）：直接随机锻造一次
-  CG.upgradeInstance = function (inst, opts) { CG.applyForge(inst, CG.rollForge(inst, opts)); };
-
-  // 重铸：buff/debuff 数量不变，全部重掷
-  CG.reforgeInstance = function (inst) {
-    const B = CG.buffCount(inst);
-    const D = (inst.affixes || []).length - B;
-    inst.affixes = [];
-    const ob = new Set(), od = new Set();
-    for (let i = 0; i < B; i++) { const id = rollBuff(ob, inst.base); if (!id) break; ob.add(id); inst.affixes.push({ id, level: CG.rollAffixLevel() }); }
-    for (let i = 0; i < D; i++) { const id = rollDebuff(od); if (!id) break; od.add(id); inst.affixes.push({ id, level: 1 }); }
+  // 生成一颗宝石。opts: { tier:'monster'|'elite'|'boss', big:bool, minLevel:int }
+  //   小宝石 = 1 个朴素增益；大宝石 = 强增益(可多个) + 减益。
+  CG.rollGem = function (opts) {
+    opts = opts || {};
+    const tier = opts.tier || 'monster';
+    const gcfg = (CG.CONFIG && CG.CONFIG.gem) || {};
+    const lvW = (gcfg.levelW && gcfg.levelW[tier]) || [[1, 6], [2, 3], [3, 1]];
+    const big = opts.big != null ? opts.big : Math.random() < ((gcfg.bigChance && gcfg.bigChance[tier]) || 0.35);
+    const lvl = () => { let L = opts.level || weightedPick(lvW); if (opts.minLevel && L < opts.minLevel) L = opts.minLevel; return L; };
+    const ownedB = new Set(), ownedD = new Set(), affixes = [];
+    if (!big) {                                      // 小宝石：1 个朴素增益（最多 2 级）
+      const id = pickBuffId(ownedB, false);
+      if (id) affixes.push({ id, level: Math.min(2, lvl()) });
+    } else {                                         // 大宝石：强增益 + 减益（首领可双增益/双减益）
+      const nB = tier === 'boss' ? 2 : 1;
+      for (let i = 0; i < nB; i++) { const id = pickBuffId(ownedB, true); if (!id) break; ownedB.add(id); affixes.push({ id, level: lvl() }); }
+      const nD = tier === 'boss' && Math.random() < 0.5 ? 2 : 1;
+      for (let i = 0; i < nD; i++) { const id = pickDebuffId(ownedD); if (!id) break; ownedD.add(id); affixes.push({ id, level: 1 }); }
+    }
+    if (!affixes.length) affixes.push({ id: CG.BUFF_ORDER[0], level: 1 });
+    return CG.makeGem(affixes);
   };
 
-  // 售价：基础 20 + 每点 buff 等级 14（debuff 不计入）
-  CG.cardPrice = card => 20 + 14 * (card.affixes || []).filter(a => !CG.isDebuff(a.id)).reduce((s, a) => s + a.level, 0);
+  // 卸下宝石时随机附带一个 debuff（已满则不再加）
+  CG.gemAddRandomDebuff = function (gem) {
+    const owned = new Set((gem.affixes || []).filter(a => CG.isDebuff(a.id)).map(a => a.id));
+    const id = pickDebuffId(owned);
+    if (id) gem.affixes.push({ id, level: 1 });
+    return id;
+  };
+  // 净化：移除宝石的一个减益（优先移除最严重的）
+  CG.gemRemoveOneDebuff = function (gem) {
+    const idx = (gem.affixes || []).map((a, i) => [a, i]).filter(([a]) => CG.isDebuff(a.id))
+      .sort((x, y) => CG.AFFIXES[x[0].id].score - CG.AFFIXES[y[0].id].score)[0];
+    if (idx) gem.affixes.splice(idx[1], 1);
+    return !!idx;
+  };
+  // 重铸：增益/减益数量不变，全部重掷
+  CG.recutGem = function (gem) {
+    const B = (gem.affixes || []).filter(a => !CG.isDebuff(a.id)).length;
+    const D = (gem.affixes || []).length - B;
+    const ob = new Set(), od = new Set(), out = [];
+    for (let i = 0; i < B; i++) { const id = pickBuffId(ob, i === 0); if (!id) break; ob.add(id); out.push({ id, level: CG.rollAffixLevel() }); }
+    for (let i = 0; i < D; i++) { const id = pickDebuffId(od); if (!id) break; od.add(id); out.push({ id, level: 1 }); }
+    gem.affixes = out.length ? out : gem.affixes;
+  };
 
-  // 初始牌组：5 打击 + 5 防御（锻造上限 1）
-  CG.STARTER_DECK = ['strike', 'strike', 'strike', 'strike', 'strike',
-                     'defend', 'defend', 'defend', 'defend', 'defend'];
+  // ---------- 镶嵌 / 卸下 ----------
+  CG.installGem = function (card, gem) {                   // 装入一个空孔（成功返回 true）
+    if (CG.cardEmptySockets(card) <= 0) return false;
+    card.sockets = card.sockets || [];
+    card.sockets.push(gem);
+    return true;
+  };
+  CG.uninstallGem = function (card, socketIdx) {           // 卸下：取出宝石、随机加一个 debuff、返回该宝石
+    const gem = (card.sockets || [])[socketIdx];
+    if (!gem) return null;
+    card.sockets.splice(socketIdx, 1);
+    CG.gemAddRandomDebuff(gem);
+    return gem;
+  };
+  CG.addSocket = function (card) { if ((card.limit || 0) < MAX_SOCKETS) { card.limit = (card.limit || 0) + 1; return true; } return false; };
+
+  // ---------- 价格 ----------
+  // 宝石售价：增益等级越高越贵，减益少量降价（下限 12）
+  CG.gemPrice = function (gem) {
+    const bl = (gem.affixes || []).filter(a => !CG.isDebuff(a.id)).reduce((s, a) => s + a.level, 0);
+    const dn = (gem.affixes || []).filter(a => CG.isDebuff(a.id)).length;
+    return Math.max(12, 18 + 16 * bl - 8 * dn);
+  };
+  // 卡牌（法杖）售价：按孔位数计（空法杖也值钱，孔越多越贵）
+  CG.cardPrice = card => 24 + 22 * Math.max(1, (card.limit || 1) - 1) +
+    14 * (card.sockets || []).reduce((s, g) => s + g.affixes.filter(a => !CG.isDebuff(a.id)).reduce((t, a) => t + a.level, 0), 0);
 
   // ---------- 职业 / 初始牌组 ----------
   CG.CLASS_IDS = ['warrior', 'shield', 'priest'];
   CG.CLASSES = {
-    warrior: { name: '战士', icon: '⚔️', desc: '5 打击 + 5 防御，各有一张附带随机增益；攻守均衡。', shopCard: 'defend' },
+    warrior: { name: '战士', icon: '⚔️', desc: '5 打击 + 5 防御，各预镶嵌一颗小宝石；攻守均衡。', shopCard: 'defend' },
     shield:  { name: '盾兵', icon: '🛡️', desc: '4 打击 + 4 防御 + 2 盾击（造成 3 伤害并获得 2 格挡）。', shopCard: 'shieldbash' },
-    priest:  { name: '牧师', icon: '✚',  desc: '3 打击 + 3 防御 + 2 治疗（回复 2）+ 2 祈祷（获得随机增益）。', shopCard: 'pray' },
+    priest:  { name: '牧师', icon: '✚',  desc: '3 打击 + 3 防御 + 2 治疗 + 2 祈祷。', shopCard: 'pray' },
   };
-  // 按职业构建初始牌组（所有初始牌锻造上限 +1）
+  // 按职业构建初始牌组：每张卡 1 个孔；少量预镶嵌小宝石作早期手感
   CG.buildDeck = function (cls) {
-    const mk = (base, affixes) => CG.makeCard(base, affixes || [], 1);
-    const rb = base => { const id = CG.rollBuffId([], base); return id ? [{ id, level: 1 }] : []; };
-    const rep = (base, n) => Array.from({ length: n }, () => mk(base));
+    const blank = base => CG.makeCard(base, 1, []);
+    const gemmed = (base, buffId) => CG.makeCard(base, 1, [CG.makeGem([{ id: buffId, level: 1 }])]);
+    const rep = (base, n) => Array.from({ length: n }, () => blank(base));
     if (cls === 'shield') return [...rep('strike', 4), ...rep('defend', 4), ...rep('shieldbash', 2)];
     if (cls === 'priest') return [...rep('strike', 3), ...rep('defend', 3), ...rep('heal', 2), ...rep('pray', 2)];
-    // warrior（默认）：5 打击 + 5 防御，各一张带随机增益
-    return [mk('strike', rb('strike')), ...rep('strike', 4), mk('defend', rb('defend')), ...rep('defend', 4)];
+    // warrior（默认）：5 打击 + 5 防御；其中各一张预镶小宝石（压制 / 准备）
+    return [gemmed('strike', 'suppress'), ...rep('strike', 4), gemmed('defend', 'prepare'), ...rep('defend', 4)];
   };
 })(window.CG);

@@ -11,8 +11,8 @@ window.CG = window.CG || {};
  *  字段（可选，被引擎读取）：
  *    turnEnergy/turnDraw  每回合额外能量/抽牌
  *    afterGold            每场战斗后额外金币    guaranteedTarot 战后必掉塔罗
- *    shopHalf             商店半价              noRest 不能休息   noTarot 不能获得塔罗
- *    forgeMin             锻造出的词条最低等级
+ *    shopHalf             商店半价              noTarot 不能获得塔罗
+ *    forgeMin             生成/重铸宝石的最低增益等级
  *  达摩克利斯 / 回光返照 / 人寿保险 三个机制较深，由引擎按 id 特判。
  * ===========================================================================
  */
@@ -36,15 +36,16 @@ window.CG = window.CG || {};
     laststand:   { name: '回光返照密法', icon: '🕯️', desc: '被敌人攻击致死的回合不死、可再续一回合；若该回合击败敌人则以 1 HP 复活（每场一次）', preventDeath: true },
     tulip:       { name: '白色郁金香', icon: '🌷', desc: '下一个首领额外掉落 2 个遗物',
                    onPickup: r => { r.flags.bonusBossRelics = (r.flags.bonusBossRelics || 0) + 2; } },
-    birthcert:   { name: '出生证明', icon: '📜', desc: '获得一张 10 锻造上限、带 3 个随机词条的卡',
-                   onPickup: r => { const c = CG.makeCard(Math.random() < 0.5 ? 'strike' : 'defend', [], 10); for (let i = 0; i < 3; i++) CG.upgradeInstance(c); r.deck.push(c); } },
-    fusion:      { name: '核融合炉', icon: '⚛️', desc: '重铸你所有卡牌，并各锻造一次',
-                   onPickup: r => { r.deck.forEach(c => { CG.reforgeInstance(c); CG.upgradeInstance(c, { minLevel: r.forgeMinLevel() }); }); } },
+    birthcert:   { name: '出生证明', icon: '📜', desc: '获得一张 3 孔法杖，已预镶一颗强力宝石',
+                   onPickup: r => { r.deck.push(CG.makeCard(Math.random() < 0.5 ? 'strike' : 'defend', 3, [CG.rollGem({ tier: 'elite', big: true, minLevel: 2 })])); } },
+    fusion:      { name: '核融合炉', icon: '⚛️', desc: '重铸你所有宝石（背包与已镶嵌的）的全部词条',
+                   onPickup: r => { r.allGems().forEach(x => CG.recutGem(x.gem)); } },
     piggy:       { name: '存钱罐', icon: '🐷', desc: '每场战斗后额外获得 15 金币', afterGold: 15 },
     insurance:   { name: '人寿保险', icon: '📋', desc: '可过量治疗；当生命低于一半时自动释放储存的过量治疗', overheal: true },
-    cancer:      { name: '癌症', icon: '🦀', desc: '每回合多抽 1 张、多 1 能量；但无法在休息处休息', turnEnergy: 1, turnDraw: 1, noRest: true },
+    cancer:      { name: '癌症', icon: '🦀', desc: '每回合多抽 1 张、多 1 能量；但每回合开始失去 2 生命', turnEnergy: 1, turnDraw: 1,
+                   onTurnStart: b => { b.player.hp = Math.max(1, b.player.hp - 2); } },
     atheist:     { name: '无神论者', icon: '🚫', desc: '每回合多 1 能量；但无法获得塔罗牌', turnEnergy: 1, noTarot: true },
-    luckyfoot:   { name: '幸运脚', icon: '🦶', desc: '你锻造出的词条总是升级过的（≥2 级）', forgeMin: 2 },
+    luckyfoot:   { name: '幸运脚', icon: '🦶', desc: '你获得 / 重铸的宝石增益总是 ≥2 级', forgeMin: 2 },
     slot:        { name: '老虎机', icon: '🎰', desc: '每回合开始失去 6 金币、获得 1 能量',
                    onTurnStart: b => { if (b.run) b.run.gold = Math.max(0, b.run.gold - 6); b.player.energy += 1; } },
 

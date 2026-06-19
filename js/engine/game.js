@@ -18,10 +18,8 @@ window.CG = window.CG || {};
   const START_ENERGY = 3;    // 每回合能量
   const CARDS_PER_TURN = 5;  // 每回合抽牌数
 
-  // 克隆一张卡（连词条）——战斗用副本，锻造/洗牌都不影响跑图原牌组
-  function cloneCard(c) {
-    return { uid: c.uid, base: c.base, limit: c.limit, affixes: (c.affixes || []).map(a => ({ id: a.id, level: a.level })) };
-  }
+  // 克隆一张卡（连宝石）——战斗用副本，洗牌不影响跑图原牌组
+  const cloneCard = c => CG.cloneCard(c);
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -126,7 +124,6 @@ window.CG = window.CG || {};
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
-      this.forgeMinLevel = run ? run.forgeMinLevel() : 1;  // 幸运脚
       const maxEnergy = START_ENERGY + this.relics.reduce((s, id) => s + (CG.RELICS[id].maxEnergyBonus || 0), 0);  // 电池
       this.player = {
         name: '你', maxHp, hp, block: 0,
@@ -136,7 +133,7 @@ window.CG = window.CG || {};
       this.target = 0;
       this.enemy = this.enemies[0];            // this.enemy 始终指向「当前目标」，兼容遗物/塔罗
       this._computeCardMult();                 // 达摩克利斯
-      this.drawPile = shuffle(deck.map(cloneCard));  // 克隆副本：洗牌/锻造不影响原牌组
+      this.drawPile = shuffle(deck.map(cloneCard));  // 克隆副本：洗牌不影响原牌组
       this.hand = [];
       this.discardPile = [];
       this.exhaustPile = [];
@@ -257,22 +254,6 @@ window.CG = window.CG || {};
       if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
       // 透支：累计下回合能量惩罚
       if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
-
-      // 锻造：随机锻造手中若干张牌（作用于本场克隆副本，加 buff+debuff）
-      if (s.forgeCount) {
-        const pool = [...this.hand];
-        for (let i = 0; i < s.forgeCount && pool.length; i++)
-          CG.upgradeInstance(pool.splice(Math.floor(Math.random() * pool.length), 1)[0], { minLevel: this.forgeMinLevel });
-      }
-      // 侵蚀：随机降级手中若干张牌（移除一个随机词条）
-      if (s.erodeCount) {
-        for (let i = 0; i < s.erodeCount; i++) {
-          const pool = this.hand.filter(c => (c.affixes || []).length);
-          if (!pool.length) break;
-          const c = pool[Math.floor(Math.random() * pool.length)];
-          c.affixes.splice(Math.floor(Math.random() * c.affixes.length), 1);
-        }
-      }
 
       // 风怒：本回合前 N 次打出后回到手牌（销毁优先，不回手）
       let returned = false;

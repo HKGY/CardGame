@@ -20,10 +20,25 @@ CG.CONFIG = {
   },
 
   // 地图：rows = Boss 之前的“内容行”数量；最后会再自动补一行 Boss。
+  // 已去掉篝火（休息）；Boss 前一行强制为商店。
   map: { rows: 6, minWidth: 2, maxWidth: 4 },
 
-  gold: { monster: [12, 22], elite: [28, 42], boss: [60, 90] },
+  gold: { monster: [14, 24], elite: [30, 46], boss: [64, 96] },   // 经济略上调（一切都要花钱）
   reward: { count: 3 },
+  // 战斗奖励是「宝石」还是「空卡/多孔法杖」的概率（首领恒给宝石）
+  rewardGemChance: { monster: 0.65, elite: 0.6, boss: 1 },
+
+  // 宝石生成：bigChance = 出「强增益+减益」大宝石的概率；levelW = 增益等级权重
+  gem: {
+    bigChance: { monster: 0.35, elite: 0.6, boss: 1 },
+    levelW: {
+      monster: [[1, 6], [2, 3], [3, 1]],
+      elite:   [[1, 2], [2, 4], [3, 4]],
+      boss:    [[1, 1], [2, 3], [3, 6]],
+    },
+  },
+  // 卡牌奖励 / 商店法杖的孔位数权重（空法杖的价值在于孔位）
+  cardLimitW: { monster: [[1, 3], [2, 4], [3, 2]], elite: [[2, 4], [3, 4]], boss: [[2, 2], [3, 5], [4, 3]] },
 
   // 塔罗牌（消耗品）：栏位数 + 战斗胜利掉落概率（按敌人强度）
   tarot: { slots: 3, chance: { monster: 0.35, elite: 0.55, boss: 0.7 } },
@@ -31,25 +46,17 @@ CG.CONFIG = {
   // 遗物：精英/首领掉落数、商店出售数与单价
   relic: { elite: 1, boss: 2, shopCount: 2, shopPrice: 150 },
 
-  // 掉落卡的锻造上限 = 词条数 + 此随机量
-  cardLimitExtra: [[0, 3], [1, 3], [2, 2]],
-
-  // 升级 / 升级祭坛 给的随机词条等级权重
+  // 升级祭坛 / 宝石重铸用的随机词条等级权重
   upgradeLevelWeights: [[1, 4], [2, 3], [3, 2]],
 
-  // 各档敌人掉落/出售卡所带词条：数量权重 + 等级权重。
-  // 都至少 1 个词条；精英/首领明显更强、与小怪区分度更大。
-  affix: {
-    monster: { count: [[1, 7], [2, 3]],         levelW: [[1, 6], [2, 3], [3, 1]] },
-    elite:   { count: [[2, 6], [3, 4]],         levelW: [[1, 2], [2, 4], [3, 4]] },
-    boss:    { count: [[3, 8], [2, 2]],         levelW: [[1, 1], [2, 3], [3, 6]] },
-  },
-
-  rest: { healPct: 0.30 },
+  // 商店（已合并篝火；一切皆需花钱）
   shop: {
-    cardCount: 3, upgradePrice: 50, healPrice: 25, healPct: 0.25,
-    tarotCount: 2, tarotPrice: 45,        // 出售塔罗牌
-    removeBase: 40, removeStep: 25,       // 删牌：每买一次，下次永久 +25
-    exorciseBase: 30, exorciseStep: 20,   // 驱魔：移除一张卡的全部减益，每买一次下次永久 +20
+    gemCount: 3,            // 出售宝石数
+    cardCount: 2,           // 出售法杖（空卡/多孔）数
+    tarotCount: 2, tarotPrice: 45,
+    healPrice: 25, healPct: 0.30,
+    removeBase: 45, removeStep: 25,        // 删卡：每买一次，下次永久 +25
+    uninstallBase: 30, uninstallStep: 18,  // 卸下宝石：每次永久 +18（且宝石随机加 debuff）
+    socketPrice: 65,                        // 给一张卡 +1 孔位
   },
 };

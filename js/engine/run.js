@@ -1,11 +1,12 @@
 window.CG = window.CG || {};
 
 /* ===========================================================================
- *  Run —— 一次“爬塔”的持久状态：血量 / 金币 / 牌组 / 地图与进度。
+ *  Run —— 一次“爬塔”的持久状态：血量 / 金币 / 牌组 / 宝石背包 / 地图与进度。
  * ===========================================================================
  *  战斗 Game 由 Run 提供 { deck, hp, maxHp } 实例化，结束后调用 finishBattle 回收结果。
  *  地图是分行的分支图：每个节点有 type 和指向下一行若干节点的 next[]。
- *  phase: 'map' | 'battle' | 'reward' | 'shop' | 'rest' | 'dead' | 'victory'
+ *  已去掉篝火（休息）：商店出现更频繁、且 Boss 前一行恒为商店，并承担回血/打理宝石职能。
+ *  phase: 'map' | 'battle' | 'reward' | 'shop' | 'event' | 'dead' | 'victory'
  * ===========================================================================
  */
 (function (CG) {
@@ -30,49 +31,43 @@ window.CG = window.CG || {};
     return ids;
   }
 
-  // 事件祭坛
+  // 事件祭坛 —— 全部围绕宝石系统
   CG.ALTARS = {
-    upgrade: { name: '升级祭坛', icon: '⬆️', desc: '为一张牌加上一个随机词条（随机等级）。' },
-    forge:   { name: '锻造祭坛', icon: '🔨', desc: '为一张牌加上一个【3 级】随机词条。' },
-    copy:    { name: '复制祭坛', icon: '🪞', desc: '复制一张牌，副本加入牌组。' },
-    remove:  { name: '删牌祭坛', icon: '🗑️', desc: '从牌组中移除一张牌。' },
-    reforge: { name: '重铸祭坛', icon: '♻️', desc: '重铸一张牌的全部词条（数量不变，重新随机）。' },
-    exorcise:{ name: '驱魔祭坛', icon: '🪬', desc: '净化一张牌的全部减益词条（保留增益）。' },
+    setting: { name: '镶嵌祭坛', icon: '💠', desc: '把背包里的一颗宝石免费镶嵌进一张卡的空孔。' },
+    purify:  { name: '净化祭坛', icon: '🧼', desc: '移除一颗宝石上的一个减益词条。' },
+    bore:    { name: '拓孔祭坛', icon: '🔩', desc: '为一张卡增加一个孔位（上限 5）。' },
+    findgem: { name: '寻宝祭坛', icon: '🔍', desc: '获得一颗随机宝石（放入背包）。' },
+    recut:   { name: '重铸祭坛', icon: '♻️', desc: '重掷一颗宝石的全部词条（数量不变）。' },
   };
-  CG.ALTAR_IDS = ['upgrade', 'forge', 'copy', 'remove', 'reforge', 'exorcise'];
+  CG.ALTAR_IDS = ['setting', 'purify', 'bore', 'findgem', 'recut'];
 
   // ---------- 地图生成 ----------
   function pickNodeType(r, contentRows) {
     if (r === 0) return 'monster';                 // 起始行：普通战斗
-    if (r === contentRows - 1) return 'rest';      // Boss 前固定休息
-    const opts = [['monster', 5], ['shop', 2], ['rest', 2], ['event', 3]];
+    if (r === contentRows - 1) return 'shop';      // Boss 前固定商店（合并自篝火）
+    const opts = [['monster', 5], ['shop', 3], ['event', 3]];   // 商店频率调高
     if (r >= 2) opts.push(['elite', 2]);
     return weighted(opts);
   }
-  // 连接相邻两行：生成「单调阶梯」式连边——每个上层节点连到一段连续的下层节点，
-  // 区间起点随索引单调不减且首尾相接（共享末端=汇合 / +1=分叉）。由此保证：
-  //   1) 永不交叉：上层 i<k ⟹ i 的所有目标 ≤ k 的所有目标；
-  //   2) 全覆盖 + 每个上层节点都有出边、每个下层节点都有入边；
-  //   3) 只连邻近的下层节点（分支宽度≈2），不会出现横跨很远的长连线。
+  // 连接相邻两行（单调阶梯连边，详见原注释）：永不交叉、全覆盖、只连邻近。
   function connectRows(a, b) {
     const m = a.length, n = b.length;
     for (const node of a) node.next = [];
-    let L = 0;                                     // 当前上层节点的区间起点（单调不减）
+    let L = 0;
     for (let i = 0; i < m; i++) {
-      const after = m - 1 - i;                     // 之后还剩多少个上层节点
+      const after = m - 1 - i;
       let R;
-      if (i === m - 1) {
-        R = n - 1;                                 // 最后一个收尾，保证覆盖到末端
-      } else {
-        const hi = Math.min(L + 1, n - 1);                       // 分支宽度≤2，避免长连线
-        let lo = Math.max(L, (n - 1) - (after + 1) * 2);         // 别推进太慢，保证后续可达末端
+      if (i === m - 1) { R = n - 1; }
+      else {
+        const hi = Math.min(L + 1, n - 1);
+        let lo = Math.max(L, (n - 1) - (after + 1) * 2);
         lo = Math.min(lo, hi);
         R = lo + Math.floor(Math.random() * (hi - lo + 1));
       }
       if (R < L) R = L;
       if (R > n - 1) R = n - 1;
       for (let j = L; j <= R; j++) a[i].next.push(j);
-      if (i < m - 1) L = (R < n - 1 && Math.random() < 0.5) ? R + 1 : R;  // 分叉 或 共享末端(汇合)
+      if (i < m - 1) L = (R < n - 1 && Math.random() < 0.5) ? R + 1 : R;
     }
   }
   function generateMap() {
@@ -92,47 +87,31 @@ window.CG = window.CG || {};
   // ---------- 奖励 / 商店 ----------
   function rollGold(tier, act) { const [lo, hi] = C().gold[tier]; return Math.round(ri(lo, hi) * (C().goldMult[act] || 1)); }
 
-  // 按强度生成一张带词条的卡（{base, affixes, limit}）。保证至少 1 个词条。
-  function rollCard(tier) {
-    const cfg = C().affix[tier];
+  // 一张空法杖奖励（真实卡对象，价值在于孔位）：按档位决定孔位数
+  function rollCardReward(tier) {
     const base = pick(['strike', 'defend']);
-    const count = Math.max(1, weighted(cfg.count));
-    const owned = [];
-    const affixes = [];
-    for (let i = 0; i < count; i++) {           // 先掷 buff（无裸卡）
-      const id = CG.rollBuffId(owned, base);
-      if (!id) break;
-      owned.push(id);
-      affixes.push({ id, level: weighted(cfg.levelW) });
-    }
-    const buffN = affixes.length;               // 奖励卡带 debuff：至少 1 个、多 buff 卡 = buff 数 - 1（可驱魔清除）
-    const debuffN = Math.max(1, buffN - 1);
-    const ownedD = [];
-    for (let i = 0; i < debuffN; i++) {
-      const id = CG.rollDebuffId(ownedD);
-      if (!id) break;
-      ownedD.push(id);
-      affixes.push({ id, level: 1 });
-    }
-    const limit = buffN + weighted(C().cardLimitExtra);   // 锻造上限 = buff 数 + 额外
-    return { base, affixes, limit };
+    const limit = Math.max(1, weighted((C().cardLimitW && C().cardLimitW[tier]) || [[1, 1]]));
+    return CG.makeCard(base, limit, []);
   }
-  function rollRewardCards(tier) {
-    const out = [];
-    for (let i = 0; i < C().reward.count; i++) out.push(rollCard(tier));
-    return out;
-  }
-  function rollShopStock(mult, shopCard) {
+  // 商店货架：宝石 + 法杖 + 塔罗
+  function rollShopStock(mult, run) {
     mult = mult || 1;
-    // 商店固定出售「打击」+ 该职业专属卡（盾兵→盾击 / 牧师→祈祷 / 战士→防御）
-    const cards = ['strike', shopCard || 'defend'].map(base => {
-      const c = { base, affixes: [], limit: 1 };
-      return { base, affixes: [], limit: 1, price: Math.floor(CG.cardPrice(c) * mult), bought: false };
-    });
+    const gems = [];
+    for (let i = 0; i < C().shop.gemCount; i++) {
+      const g = CG.rollGem({ tier: i === C().shop.gemCount - 1 ? 'elite' : 'monster', minLevel: run.forgeMinLevel() });
+      gems.push({ gem: g, price: Math.floor(CG.gemPrice(g) * mult), bought: false });
+    }
+    const cards = [];
+    for (let i = 0; i < C().shop.cardCount; i++) {
+      const base = pick(['strike', 'defend']);
+      const limit = i === 0 ? 1 : weighted([[2, 3], [3, 2]]);     // 一张单孔 + 一张多孔法杖
+      const probe = CG.makeCard(base, limit, []);
+      cards.push({ base, limit, gems: [], price: Math.floor(CG.cardPrice(probe) * mult), bought: false });
+    }
     const tarot = [];
     for (let i = 0; i < C().shop.tarotCount; i++)
       tarot.push({ id: pick(CG.TAROT_IDS), price: Math.floor(C().shop.tarotPrice * mult), bought: false });
-    return { cards, tarot };
+    return { gems, cards, tarot };
   }
 
   class Run {
@@ -145,15 +124,17 @@ window.CG = window.CG || {};
       this.act = 1;
       this.maxActs = C().acts;
       this.tarot = [];                         // 消耗品栏（塔罗牌）
+      this.gems = [];                          // 宝石背包（未镶嵌）
       this.relics = [];                        // 遗物
       this.overheal = 0;                       // 人寿保险的过量治疗池
       this.flags = {};                         // 各种延迟生效的旗标
       this.removeCount = 0;                    // 商店删牌次数（涨价用）
+      this.uninstallCount = 0;                 // 商店卸宝石次数（涨价用）
       this.current = null;
       this.pending = null;                     // 暂存：本场战斗信息 / 奖励 / 商店货架
       this.phase = 'map';
       this._newMap();                          // 先生成地图：同种子下地图最先确定，不受职业牌组随机影响
-      this.deck = CG.buildDeck(this.cls);      // 按职业构建初始牌组（上限 +1）
+      this.deck = CG.buildDeck(this.cls);      // 按职业构建初始牌组
     }
 
     _newMap() {
@@ -182,12 +163,10 @@ window.CG = window.CG || {};
       }
       return out;
     }
-    forgeMinLevel() { return this.relics.some(id => CG.RELICS[id].forgeMin >= 2) ? 2 : 1; }   // 幸运脚
-    canRest() { return !this.relics.some(id => CG.RELICS[id].noRest); }                        // 癌症
+    forgeMinLevel() { return this.relics.some(id => CG.RELICS[id].forgeMin >= 2) ? 2 : 1; }   // 幸运脚：宝石词条最低 2 级
     canGainTarot() { return !this.relics.some(id => CG.RELICS[id].noTarot); }                  // 无神论者
     shopMult() { return this.relics.some(id => CG.RELICS[id].shopHalf) ? 0.5 : 1; }            // Steam 促销
     tarotSlots() { return C().tarot.slots + this.relics.reduce((s, id) => s + (CG.RELICS[id].tarotSlot || 0), 0); }  // 肚脐：消耗品栏 +1
-    upgradeCost() { return Math.floor(C().shop.upgradePrice * this.shopMult()); }
     healCost() { return Math.floor(C().shop.healPrice * this.shopMult()); }
     gainHp(n) {                                 // 治疗入口；人寿保险可过量储存
       if (this.relics.some(id => CG.RELICS[id].overheal)) {
@@ -195,6 +174,24 @@ window.CG = window.CG || {};
         if (this.hp > this.maxHp) { this.overheal += this.hp - this.maxHp; this.hp = this.maxHp; }
       } else this.hp = Math.min(this.maxHp, this.hp + n);
     }
+
+    // ---- 宝石背包 / 镶嵌（安装免费） ----
+    allGems() {                                 // 全部宝石（背包 + 已镶嵌），带位置信息
+      const out = this.gems.map(g => ({ gem: g, uid: g.uid, loc: 'inv', label: '背包' }));
+      this.deck.forEach(c => (c.sockets || []).forEach((g, si) =>
+        out.push({ gem: g, uid: g.uid, loc: 'card', card: c, idx: si, label: CG.BASE_CARDS[c.base].name })));
+      return out;
+    }
+    findGem(uid) { return this.allGems().find(x => x.uid === uid) || null; }
+    cardsWithEmptySocket() { return this.deck.filter(c => CG.cardEmptySockets(c) > 0); }
+    _doInstall(gemUid, cardUid) {
+      const gi = this.gems.findIndex(g => g.uid === gemUid);
+      const card = this.deck.find(c => c.uid === cardUid);
+      if (gi < 0 || !card || CG.cardEmptySockets(card) <= 0) return false;
+      CG.installGem(card, this.gems.splice(gi, 1)[0]);
+      return true;
+    }
+    installGemInv(gemUid, cardUid) { if (this._doInstall(gemUid, cardUid)) this._emit(); }   // 工作台：免费、留在原界面
 
     // 玩家在地图上选择一个节点进入
     selectNode(node) {
@@ -205,42 +202,40 @@ window.CG = window.CG || {};
         this.pending = { tier: node.type, enemyIds: pickEncounter(tier, this.act) };
         this.phase = 'battle';
       } else if (node.type === 'shop') {
-        this.pending = rollShopStock(this.shopMult(), CG.CLASSES[this.cls].shopCard);
+        this.pending = rollShopStock(this.shopMult(), this);
         const avail = CG.RELIC_IDS.filter(id => !this.hasRelic(id));   // 商店遗物（未拥有）
         this.pending.relics = [];
         for (let i = 0; i < C().relic.shopCount && avail.length; i++) {
           const id = avail.splice(Math.floor(Math.random() * avail.length), 1)[0];
           this.pending.relics.push({ id, price: Math.floor(C().relic.shopPrice * this.shopMult()), bought: false });
         }
-        if (this.flags.freeShopCard && this.pending.cards[0]) {   // 隐士：首张卡免费
-          this.pending.cards[0].price = 0;
+        if (this.flags.freeShopCard && this.pending.gems[0]) {   // 隐士：首件商品免费（改作首颗宝石）
+          this.pending.gems[0].price = 0;
           this.flags.freeShopCard = false;
         }
         this.phase = 'shop';
-      } else if (node.type === 'rest') {
-        this.pending = null;
-        this.phase = 'rest';
       } else if (node.type === 'event') {
-        this.pending = { altar: pick(CG.ALTAR_IDS) };   // 随机一种祭坛
+        const valid = CG.ALTAR_IDS.filter(id => this.altarUsable(id));
+        this.pending = { altar: pick(valid.length ? valid : ['findgem']) };   // 随机一种可用祭坛
         this.phase = 'event';
       }
       this._emit();
     }
 
-    // 事件祭坛：对选中的牌应用效果，然后离开
-    useAltar(uid, option) {
-      const id = this.pending && this.pending.altar;
-      const card = this.deck.find(c => c.uid === uid);
-      if (id === 'remove') {
-        if (this.deck.length > 1) this.deck = this.deck.filter(c => c.uid !== uid);
-      } else if (card) {
-        if (id === 'upgrade' || id === 'forge') { if (option) CG.applyForge(card, option); }
-        else if (id === 'copy') this.deck.push(CG.makeCard(card.base, card.affixes, card.limit));
-        else if (id === 'reforge') CG.reforgeInstance(card);
-        else if (id === 'exorcise') card.affixes = (card.affixes || []).filter(a => !CG.isDebuff(a.id));
-      }
-      this._advance();
+    // ---- 事件祭坛（宝石操作）----
+    altarUsable(id) {
+      if (id === 'findgem') return true;
+      if (id === 'setting') return this.gems.length > 0 && this.cardsWithEmptySocket().length > 0;
+      if (id === 'purify')  return this.allGems().some(x => CG.gemHasDebuff(x.gem));
+      if (id === 'bore')    return this.deck.some(c => (c.limit || 0) < CG.MAX_SOCKETS);
+      if (id === 'recut')   return this.allGems().length > 0;
+      return true;
     }
+    altarInstall(gemUid, cardUid) { this._doInstall(gemUid, cardUid); this._advance(); }
+    altarPurify(gemUid)  { const f = this.findGem(gemUid); if (f) CG.gemRemoveOneDebuff(f.gem); this._advance(); }
+    altarBore(cardUid)   { const c = this.deck.find(x => x.uid === cardUid); if (c) CG.addSocket(c); this._advance(); }
+    altarFindGem()       { this.gems.push(CG.rollGem({ tier: 'monster', minLevel: this.forgeMinLevel() })); this._advance(); }
+    altarRecut(gemUid)   { const f = this.findGem(gemUid); if (f) CG.recutGem(f.gem); this._advance(); }
     leaveEvent() { this._advance(); }
 
     // 战斗结束回收：win + 剩余血量
@@ -263,22 +258,30 @@ window.CG = window.CG || {};
         const guaranteed = this.relics.some(id => CG.RELICS[id].guaranteedTarot);
         if (guaranteed || Math.random() < (C().tarot.chance[tier] || 0)) tarotId = pick(CG.TAROT_IDS);
       }
-      // 世界：卡牌奖励替换为随机祭坛（金币/遗物照常）
+      // 群星：本次额外获得一颗宝石（进背包）
+      if (this.flags.rewardBonusGem) { this.flags.rewardBonusGem = false; this.gems.push(CG.rollGem({ tier: tier === 'monster' ? 'monster' : tier, minLevel: this.forgeMinLevel() })); }
+      // 世界：卡牌奖励替换为随机宝石事件（金币/遗物照常）
       if (this.flags.rewardAsAltar) {
         this.flags.rewardAsAltar = false;
-        this.pending = { altar: pick(CG.ALTAR_IDS), relics: dropped };
+        const valid = CG.ALTAR_IDS.filter(id => this.altarUsable(id));
+        this.pending = { altar: pick(valid.length ? valid : ['findgem']), relics: dropped };
         this.phase = 'event'; this._emit(); return;
       }
-      const cards = rollRewardCards(tier);
-      // 群星：本次奖励每张多一条词条
-      if (this.flags.rewardAffixBoost) { this.flags.rewardAffixBoost = false; cards.forEach(c => CG.upgradeInstance(c)); }
-      this.pending = { gold: earned, cards, tarot: tarotId, tarotTaken: false, relics: dropped };
+      // 奖励：宝石（三选一进背包）或 空法杖（三选一进牌组）
+      const gemTier = tier === 'monster' ? 'monster' : tier;
+      const gemReward = tier === 'boss' || Math.random() < (C().rewardGemChance[tier] || 0.65);
+      const gems = gemReward ? Array.from({ length: C().reward.count }, () => CG.rollGem({ tier: gemTier, minLevel: this.forgeMinLevel() })) : null;
+      const cards = gemReward ? null : Array.from({ length: C().reward.count }, () => rollCardReward(tier));
+      this.pending = { kind: gemReward ? 'gem' : 'card', gold: earned, gems, cards, tarot: tarotId, tarotTaken: false, relics: dropped };
       this.phase = 'reward';
       this._emit();
     }
 
     chooseReward(spec) {                                  // spec=null 表示跳过
-      if (spec) this.deck.push(CG.makeCard(spec.base, spec.affixes, spec.limit));
+      if (spec) {
+        if (spec.base) this.deck.push(spec);   // 法杖（真实卡对象）
+        else this.gems.push(spec);             // 宝石
+      }
       this.pending = null;
       this._advance();
     }
@@ -291,79 +294,69 @@ window.CG = window.CG || {};
       this._emit();
     }
 
-    // ---- 休息点 ----
-    restHeal() {
-      if (!this.canRest()) return;                        // 癌症：不能休息
-      this.gainHp(Math.ceil(this.maxHp * C().rest.healPct));
-      this._advance();
+    // ---- 商店（一切皆需花钱；安装免费走工作台）----
+    buyGem(i) {
+      const it = this.pending.gems[i];
+      if (!it || it.bought || this.gold < it.price) return;
+      this.gold -= it.price; it.bought = true; this.gems.push(it.gem); this._emit();
     }
-    restUpgrade(uid, option) { this._forge(uid, option); this._advance(); }
-
-    // ---- 商店 ----
     buyCard(i) {
       const it = this.pending.cards[i];
       if (!it || it.bought || this.gold < it.price) return;
-      this.gold -= it.price;
-      it.bought = true;
-      this.deck.push(CG.makeCard(it.base, it.affixes, it.limit));
-      this._emit();
+      this.gold -= it.price; it.bought = true; this.deck.push(CG.makeCard(it.base, it.limit, it.gems || [])); this._emit();
     }
-    // 商店服务（升级/删除/驱魔/治疗）每次进店只可使用一次
-    svcUsed(k) { return !!(this.pending && this.pending.usedSvc && this.pending.usedSvc[k]); }
-    _markSvc(k) { if (this.pending) { this.pending.usedSvc = this.pending.usedSvc || {}; this.pending.usedSvc[k] = true; } }
-
-    buyUpgrade(uid, option) {
-      const price = this.upgradeCost();
-      if (this.svcUsed('upgrade') || this.gold < price || !option) return;
-      this.gold -= price;
-      this._forge(uid, option);
-      this._markSvc('upgrade');
-      this._emit();
-    }
-    buyHeal() {
-      const price = this.healCost();
-      if (this.svcUsed('heal') || this.gold < price || this.hp >= this.maxHp) return;
-      this.gold -= price;
-      this.gainHp(Math.ceil(this.maxHp * C().shop.healPct));
-      this._markSvc('heal');
-      this._emit();
-    }
-    buyTarot(i) {                                         // 商店买塔罗牌
+    buyTarot(i) {
       if (!this.canGainTarot()) return;
       const it = this.pending.tarot[i];
       if (!it || it.bought || this.gold < it.price || this.tarot.length >= this.tarotSlots()) return;
       this.gold -= it.price; it.bought = true; this.tarot.push(it.id); this._emit();
     }
-    buyRelic(i) {                                         // 商店买遗物
+    buyRelic(i) {
       const it = this.pending.relics[i];
       if (!it || it.bought || this.gold < it.price || this.hasRelic(it.id)) return;
       this.gold -= it.price; it.bought = true; this.addRelic(it.id); this._emit();
     }
+    // 商店服务：治疗（每店一次）
+    svcUsed(k) { return !!(this.pending && this.pending.usedSvc && this.pending.usedSvc[k]); }
+    _markSvc(k) { if (this.pending) { this.pending.usedSvc = this.pending.usedSvc || {}; this.pending.usedSvc[k] = true; } }
+    buyHeal() {
+      const price = this.healCost();
+      if (this.svcUsed('heal') || this.gold < price || this.hp >= this.maxHp) return;
+      this.gold -= price; this.gainHp(Math.ceil(this.maxHp * C().shop.healPct)); this._markSvc('heal'); this._emit();
+    }
+    // 删卡：可重复、价格逐次永久提高
     removePrice() { return Math.floor((C().shop.removeBase + C().shop.removeStep * (this.removeCount || 0)) * this.shopMult()); }
-    buyRemove(uid) {                                      // 商店删牌，价格逐次永久提高
-      if (this.svcUsed('remove') || this.gold < this.removePrice() || this.deck.length <= 1) return;
+    buyRemove(uid) {
+      if (this.gold < this.removePrice() || this.deck.length <= 1) return;
       this.gold -= this.removePrice();
       this.removeCount = (this.removeCount || 0) + 1;
+      const card = this.deck.find(c => c.uid === uid);
+      if (card) (card.sockets || []).forEach(g => this.gems.push(g));   // 拆下的宝石不浪费：回收进背包（无 debuff）
       this.deck = this.deck.filter(c => c.uid !== uid);
-      this._markSvc('remove');
       this._emit();
     }
-    exorcisePrice() { return Math.floor((C().shop.exorciseBase + C().shop.exorciseStep * (this.exorciseCount || 0)) * this.shopMult()); }
-    canExorcise() { return this.deck.some(c => (c.affixes || []).some(a => CG.isDebuff(a.id))); }   // 牌组中有带减益的卡
-    buyExorcise(uid) {                                    // 商店驱魔：移除一张卡的全部减益，价格逐次永久提高
-      const card = this.deck.find(c => c.uid === uid);
-      if (this.svcUsed('exorcise') || !card || this.gold < this.exorcisePrice()) return;
-      if (!(card.affixes || []).some(a => CG.isDebuff(a.id))) return;   // 无减益不可驱魔
-      this.gold -= this.exorcisePrice();
-      this.exorciseCount = (this.exorciseCount || 0) + 1;
-      card.affixes = (card.affixes || []).filter(a => !CG.isDebuff(a.id));
-      this._markSvc('exorcise');
+    // 卸下宝石：花钱 + 该宝石随机加一个 debuff（可重复、逐次涨价）
+    uninstallPrice() { return Math.floor((C().shop.uninstallBase + C().shop.uninstallStep * (this.uninstallCount || 0)) * this.shopMult()); }
+    buyUninstall(cardUid, idx) {
+      const card = this.deck.find(c => c.uid === cardUid);
+      if (this.gold < this.uninstallPrice() || !card || !(card.sockets || [])[idx]) return;
+      this.gold -= this.uninstallPrice();
+      this.uninstallCount = (this.uninstallCount || 0) + 1;
+      this.gems.push(CG.uninstallGem(card, idx));     // 取出宝石并随机加 debuff
       this._emit();
+    }
+    // 加孔：给一张卡 +1 孔位（每次定价）
+    socketPrice() { return Math.floor(C().shop.socketPrice * this.shopMult()); }
+    buyAddSocket(uid) {
+      const card = this.deck.find(c => c.uid === uid);
+      if (this.gold < this.socketPrice() || !card || (card.limit || 0) >= CG.MAX_SOCKETS) return;
+      this.gold -= this.socketPrice(); CG.addSocket(card); this._emit();
     }
     leaveShop() { this.pending = null; this._advance(); }
 
     // ---- 塔罗牌触发的跑图效果 ----
     fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(pick(CG.TAROT_IDS)); }
+    gainGem(opts) { this.gems.push(CG.rollGem(opts || { tier: 'elite', minLevel: this.forgeMinLevel() })); }   // 节制·逆等可调用
     gotoActBoss() {                                       // 皇帝：传送到本层 Boss
       this.current = this.map[this.map.length - 1][0];
       this.pending = { tier: 'boss', enemyIds: pickEncounter('boss', this.act) };
@@ -383,8 +376,6 @@ window.CG = window.CG || {};
         this.available = this.map[row].filter(n => !n.done);
       } else this.flags.freeRoute = true;
     }
-
-    _forge(uid, option) { const c = this.deck.find(c => c.uid === uid); if (c && option) CG.applyForge(c, option); }
 
     // 结算当前节点，前进到下一行（Boss 节点 -> 通关）
     _advance() {

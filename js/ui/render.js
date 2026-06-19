@@ -268,20 +268,38 @@ window.CG = window.CG || {};
   }
   function cardInner(s) {
     const span = a => `<span class="aff" style="color:${a.color}">${a.name}</span>`;
-    const buffNames = s.buffs.map(span).join('');
-    const dbf = s.debuffs.length ? `<span class="dbf-paren">(</span>${s.debuffs.map(span).join('')}<span class="dbf-paren">)</span>` : '';
-    const name = buffNames + `<span class="base-name">${s.baseName}</span>` + dbf + `<span class="card-limit" title="锻造上限">+${s.limit}</span>`;
-    // 词条说明并入一段（颜色区分各词条），避免数量多时撑破卡面
-    const affs = s.buffs.concat(s.debuffs);
-    const lines = affs.length
-      ? '<div class="affix-lines">' + affs.map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>') + '</div>'
-      : '';
+    // 卡名：基底 + 每颗宝石分组 (增益+减益) + 空孔 ◇
+    const gemChips = s.gemViews.map(g =>
+      `<span class="gem-chip">(${g.buffs.concat(g.debuffs).map(span).join('<span class="aff-plus">+</span>')})</span>`).join('');
+    const empties = '<span class="socket-empty" title="空孔位">◇</span>'.repeat(s.emptySockets);
+    const name = `<span class="base-name">${s.baseName}</span>${gemChips}${empties}`;
+    // 词条说明：按宝石分组（不同宝石用 ┃ 隔开），避免数量多时撑破卡面
+    const descGroups = s.gemViews.map(g =>
+      g.buffs.concat(g.debuffs).map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>')
+    ).filter(Boolean).join('<span class="gem-sep"> ┃ </span>');
+    const lines = descGroups ? `<div class="affix-lines">${descGroups}</div>` : '';
     return `<div class="card-cost">${s.cost}</div>
       <div class="card-art">${CG.CardArt.get(s.base)}</div>
       <div class="card-body">
         <div class="card-name">${name}</div>
         <div class="card-text">${colorKeywords(s.baseText)}${lines}</div>
       </div>`;
+  }
+  // 宝石贴面（背包 / 商店 / 奖励 / 工作台 / 选择器复用）。
+  // opts: { clickable, dim, selected, data:{k:v}, tagLabel }
+  function gemFace(gem, opts = {}) {
+    const affs = (gem.affixes || []).map(a => { const d = CG.AFFIXES[a.id]; return { name: CG.affixDisplayName(a.id, a.level), color: d.color, desc: d.desc(a.level, 'strike'), debuff: !!d.debuff }; });
+    const ordered = affs.filter(a => !a.debuff).concat(affs.filter(a => a.debuff));
+    const title = ordered.map(a => `<span class="aff" style="color:${a.color}">${a.name}</span>`).join('<span class="aff-plus">+</span>') || '空宝石';
+    const lines = ordered.map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>');
+    const cls = ['gem', opts.clickable ? 'clickable' : 'static', opts.dim ? 'disabled' : '', opts.selected ? 'selected' : ''].join(' ');
+    const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
+    return `<div class="${cls}" ${data} style="--gem:${CG.gemPrimaryColor(gem)}">
+      <div class="gem-orb">💎</div>
+      <div class="gem-name">${title}</div>
+      <div class="gem-text">${lines}</div>
+      ${opts.tagLabel ? `<div class="gem-tag">${opts.tagLabel}</div>` : ''}
+    </div>`;
   }
   function relicIcons(relics) {
     return (relics || []).map(id => { const r = CG.RELICS[id]; return `<span class="relic-icon" title="${r.name}：${r.desc}">${r.icon}</span>`; }).join('');
@@ -415,5 +433,5 @@ window.CG = window.CG || {};
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
   }
 
-  CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace, tarotBarHTML, relicIcons });
+  CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace, gemFace, tarotBarHTML, relicIcons });
 })(window.CG);

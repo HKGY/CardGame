@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>残响之塔 · 卡牌爬塔</title>
-  <link rel="stylesheet" href="css/style.css?v=45">
+  <link rel="stylesheet" href="css/style.css?v=46">
 </head>
 <body>
   <!-- 内联定位作兜底：即使样式表被浏览器缓存成旧版，画布也不会挤出空白条 -->
@@ -38,6 +38,7 @@
         <span id="run-gold">💰 0</span>
         <span id="run-potions" class="run-potions" title="消耗品栏"></span>
         <span id="run-relics" class="run-relics" title="遗物"></span>
+        <button id="bench-btn" title="宝石工作台（免费镶嵌）">💎 宝石 <b>0</b></button>
         <button id="codex-btn">📖 百科</button>
         <button id="run-deck-btn">🂠 牌库</button>
         <button id="mute-btn" class="mute-btn" title="音效开关">🔊</button>
@@ -46,7 +47,7 @@
 
     <!-- ===== 地图 ===== -->
     <section id="screen-map" class="screen">
-      <p class="map-hint">点击发光节点前进。⚔️战斗　💀精英　🛒商店　🏕️休息　🔮事件　👑首领</p>
+      <p class="map-hint">点击发光节点前进。⚔️战斗　💀精英　🛒商店　🔮事件　👑首领（Boss 前必有商店）</p>
       <div class="map-wrap"><div id="map-area" class="map-area"></div></div>
       <div class="tarot-bar" id="map-tarot-bar"></div>
     </section>
@@ -91,7 +92,6 @@
     <!-- ===== 其它屏（内容由 JS 填充） ===== -->
     <section id="screen-reward" class="screen"></section>
     <section id="screen-shop" class="screen"></section>
-    <section id="screen-rest" class="screen"></section>
     <section id="screen-event" class="screen"></section>
     <section id="screen-gameover" class="screen"></section>
 
@@ -119,6 +119,14 @@
       </div>
     </div>
 
+    <!-- 宝石工作台（免费镶嵌：选背包宝石 → 选有空孔的卡） -->
+    <div id="bench-modal" class="modal hidden">
+      <div class="modal-box bench-box">
+        <div class="modal-head"><h3>💎 宝石工作台 · 镶嵌免费</h3><button id="bench-close">关闭</button></div>
+        <div id="bench-body" class="bench-body"></div>
+      </div>
+    </div>
+
     <!-- 百科大全 -->
     <div id="codex-modal" class="modal hidden">
       <div class="modal-box codex-box">
@@ -135,22 +143,22 @@
   </div>
 
   <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
-  <script src="js/util/rng.js?v=45"></script>
-  <script src="js/data/cards.js?v=45"></script>
-  <script src="js/data/affixes.js?v=45"></script>
-  <script src="js/data/tarot.js?v=45"></script>
-  <script src="js/data/relics.js?v=45"></script>
-  <script src="js/data/config.js?v=45"></script>
-  <script src="js/data/enemies.js?v=45"></script>
-  <script src="js/engine/effects.js?v=45"></script>
-  <script src="js/engine/game.js?v=45"></script>
-  <script src="js/engine/run.js?v=45"></script>
-  <script src="js/ui/sprites.js?v=45"></script>
-  <script src="js/ui/audio.js?v=45"></script>
-  <script src="js/ui/music.js?v=45"></script>
-  <script src="js/ui/background.js?v=45"></script>
-  <script src="js/ui/render.js?v=45"></script>
-  <script src="js/ui/screens.js?v=45"></script>
-  <script src="js/main.js?v=45"></script>
+  <script src="js/util/rng.js?v=46"></script>
+  <script src="js/data/cards.js?v=46"></script>
+  <script src="js/data/affixes.js?v=46"></script>
+  <script src="js/data/tarot.js?v=46"></script>
+  <script src="js/data/relics.js?v=46"></script>
+  <script src="js/data/config.js?v=46"></script>
+  <script src="js/data/enemies.js?v=46"></script>
+  <script src="js/engine/effects.js?v=46"></script>
+  <script src="js/engine/game.js?v=46"></script>
+  <script src="js/engine/run.js?v=46"></script>
+  <script src="js/ui/sprites.js?v=46"></script>
+  <script src="js/ui/audio.js?v=46"></script>
+  <script src="js/ui/music.js?v=46"></script>
+  <script src="js/ui/background.js?v=46"></script>
+  <script src="js/ui/render.js?v=46"></script>
+  <script src="js/ui/screens.js?v=46"></script>
+  <script src="js/main.js?v=46"></script>
 </body>
 </html>

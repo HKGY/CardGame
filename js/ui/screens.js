@@ -1,23 +1,26 @@
 window.CG = window.CG || {};
 
 /* ===========================================================================
- *  跑图界面（地图 / 奖励 / 商店 / 休息 / 结算）+ 顶栏 + 升级选牌弹窗。
- *  通过 .screen.active 切换显示；卡面复用 CG.UI.cardFace。
+ *  跑图界面（地图 / 奖励 / 商店 / 事件 / 结算）+ 顶栏 + 宝石工作台 + 百科。
+ *  通过 .screen.active 切换显示；卡面复用 CG.UI.cardFace、宝石面复用 CG.UI.gemFace。
+ *  已去掉篝火（休息）：商店承担回血与宝石打理；事件全为宝石主题祭坛。
  * ===========================================================================
  */
 (function (CG) {
   const $ = id => document.getElementById(id);
   let H = {};                 // 控制器回调
-  let pickerHandler = null;   // 当前选牌弹窗的回调
+  let pickerHandler = null;   // 当前选择弹窗的回调（卡 / 宝石通用，回传 uid）
   let chooseState = null;     // 当前三选一弹窗状态
+  let benchSel = null;        // 工作台：当前选中的背包宝石 uid
 
-  const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', rest: '🏕️', boss: '👑', event: '🔮' };
-  const LABEL = { monster: '战斗', elite: '精英', shop: '商店', rest: '休息', boss: '首领', event: '事件' };
-  const SCREENS = ['menu', 'map', 'battle', 'reward', 'shop', 'rest', 'event', 'gameover'];
+  const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', boss: '👑', event: '🔮' };
+  const LABEL = { monster: '战斗', elite: '精英', shop: '商店', boss: '首领', event: '事件' };
+  const SCREENS = ['menu', 'map', 'battle', 'reward', 'shop', 'event', 'gameover'];
 
   function init(handlers) {
     H = handlers;
     $('run-deck-btn').addEventListener('click', openDeckView);
+    $('bench-btn').addEventListener('click', () => openBench());
 
     $('map-area').addEventListener('click', ev => {
       const el = ev.target.closest('.map-node');
@@ -27,16 +30,20 @@ window.CG = window.CG || {};
     });
     $('screen-reward').addEventListener('click', onRewardClick);
     $('screen-shop').addEventListener('click', onShopClick);
-    $('screen-rest').addEventListener('click', onRestClick);
     $('screen-event').addEventListener('click', onEventClick);
     $('screen-gameover').addEventListener('click', onGameOverClick);
 
     $('picker-close').addEventListener('click', closePicker);
     $('picker-modal').addEventListener('click', e => { if (e.target.id === 'picker-modal') closePicker(); });
     $('picker-cards').addEventListener('click', ev => {
-      const c = ev.target.closest('.card');
+      const c = ev.target.closest('.card[data-uid], .gem[data-uid]');
       if (c && c.dataset.uid && pickerHandler) { CG.Audio.play('upgrade'); const fn = pickerHandler; closePicker(); fn(+c.dataset.uid); }
     });
+
+    // 工作台（宝石镶嵌，免费）
+    $('bench-close').addEventListener('click', closeBench);
+    $('bench-modal').addEventListener('click', e => { if (e.target.id === 'bench-modal') closeBench(); });
+    $('bench-body').addEventListener('click', onBenchClick);
 
     // 地图上的塔罗栏
     $('map-tarot-bar').addEventListener('click', ev => {
@@ -66,7 +73,7 @@ window.CG = window.CG || {};
     $('menu-codex').addEventListener('click', () => openCodex());
   }
 
-  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); CG.Music.playScene('menu'); showScreen('menu'); }
+  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); showScreen('menu'); }
 
   // ---------- 百科大全 ----------
   const CODEX_TABS = ['affix', 'tarot', 'relic', 'enemy'];
@@ -91,7 +98,9 @@ window.CG = window.CG || {};
                `<span class="codex-tag">${a.score > 0 ? '+' + a.score : a.score}</span>` +
                `<span class="codex-desc">${detail}</span></div>`;
       };
-      html = '<p class="codex-note">锻造一次 = 一个随机等级增益 + 一个 1 级减益（2/3 级前加「更/最」、数值 ×2/×3）。</p>' +
+      html = '<p class="codex-note">效果来自<b>宝石</b>：宝石带若干增益(buff)与减益(debuff)，镶进卡牌孔位生效。' +
+        '一颗宝石要么是「小增益」，要么是「强增益+减益」。安装免费；卸下要花钱且宝石会随机多一个减益。' +
+        '词条 1~3 级前加「更/最」、数值 ×2/×3。</p>' +
         '<div class="codex-sub">增益（正分）</div>' + (CG.BUFF_ORDER || []).map(row).join('') +
         '<div class="codex-sub">减益（负分）</div>' + (CG.DEBUFF_ORDER || []).map(row).join('');
     } else if (tab === 'tarot') {
@@ -112,7 +121,7 @@ window.CG = window.CG || {};
         `<span class="codex-tag">${tag}</span><span class="codex-hp">❤ ${hp}</span></div>${body}</div></div>`;
       const startHp = (CG.CONFIG && CG.CONFIG.startHp) || 75;
       const hero = entry('knight', '第一女骑士（你）', '主角', startHp,
-        `<div class="codex-move">王国第一女骑士，为夺取古代遗物登上残响之塔。初始牌组：5 张打击 + 5 张防御。</div>`);
+        `<div class="codex-move">王国第一女骑士，为夺取古代遗物登上残响之塔。初始牌组：5 打击 + 5 防御（各预镶一颗小宝石）。</div>`);
       html = hero + Object.keys(CG.ENEMIES).map(id => {
         const e = CG.ENEMIES[id];
         const moves = e.moves.map(m => `<div class="codex-move">${m.name}：${moveSummary(m)}</div>`).join('');
@@ -130,6 +139,7 @@ window.CG = window.CG || {};
     $('run-act').textContent = run.act;
     $('run-hp').textContent = `❤️ ${run.hp}/${run.maxHp}`;
     $('run-gold').textContent = `💰 ${run.gold}`;
+    $('bench-btn').innerHTML = `💎 宝石 <b>${run.gems.length}</b>`;
     $('run-potions').innerHTML = tarotIcons(run);
     $('run-relics').innerHTML = CG.UI.relicIcons(run.relics);
   }
@@ -171,12 +181,19 @@ window.CG = window.CG || {};
     $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
   }
 
-  // ---------- 奖励 ----------
+  // ---------- 奖励（宝石 或 空法杖，三选一） ----------
   function showReward(run) {
     showScreen('reward');
     CG.Audio.play('coin');
     const pend = run.pending;
-    const cards = pend.cards.map((spec, i) => CG.UI.cardFace(spec, { clickable: true, data: { ridx: i } })).join('');
+    let picks, picksLabel;
+    if (pend.kind === 'gem') {
+      picks = pend.gems.map((g, i) => CG.UI.gemFace(g, { clickable: true, data: { ridx: i } })).join('');
+      picksLabel = '选择一颗宝石放入背包（之后在 💎 工作台镶嵌；或跳过）：';
+    } else {
+      picks = pend.cards.map((spec, i) => CG.UI.cardFace(spec, { clickable: true, data: { ridx: i } })).join('');
+      picksLabel = '选择一把法杖加入牌组（空孔可日后镶嵌宝石；或跳过）：';
+    }
     let tarot = '';
     if (pend.tarot) {
       const t = CG.TAROT[pend.tarot];
@@ -200,29 +217,42 @@ window.CG = window.CG || {};
         <h2>战斗胜利</h2>
         <p class="reward-gold">获得金币 💰 ${pend.gold}</p>
         ${relics}${tarot}
-        <p>选择一张卡加入牌组（或跳过）：</p>
-        <div class="reward-cards">${cards}</div>
+        <p>${picksLabel}</p>
+        <div class="reward-cards">${picks}</div>
         <button class="big-btn" data-act="skip">跳过</button>
       </div>`;
   }
   function onRewardClick(ev) {
     if (ev.target.closest('[data-act="take-tarot"]')) { CG.Audio.play('coin'); return H.onTakeTarot(); }
-    const card = ev.target.closest('.card');
-    if (card && card.dataset.ridx != null) { CG.Audio.play('card'); return H.onChooseReward(H.getRun().pending.cards[+card.dataset.ridx]); }
+    const pickEl = ev.target.closest('.card[data-ridx], .gem[data-ridx]');
+    if (pickEl) {
+      CG.Audio.play('card');
+      const pend = H.getRun().pending, i = +pickEl.dataset.ridx;
+      return H.onChooseReward(pend.kind === 'gem' ? pend.gems[i] : pend.cards[i]);
+    }
     if (ev.target.closest('[data-act="skip"]')) { CG.Audio.play('select'); H.onChooseReward(null); }
   }
 
-  // ---------- 商店 ----------
+  // ---------- 商店（合并篝火；一切皆需花钱；安装走工作台） ----------
   function showShop(run) {
     showScreen('shop');
     const cfg = CG.CONFIG.shop;
-    const cardItems = run.pending.cards.map((it, i) => `
+    const gemItems = (run.pending.gems || []).map((it, i) => `
       <div class="shop-item">
-        ${CG.UI.cardFace(it, { dim: it.bought || run.gold < it.price })}
-        <button class="buy-btn" data-buy="${i}" ${(it.bought || run.gold < it.price) ? 'disabled' : ''}>
+        ${CG.UI.gemFace(it.gem, { dim: it.bought || run.gold < it.price })}
+        <button class="buy-btn" data-buygem="${i}" ${(it.bought || run.gold < it.price) ? 'disabled' : ''}>
           ${it.bought ? '已购买' : (it.price === 0 ? '免费' : '💰 ' + it.price)}
         </button>
       </div>`).join('');
+    const cardItems = (run.pending.cards || []).map((it, i) => {
+      const probe = CG.makeCard(it.base, it.limit, it.gems || []);
+      return `<div class="shop-item">
+        ${CG.UI.cardFace(probe, { dim: it.bought || run.gold < it.price })}
+        <button class="buy-btn" data-buycard="${i}" ${(it.bought || run.gold < it.price) ? 'disabled' : ''}>
+          ${it.bought ? '已购买' : '💰 ' + it.price}
+        </button>
+      </div>`;
+    }).join('');
     const tarotItems = (run.pending.tarot || []).map((it, i) => {
       const t = CG.TAROT[it.id];
       const dis = it.bought || run.gold < it.price || run.tarot.length >= run.tarotSlots();
@@ -240,68 +270,68 @@ window.CG = window.CG || {};
       </div>`;
     }).join('');
     const healAmt = Math.ceil(run.maxHp * cfg.healPct);
-    const rmPrice = run.removePrice(), upPrice = run.upgradeCost(), hlPrice = run.healCost(), exPrice = run.exorcisePrice();
+    const rmPrice = run.removePrice(), unPrice = run.uninstallPrice(), skPrice = run.socketPrice(), hlPrice = run.healCost();
+    const hasSocketed = run.allGems().some(x => x.loc === 'card');
+    const canSocket = run.deck.some(c => (c.limit || 0) < CG.MAX_SOCKETS);
     $('screen-shop').innerHTML = `
       <div class="panel">
-        <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span></h2>
-        <div class="shop-cards">${cardItems}${tarotItems}${relicItems}</div>
+        <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span>　<span class="shop-bench-hint">背包宝石 💎 ${run.gems.length}（点顶栏「宝石」免费镶嵌）</span></h2>
+        <div class="shop-section-title">宝石</div>
+        <div class="shop-cards">${gemItems || '<span class="empty-note">（售罄）</span>'}</div>
+        <div class="shop-section-title">法杖（空孔卡）</div>
+        <div class="shop-cards">${cardItems}</div>
+        <div class="shop-section-title">塔罗 / 遗物</div>
+        <div class="shop-cards">${tarotItems}${relicItems || ''}</div>
         <div class="shop-services">
-          <button class="big-btn" data-act="upgrade" ${(run.svcUsed('upgrade') || run.gold < upPrice) ? 'disabled' : ''}>${run.svcUsed('upgrade') ? '已升级一张卡' : `升级一张卡（💰 ${upPrice}）`}</button>
-          <button class="big-btn" data-act="remove" ${(run.svcUsed('remove') || run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>${run.svcUsed('remove') ? '已删除一张卡' : `删除一张卡（💰 ${rmPrice}）`}</button>
-          <button class="big-btn" data-act="exorcise" ${(run.svcUsed('exorcise') || run.gold < exPrice || !run.canExorcise()) ? 'disabled' : ''}>${run.svcUsed('exorcise') ? '已净化一张卡' : `驱魔·净化减益（💰 ${exPrice}）`}</button>
+          <button class="big-btn" data-act="bench">💎 镶嵌宝石（免费）</button>
+          <button class="big-btn" data-act="uninstall" ${(run.gold < unPrice || !hasSocketed) ? 'disabled' : ''}>卸下宝石（💰 ${unPrice}）<br><small>宝石将随机多一个减益</small></button>
+          <button class="big-btn" data-act="socket" ${(run.gold < skPrice || !canSocket) ? 'disabled' : ''}>给卡 +1 孔（💰 ${skPrice}）</button>
+          <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
           <button class="big-btn" data-act="heal" ${(run.svcUsed('heal') || run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>${run.svcUsed('heal') ? '已治疗' : `治疗 +${healAmt}（💰 ${hlPrice}）`}</button>
           <button class="big-btn leave" data-act="leave">离开</button>
         </div>
       </div>`;
   }
   function onShopClick(ev) {
-    const buy = ev.target.closest('[data-buy]');
-    if (buy && !buy.disabled) { CG.Audio.play('coin'); return H.onBuyCard(+buy.dataset.buy); }
+    const run = H.getRun();
+    const bg = ev.target.closest('[data-buygem]');
+    if (bg && !bg.disabled) { CG.Audio.play('coin'); return H.onBuyGem(+bg.dataset.buygem); }
+    const bc = ev.target.closest('[data-buycard]');
+    if (bc && !bc.disabled) { CG.Audio.play('coin'); return H.onBuyCard(+bc.dataset.buycard); }
     const bt = ev.target.closest('[data-buytarot]');
     if (bt && !bt.disabled) { CG.Audio.play('coin'); return H.onBuyTarot(+bt.dataset.buytarot); }
     const br = ev.target.closest('[data-buyrelic]');
     if (br && !br.disabled) { CG.Audio.play('coin'); return H.onBuyRelic(+br.dataset.buyrelic); }
     const act = ev.target.closest('[data-act]');
     if (!act || act.disabled) return;
-    if (act.dataset.act === 'upgrade') forgeFlow(false, (uid, opt) => H.onBuyUpgrade(uid, opt));
-    else if (act.dataset.act === 'remove') openPicker('选择要删除的卡', uid => H.onBuyRemove(uid));
-    else if (act.dataset.act === 'exorcise') openPicker('选择要驱魔的卡（移除全部减益）', uid => H.onBuyExorcise(uid), H.getRun().deck.filter(c => (c.affixes || []).some(a => CG.isDebuff(a.id))));
-    else if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onBuyHeal(); }
-    else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveShop(); }
+    const a = act.dataset.act;
+    if (a === 'bench') openBench();
+    else if (a === 'uninstall') openUninstallPicker();
+    else if (a === 'socket') openCardPicker('选择要 +1 孔的卡（💰 ' + run.socketPrice() + '）', run.deck.filter(c => (c.limit || 0) < CG.MAX_SOCKETS), uid => H.onBuyAddSocket(uid));
+    else if (a === 'remove') openCardPicker('选择要删除的卡（💰 ' + run.removePrice() + '）', run.deck, uid => H.onBuyRemove(uid));
+    else if (a === 'heal') { CG.Audio.play('heal'); H.onBuyHeal(); }
+    else if (a === 'leave') { CG.Audio.play('select'); H.onLeaveShop(); }
+  }
+  // 卸下宝石：列出所有已镶嵌的宝石，选一颗（花钱 + 随机加 debuff）
+  function openUninstallPicker() {
+    const run = H.getRun();
+    const socketed = run.allGems().filter(x => x.loc === 'card');
+    openGemPicker(`卸下哪颗宝石？（💰 ${run.uninstallPrice()}，将随机多一个减益）`, socketed, uid => {
+      const f = run.findGem(uid);
+      if (f && f.loc === 'card') H.onBuyUninstall(f.card.uid, f.idx);
+    });
   }
 
-  // ---------- 休息 ----------
-  function showRest(run) {
-    showScreen('rest');
-    const heal = Math.ceil(run.maxHp * CG.CONFIG.rest.healPct);
-    $('screen-rest').innerHTML = `
-      <div class="panel center">
-        <h2>🏕️ 休息点</h2>
-        <p>选择一项行动：</p>
-        <div class="rest-options">
-          <button class="big-btn" data-act="heal" ${run.canRest() ? '' : 'disabled'}>😴 休息<br><small>${run.canRest() ? `回复 ${heal} 点（当前 ${run.hp}/${run.maxHp}）` : '癌症：无法休息'}</small></button>
-          <button class="big-btn" data-act="upgrade">🔨 打磨<br><small>升级一张卡</small></button>
-        </div>
-      </div>`;
-  }
-  function onRestClick(ev) {
-    const act = ev.target.closest('[data-act]');
-    if (!act) return;
-    if (act.dataset.act === 'heal') { CG.Audio.play('heal'); H.onRestHeal(); }
-    else if (act.dataset.act === 'upgrade') forgeFlow(false, (uid, opt) => H.onRestUpgrade(uid, opt));
-  }
-
-  // ---------- 事件（祭坛） ----------
+  // ---------- 事件（宝石祭坛） ----------
   function showEvent(run) {
     showScreen('event');
     const a = CG.ALTARS[run.pending.altar];
-    const noTarget = run.pending.altar === 'exorcise' && !run.canExorcise();   // 驱魔祭坛但牌组无减益牌
     $('screen-event').innerHTML = `
       <div class="panel center">
         <h2>${a.icon} ${a.name}</h2>
-        <p class="altar-desc">${a.desc}${noTarget ? '<br>（牌组中没有带减益的牌可净化）' : ''}</p>
+        <p class="altar-desc">${a.desc}</p>
         <div class="event-actions">
-          <button class="big-btn" data-act="use" ${noTarget ? 'disabled' : ''}>使用</button>
+          <button class="big-btn" data-act="use">使用</button>
           <button class="big-btn leave" data-act="leave">离开</button>
         </div>
       </div>`;
@@ -309,13 +339,20 @@ window.CG = window.CG || {};
   function onEventClick(ev) {
     const act = ev.target.closest('[data-act]');
     if (!act) return;
-    if (act.dataset.act === 'use') {
-      const id = H.getRun().pending.altar, a = CG.ALTARS[id];
-      if (id === 'upgrade' || id === 'forge') forgeFlow(id === 'forge', (uid, opt) => H.onUseAltar(uid, opt));
-      else if (id === 'exorcise') openPicker(a.name + '：选择一张牌（净化全部减益）', uid => H.onUseAltar(uid),
-        H.getRun().deck.filter(c => (c.affixes || []).some(x => CG.isDebuff(x.id))));
-      else openPicker(a.name + '：选择一张牌', uid => H.onUseAltar(uid));
-    } else if (act.dataset.act === 'leave') { CG.Audio.play('select'); H.onLeaveEvent(); }
+    if (act.dataset.act === 'leave') { CG.Audio.play('select'); return H.onLeaveEvent(); }
+    if (act.dataset.act !== 'use') return;
+    const run = H.getRun(), id = run.pending.altar;
+    if (id === 'findgem') { CG.Audio.play('upgrade'); return H.onAltarFindGem(); }
+    if (id === 'setting') {
+      openGemPicker('选择要镶嵌的宝石', run.gems.map(g => ({ gem: g, uid: g.uid })), gemUid =>
+        openCardPicker('镶嵌到哪张卡？', run.cardsWithEmptySocket(), cardUid => H.onAltarInstall(gemUid, cardUid)));
+    } else if (id === 'purify') {
+      openGemPicker('净化哪颗宝石？（移除一个减益）', run.allGems().filter(x => CG.gemHasDebuff(x.gem)), uid => H.onAltarPurify(uid));
+    } else if (id === 'bore') {
+      openCardPicker('给哪张卡 +1 孔？', run.deck.filter(c => (c.limit || 0) < CG.MAX_SOCKETS), uid => H.onAltarBore(uid));
+    } else if (id === 'recut') {
+      openGemPicker('重铸哪颗宝石？', run.allGems(), uid => H.onAltarRecut(uid));
+    }
   }
 
   // ---------- 结算 ----------
@@ -329,7 +366,7 @@ window.CG = window.CG || {};
         <p>${win
           ? '塔顶矗立着一块古老的石碑，上面写着：「谢谢你扫荡了塔里的魔物，但是古代遗物在另一座高塔。」'
           : '你感到两眼一黑——原来是一场梦。'}</p>
-        <p>金币 💰 ${run.gold} ・ 牌组 ${run.deck.length} 张 ・ 遗物 ${run.relics.length} 个</p>
+        <p>金币 💰 ${run.gold} ・ 牌组 ${run.deck.length} 张 ・ 宝石 ${run.gems.length} 颗 ・ 遗物 ${run.relics.length} 个</p>
         <div class="rest-options">
           <button class="big-btn" data-act="restart">再来一局</button>
           <button class="big-btn" data-act="menu">主菜单</button>
@@ -341,18 +378,29 @@ window.CG = window.CG || {};
     else if (ev.target.closest('[data-act="menu"]')) showMenu();
   }
 
-  // ---------- 选牌弹窗（升级用） ----------
-  function openPicker(title, onPick, cards) {
+  // ---------- 选择弹窗（卡 / 宝石通用） ----------
+  function openPicker(title, onPick, html) {
     $('picker-title').textContent = title;
-    $('picker-cards').innerHTML = (cards || H.getRun().deck).map(c => CG.UI.cardFace(c, { clickable: true, data: { uid: c.uid } })).join('');
+    $('picker-cards').innerHTML = html || '<p class="empty-note">（没有可选项）</p>';
     pickerHandler = onPick;
     $('picker-modal').classList.remove('hidden');
   }
+  function openCardPicker(title, cards, onPick) {
+    openPicker(title, onPick, (cards || []).map(c => CG.UI.cardFace(c, { clickable: true, data: { uid: c.uid } })).join(''));
+  }
+  // entries: 宝石对象数组，或 [{gem, uid, label}]（后者用于带位置标签）
+  function openGemPicker(title, entries, onPick) {
+    const html = (entries || []).map(e => {
+      const gem = e.gem || e, uid = e.uid != null ? e.uid : gem.uid;
+      return CG.UI.gemFace(gem, { clickable: true, data: { uid }, tagLabel: e.label });
+    }).join('');
+    openPicker(title, onPick, html);
+  }
   function closePicker() { $('picker-modal').classList.add('hidden'); pickerHandler = null; }
-  function pickCardList(title, cards, cb) { openPicker(title, cb, cards); }   // 魔术师等：从指定牌堆选
+  function pickCardList(title, cards, cb) { openCardPicker(title, cards, cb); }   // 魔术师等：从指定牌堆选
 
-  function choose(title, options, cb, cancelable) {                           // 太阳：三选一 / 锻造：二选一
-    cancelable = cancelable !== false;                                        // 锻造时不可取消，防止反复刷词条
+  function choose(title, options, cb, cancelable) {                           // 太阳：三选一
+    cancelable = cancelable !== false;
     $('choice-title').textContent = title;
     $('choice-options').innerHTML = options.map((o, i) =>
       `<button class="big-btn" data-ci="${i}" ${o.enabled === false ? 'disabled' : ''}>${o.label}</button>`).join('');
@@ -362,22 +410,38 @@ window.CG = window.CG || {};
   }
   function closeChoice() { $('choice-modal').classList.add('hidden'); chooseState = null; }
 
-  // 锻造：先选一张可锻造的牌，再二选一（buff+debuff）
-  function forgeFlow(level3, applyFn) {
+  // ---------- 宝石工作台（免费镶嵌） ----------
+  function openBench() { if (!H.getRun()) return; benchSel = null; renderBench(); $('bench-modal').classList.remove('hidden'); }
+  function closeBench() { $('bench-modal').classList.add('hidden'); benchSel = null; }
+  function renderBench() {
     const run = H.getRun();
-    const forgeable = run.deck.filter(c => CG.canForge(c));
-    openPicker('选择要锻造的卡', uid => {
-      const card = run.deck.find(c => c.uid === uid);
-      const opts = CG.forgeChoices(card, { level: level3 ? 3 : undefined, minLevel: run.forgeMinLevel() });
-      if (!opts) { applyFn(uid, null); return; }
-      choose('锻造 · 二选一', opts.map((o, i) => ({ label: forgeOptHtml(o, card.base), value: i })), v => applyFn(uid, opts[v]), false);
-    }, forgeable);
+    const gems = run.gems;
+    const gemHtml = gems.length
+      ? gems.map(g => CG.UI.gemFace(g, { clickable: true, selected: g.uid === benchSel, data: { bgem: g.uid } })).join('')
+      : '<p class="empty-note">背包里没有宝石。打怪、逛商店或事件可获得。</p>';
+    const armed = benchSel != null;
+    const deckHtml = run.deck.map(c => {
+      const free = CG.cardEmptySockets(c) > 0;
+      const can = armed && free;
+      return CG.UI.cardFace(c, { clickable: can, dim: armed && !free, data: { bcard: c.uid } });
+    }).join('');
+    $('bench-body').innerHTML = `
+      <div class="bench-hint">${armed ? '已选中一颗宝石 → 点下方有空孔(◇)的卡安装它。' : '点一颗背包宝石选中它，再点要镶嵌的卡。安装免费；卸下需到商店花钱。'}</div>
+      <div class="bench-sub">宝石背包（${gems.length}）</div>
+      <div class="bench-gems">${gemHtml}</div>
+      <div class="bench-sub">你的卡牌（◇ = 空孔）</div>
+      <div class="bench-cards">${deckHtml}</div>`;
   }
-  function forgeOptHtml(o, base) {
-    const b = CG.AFFIXES[o.buff.id];
-    let h = `<div class="forge-opt"><span class="forge-buff" style="color:${b.color}">＋ ${CG.affixDisplayName(o.buff.id, o.buff.level)}</span><small>${b.desc(o.buff.level, base)}</small>`;
-    if (o.debuff) { const d = CG.AFFIXES[o.debuff.id]; h += `<span class="forge-dbf" style="color:${d.color}">－ ${CG.affixDisplayName(o.debuff.id, o.debuff.level)}</span><small>${d.desc(o.debuff.level, base)}</small>`; }
-    return h + '</div>';
+  function onBenchClick(ev) {
+    const g = ev.target.closest('.gem[data-bgem]');
+    if (g) { benchSel = benchSel === +g.dataset.bgem ? null : +g.dataset.bgem; CG.Audio.play('select'); return renderBench(); }
+    const c = ev.target.closest('.card[data-bcard]');
+    if (c && benchSel != null && c.classList.contains('clickable')) {
+      CG.Audio.play('upgrade');
+      H.onInstallGem(benchSel, +c.dataset.bcard);    // run 内部 _emit → 顶栏/地图刷新
+      benchSel = null;
+      renderBench();                                  // 刷新工作台自身
+    }
   }
 
   // ---------- 牌库查看（顶栏） ----------
@@ -385,13 +449,12 @@ window.CG = window.CG || {};
     const run = H.getRun();
     const sorted = [...run.deck].sort((a, b) =>
       a.base === b.base
-        ? ((a.affixes || []).length - (b.affixes || []).length
-           || CG.cardStats(a).name.localeCompare(CG.cardStats(b).name, 'zh'))
+        ? ((b.sockets || []).length - (a.sockets || []).length || CG.cardStats(b).limit - CG.cardStats(a).limit)
         : (a.base < b.base ? -1 : 1));
     $('pile-title').textContent = `牌库（${run.deck.length} 张）`;
     $('pile-cards').innerHTML = sorted.map(c => CG.UI.cardFace(c)).join('');
     $('pile-modal').classList.remove('hidden');
   }
 
-  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showRest, showEvent, showGameOver, pickCardList, choose, openCodex, showMenu };
+  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showEvent, showGameOver, pickCardList, choose, openCodex, showMenu };
 })(window.CG);

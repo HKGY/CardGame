@@ -43,8 +43,8 @@ window.CG = window.CG || {};
                   apply: (run, battle) => battle.damageAll(20) },
     temperance: { name: '节制', icon: '🍷', where: 'any', desc: '获得等同于已失去生命的金币',
                   apply: (run, battle) => { const cur = battle ? battle.player.hp : run.hp; run.gold += Math.max(0, run.maxHp - cur); } },
-    star:       { name: '群星', icon: '⭐', where: 'any', desc: '下次卡牌奖励每张多一条词条',
-                  apply: (run) => { run.flags.rewardAffixBoost = true; } },
+    star:       { name: '群星', icon: '⭐', where: 'any', desc: '下次战斗胜利额外获得一颗宝石',
+                  apply: (run) => { run.flags.rewardBonusGem = true; } },
     moon:       { name: '月亮', icon: '🌕', where: 'map', desc: '传送到地图上的随机房间',
                   apply: (run) => run.teleportRandom() },
     sun:        { name: '太阳', icon: '☀️', where: 'any', async: true, desc: '4 力量 / 4 敏捷 / 40 金币（三选一）',
@@ -57,9 +57,9 @@ window.CG = window.CG || {};
                     else if (v === 'dex') battle.applyStatus(battle.player, 'dexterity', 4);
                     else run.gold += 40;
                   }) },
-    judgement:  { name: '审判', icon: '📯', where: 'battle', desc: '升级当前手牌（限本场）',
-                  apply: (run, battle) => battle.hand.forEach(c => CG.upgradeInstance(c)) },
-    world:      { name: '世界', icon: '🌍', where: 'any', desc: '下次卡牌奖励变为随机祭坛事件',
+    judgement:  { name: '审判', icon: '📯', where: 'battle', desc: '获得 2 能量并抽 2 张牌',
+                  apply: (run, battle) => { battle.player.energy += 2; battle.drawCards(2); } },
+    world:      { name: '世界', icon: '🌍', where: 'any', desc: '下次卡牌奖励变为随机宝石事件',
                   apply: (run) => { run.flags.rewardAsAltar = true; } },
 
     // —— 逆位塔罗：发挥与正位相反方向的效果（参考《以撒的结合》逆位牌） ——
