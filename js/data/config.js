@@ -47,9 +47,9 @@ CG.CONFIG = {
   },
   // Booster pack 选包权重 [包id, 权重]：普通层偏「基础包」，精英/首领偏主题包（更聚焦）。
   packW: {
-    monster: [['basic', 6], ['power', 2], ['curse', 2], ['tempo', 2], ['vitality', 2]],
-    elite:   [['basic', 2], ['power', 3], ['curse', 3], ['tempo', 3], ['vitality', 3]],
-    boss:    [['basic', 1], ['power', 3], ['curse', 3], ['tempo', 3], ['vitality', 3]],
+    monster: [['basic', 6], ['power', 2], ['curse', 2], ['tempo', 2], ['vitality', 2], ['elements', 1]],
+    elite:   [['basic', 2], ['power', 3], ['curse', 3], ['tempo', 3], ['vitality', 3], ['elements', 2]],
+    boss:    [['basic', 1], ['power', 3], ['curse', 3], ['tempo', 3], ['vitality', 3], ['elements', 2]],
   },
   // 卡牌奖励 / 商店法杖的孔位数权重（空法杖的价值在于孔位）
   cardLimitW: { monster: [[1, 3], [2, 4], [3, 2]], elite: [[2, 4], [3, 4]], boss: [[2, 2], [3, 5], [4, 3]] },
@@ -75,8 +75,9 @@ CG.CONFIG = {
     // 出售 booster pack：买下后开启，从 count 颗同主题宝石里挑 1 颗进背包。
     // 五选一更贵：挑选余地更大 + 宝石档更高（tier 决定大宝石概率/等级）。
     packs: [
-      { count: 3, tier: 'monster', price: 50 },
-      { count: 5, tier: 'elite',   price: 110 },
+      { count: 3, pick: 1, tier: 'monster', price: 50 },
+      { count: 5, pick: 1, tier: 'elite',   price: 110 },
+      { count: 5, pick: 2, tier: 'elite',   price: 170 },  // 五选二：一次挑 2 颗，凑元素连招
     ],
   },
 };

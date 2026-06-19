@@ -96,3 +96,29 @@ test('recutGem 重铸后词条仍能整体归入某一个包，且增益/减益�
     assert.ok(host, '重铸结果应整体属于某个包：' + ids.join(','));
   }
 });
+
+test('元素：4 个附着词条、ELEMENTS 展示齐全、都收进元素包', () => {
+  assert.equal(CG.ELEMENT_IDS.length, 4);
+  CG.ELEMENT_IDS.forEach(id => { const e = CG.ELEMENTS[id]; assert.ok(e && e.name && e.icon && e.color, id + ' 展示字段缺失'); });
+  const appliers = { flame: 'fire', aqua: 'water', volt: 'thunder', frost: 'ice' };
+  Object.entries(appliers).forEach(([aff, el]) => {
+    assert.ok(CG.AFFIXES[aff], aff + ' 未定义');
+    assert.equal(CG.AFFIXES[aff].element, el);
+    assert.equal(CG.isDebuff(aff), false);
+    assert.ok(CG.PACKS.elements.buffs.includes(aff), aff + ' 应在元素包');
+  });
+  assert.equal(CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'flame', level: 1 }])])).element, 'fire');
+});
+
+test('元素反应矩阵：4 元素两两都反应、对称、同元素不反应', () => {
+  const ids = CG.ELEMENT_IDS;
+  for (let i = 0; i < ids.length; i++) {
+    assert.equal(CG.reactionFor(ids[i], ids[i]), null, '同元素不应反应');
+    for (let j = i + 1; j < ids.length; j++) {
+      const r1 = CG.reactionFor(ids[i], ids[j]), r2 = CG.reactionFor(ids[j], ids[i]);
+      assert.ok(r1 && r1.name, `${ids[i]}×${ids[j]} 应有反应`);
+      assert.equal(r1, r2, '反应应与顺序无关（对称）');
+      assert.ok(r1.type === 'amplify' ? r1.amplify > 1 : typeof r1.apply === 'function', '反应需 amplify 或 apply');
+    }
+  }
+});

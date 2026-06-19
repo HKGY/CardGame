@@ -131,6 +131,17 @@ window.CG = window.CG || {};
           return `<div class="codex-item"><span class="codex-name" style="color:${p.color}">${p.icon} ${p.name}</span>` +
                  `<span class="codex-desc">${p.desc}<br><b>增益：</b>${names(p.buffs)}<br><b>减益：</b>${names(p.debuffs)}</span></div>`;
         }).join('');
+      // 元素反应矩阵（元素包专属）
+      if (CG.REACTIONS) {
+        const el = id => `<span style="color:${CG.ELEMENTS[id].color}">${CG.ELEMENTS[id].icon}${CG.ELEMENTS[id].name}</span>`;
+        const rows = Object.keys(CG.REACTIONS).map(key => {
+          const [a, b] = key.split('+'), r = CG.REACTIONS[key];
+          return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span>` +
+                 `<span class="codex-desc">${el(a)} ＋ ${el(b)} → ${r.desc}</span></div>`;
+        }).join('');
+        html += '<div class="codex-sub">元素反应（元素包）</div>' +
+          '<p class="codex-note">敌人身上至多挂 1 种元素（不随回合衰减）；再附一种元素即触发反应、消耗双方。商店「五选二」可一次拿 2 颗凑连招。</p>' + rows;
+      }
     } else if (tab === 'tarot') {
       html = CG.TAROT_IDS.map(id => {
         const t = CG.TAROT[id];
@@ -385,13 +396,13 @@ window.CG = window.CG || {};
       </div>`;
     }).join('');
     const packItems = (run.pending.packs || []).map((it, i) => {
-      const pk = CG.PACKS[it.pack];
+      const pk = CG.PACKS[it.pack], pick = it.pick || 1, got = (it.takenUids || []).length;
       const dis = it.taken || (!it.bought && run.gold < it.price);
-      const btn = it.taken ? '✓ 已取' : (it.bought ? '开启选择' : '💰 ' + it.price);
+      const btn = it.taken ? '✓ 已取' : (it.bought ? `开启选择（${got}/${pick}）` : '💰 ' + it.price);
       return `<div class="shop-item shop-tarot" title="${pk ? pk.desc : ''}">
         <div class="shop-tarot-face booster-tile" style="--pk:${pk ? pk.color : '#cdd2e2'}">
           <span class="shop-tarot-icon">${pk ? pk.icon : '📦'}</span><b>${pk ? pk.name : '宝石包'}</b>
-          <small>${it.count} 选一 · 词条限定本主题</small>
+          <small>${it.count} 选 ${pick} · 词条限定本主题</small>
         </div>
         <button class="buy-btn" data-buypack="${i}" ${dis ? 'disabled' : ''}>${btn}</button>
       </div>`;
@@ -456,13 +467,19 @@ window.CG = window.CG || {};
       if (f && f.loc === 'card') H.onBuyUninstall(f.card.uid, f.idx);
     });
   }
-  // 开启已购买的 booster pack：从滚出的 count 颗里挑 1 颗（可重复打开直到取走）
+  // 开启已购买的 booster pack：从滚出的宝石里挑（可挑 pick 颗，挑一颗后若还有名额自动续开）
   function openPackPicker(i) {
     const run = H.getRun(), it = run.pending.packs && run.pending.packs[i];
     if (!it || !it.rolled || it.taken) return;
-    const pk = CG.PACKS[it.pack];
-    openGemPicker(`${pk ? pk.icon + ' ' + pk.name : '宝石包'} · ${it.count} 选一`,
-      it.rolled.map(g => ({ gem: g, uid: g.uid })), uid => H.onTakePackGem(i, uid));
+    const pk = CG.PACKS[it.pack], pick = it.pick || 1, taken = it.takenUids || [];
+    const avail = it.rolled.filter(g => !taken.includes(g.uid));
+    const remain = pick - taken.length;
+    openGemPicker(`${pk ? pk.icon + ' ' + pk.name : '宝石包'} · ${it.count} 选 ${pick}（还可取 ${remain}）`,
+      avail.map(g => ({ gem: g, uid: g.uid })), uid => {
+        H.onTakePackGem(i, uid);
+        const it2 = (H.getRun().pending || {}).packs && H.getRun().pending.packs[i];
+        if (it2 && !it2.taken) openPackPicker(i);     // 还有名额 → 续开挑下一颗
+      });
   }
 
   // ---------- 事件（宝藏房 / 诅咒房 / 宝石祭坛） ----------

@@ -252,6 +252,18 @@ window.CG = window.CG || {};
         const bonus = s.combo * (this._playedThisTurn || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
+      // 元素反应：本牌附带元素时，看主目标当前元素决定反应（放大型在命中前把本牌伤害 ×amplify）
+      const elem = s.element;
+      let reaction = null;
+      if (elem) {
+        const aura = this._auraOf(this.currentTarget());
+        if (aura && aura !== elem) {
+          const rx = CG.reactionFor(aura, elem);
+          if (rx && (rx.type !== 'amplify' || s.kind === 'damage')) reaction = rx;   // 放大型需本牌确实造成伤害
+        }
+        if (reaction && reaction.type === 'amplify')
+          s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: Math.floor(e.value * reaction.amplify) }) : e) });
+      }
 
       if (free) this.freeCards -= 1;                                   // 消耗一层回响
       this.player.energy -= payCost;
@@ -273,6 +285,14 @@ window.CG = window.CG || {};
       }
       // 吸血：按对主目标造成的伤害回血
       if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
+      // 元素结算：有反应→触发并清空双方元素；否则把本牌元素附给主目标
+      if (elem) {
+        if (reaction) {
+          this._clearAura(target);
+          if (reaction.apply) reaction.apply(this, this.player, target);
+          this.addLog(`元素反应·${reaction.name}！`);
+        } else this._setAura(target, elem);
+      }
       // 透支：累计下回合能量惩罚
       if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
       // 回响：打出后使本回合接下来若干张牌免费；连击：本回合打出牌计数 +1
@@ -391,6 +411,16 @@ window.CG = window.CG || {};
       target.statuses[key] = (target.statuses[key] || 0) + amount;
       if (key === 'frozen' && target.statuses[key] > 1) target.statuses[key] = 1;   // 冰封最多 1 层
       if (target.statuses[key] === 0) delete target.statuses[key];
+    }
+
+    // ---------- 元素附着 / 反应 ----------（元素＝一种状态，至多 1 种、不随回合衰减）
+    _auraOf(target) { return CG.ELEMENT_IDS.find(id => target.statuses[id] > 0) || null; }
+    _setAura(target, el) { CG.ELEMENT_IDS.forEach(id => { if (id !== el) delete target.statuses[id]; }); target.statuses[el] = 1; }
+    _clearAura(target) { CG.ELEMENT_IDS.forEach(id => delete target.statuses[id]); }
+    _reactionBurst(target, n) {                          // 超载：无视格挡的即时穿透伤害（带动画事件）
+      const before = target.hp; target.hp = Math.max(0, target.hp - n);
+      const lost = before - target.hp;
+      if (lost > 0) this._fire('damage', { side: 'enemy', ei: this._idxOf(target), hpLoss: lost, blocked: 0 });
     }
 
     // 计时类减益每回合结束 -1（力量 / 敏捷是永久的，不在此列）

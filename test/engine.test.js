@@ -189,3 +189,55 @@ test('壁垒：攻击牌打出后也获得格挡', () => {
   b.playCard(b.hand[0].uid);
   assert.equal(b.player.block, 4);         // 壁垒 4×1，攻击牌也生效
 });
+
+// 元素反应：用受控手牌（直接赋 b.hand）打出指定元素牌
+const elemStrike = el => CG.makeCard('strike', 1, [CG.makeGem([{ id: el, level: 1 }])]);
+function elemBattle() { const b = CG.makeBattle({ hp: 90, maxHp: 90 }); b.player.energy = 9; return b; }   // 绿史莱姆 28
+
+test('元素·附着：命中给主目标挂元素，至多 1 种（再附会替换/反应）', () => {
+  const b = elemBattle(), e = b.enemies[0];
+  const f = elemStrike('flame'); b.hand = [f];
+  b.playCard(f.uid);
+  assert.equal(e.statuses.fire, 1);
+  assert.equal(CG.ELEMENT_IDS.filter(id => e.statuses[id]).length, 1);   // 只有 1 种元素
+});
+
+test('元素·蒸发：水→火，火击伤害 ×1.5，并清空双方元素', () => {
+  const b = elemBattle(), e = b.enemies[0], hp0 = e.hp;
+  const w = elemStrike('aqua'), f = elemStrike('flame'); b.hand = [w, f];
+  b.playCard(w.uid);
+  assert.equal(e.hp, hp0 - 6);             // 水击 6，附水
+  assert.equal(e.statuses.water, 1);
+  b.playCard(f.uid);                       // 火 onto 水 → 蒸发，火击 floor(6×1.5)=9
+  assert.equal(e.hp, hp0 - 6 - 9);
+  assert.ok(!e.statuses.water && !e.statuses.fire, '反应后清空双方');
+});
+
+test('元素·感电：雷→水 给敌人 3 层中毒（转化型）', () => {
+  const b = elemBattle(), e = b.enemies[0];
+  const v = elemStrike('volt'), w = elemStrike('aqua'); b.hand = [v, w];
+  b.playCard(v.uid); b.playCard(w.uid);
+  assert.equal(e.statuses.poison, 3);
+  assert.ok(!e.statuses.thunder && !e.statuses.water);
+});
+
+test('元素·超载：火→雷 造成 10 点穿透伤害（无视格挡）', () => {
+  const b = elemBattle(), e = b.enemies[0]; e.block = 100; const hp0 = e.hp;
+  const f = elemStrike('flame'), v = elemStrike('volt'); b.hand = [f, v];
+  b.playCard(f.uid);
+  assert.equal(e.hp, hp0);                 // 火击 6 被格挡吸收
+  b.playCard(v.uid);                       // 超载：雷击 6 仍被挡，但爆发 10 无视格挡
+  assert.equal(e.hp, hp0 - 10);
+  assert.ok(!e.statuses.fire && !e.statuses.thunder);
+});
+
+test('元素·放大型需本牌有伤害：无伤害的防御牌附水→不触发蒸发，仅替换火', () => {
+  const b = elemBattle(), e = b.enemies[0];
+  const f = elemStrike('flame');
+  const wd = CG.makeCard('defend', 1, [CG.makeGem([{ id: 'aqua', level: 1 }])]);   // 防御牌附水（无伤害）
+  b.hand = [f, wd];
+  b.playCard(f.uid);                       // 火附着
+  b.playCard(wd.uid);                      // 防御附水 onto 火：放大型不触发 → 替换为水
+  assert.equal(e.statuses.water, 1);
+  assert.ok(!e.statuses.fire);
+});

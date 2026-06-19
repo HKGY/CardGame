@@ -382,6 +382,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .badge-poison { background: #2e4a1e; color: #a8d860; }
 .badge-frozen { background: #1e3a4a; color: #7fd4ee; }
 .badge-incoming { background: #5a2330; color: #ff8a7a; font-weight: 700; border: 1px solid #8a3a48; }
+/* 元素光环徽标（敌人身上至多一种） */
+.badge-fire    { background: #4a2316; color: #ff9a6a; font-weight: 700; }
+.badge-water   { background: #16304a; color: #6ab4ff; font-weight: 700; }
+.badge-thunder { background: #423a14; color: #f0d24a; font-weight: 700; }
+.badge-ice     { background: #1e3e46; color: #9fe8f4; font-weight: 700; }
 
 /* ===== 牌桌（卡牌居于屏幕下方） ===== */
 .board { display: flex; align-items: flex-end; gap: 12px; min-height: 220px; margin-top: auto; }

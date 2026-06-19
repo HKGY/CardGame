@@ -277,6 +277,41 @@ test('booster pack：钱不够买不了 / 取过不能再取 / 离开商店自�
   assert.equal(run.gems.length, before + 1);
 });
 
+test('商店五选二：买下可挑 2 颗，挑满才算取完，重复/超额无效', () => {
+  const run = newRun('shop-pick2');
+  run.gold = 1000;
+  run._enterShop();
+  const idx = run.pending.packs.findIndex(p => p.pick === 2);
+  assert.ok(idx >= 0, '应有五选二包');
+  const it = run.pending.packs[idx], bag0 = run.gems.length;
+  run.buyPack(idx);
+  assert.equal(it.rolled.length, 5);
+  run.takePackGem(idx, it.rolled[0].uid);
+  assert.equal(it.taken, false);                          // 才取 1 颗，未挑满
+  assert.equal(run.gems.length, bag0 + 1);
+  run.takePackGem(idx, it.rolled[0].uid);                 // 同一颗不能重复取
+  assert.equal(run.gems.length, bag0 + 1);
+  run.takePackGem(idx, it.rolled[1].uid);                 // 取第 2 颗 → 挑满
+  assert.equal(it.taken, true);
+  assert.equal(run.gems.length, bag0 + 2);
+  run.takePackGem(idx, it.rolled[2].uid);                 // 已满 → 无效
+  assert.equal(run.gems.length, bag0 + 2);
+});
+
+test('五选二安全网：买了只挑 1 颗就离店 → 自动补满第 2 颗', () => {
+  const run = newRun('shop-pick2b');
+  run.gold = 1000;
+  run._enterShop();
+  const idx = run.pending.packs.findIndex(p => p.pick === 2);
+  const it = run.pending.packs[idx];
+  run.buyPack(idx);
+  run.takePackGem(idx, it.rolled[0].uid);
+  const before = run.gems.length;                         // 已取 1
+  run.leaveShop();
+  assert.equal(it.takenUids.length, 2);                   // 安全网补到 2
+  assert.equal(run.gems.length, before + 1);
+});
+
 test('整局推进：清完每层并击败首领 → 通关（3 层）', () => {
   const run = newRun('full-run');
   let guard = 0;

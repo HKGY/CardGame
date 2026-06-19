@@ -39,6 +39,11 @@ window.CG = window.CG || {};
     echo:       { name: '回响', color: '#58c8d8', score: 5, freeNext: 1, desc: n => `下一张免费 ×${n}`, long: n => `打出后，本回合接下来 ${n} 张牌耗能为 0（可连锁）` },
     bulwark:    { name: '壁垒', color: '#7fa8c8', score: 3, block: 4,     desc: n => `格挡 +${4 * n}`,   long: n => `打出时额外获得 ${4 * n} 点格挡（任意卡均生效）` },
     combo:      { name: '连击', color: '#e0563a', score: 4, combo: 1, damageOnly: true, desc: n => `连击 +${n}`, long: n => `本回合你每打出过一张牌，本牌伤害 +${n}（打出顺序越靠后越强）` },
+    // —— 元素附着（元素包）：命中时给敌人附一种元素；与已有元素叠加触发反应 ——
+    flame:      { name: '附火', color: '#ff7a4a', score: 4, element: 'fire',    desc: () => '附着火', long: () => '命中时给敌人附「🔥火」；与水/冰相遇→蒸发/融化（本击 ×1.5），与雷→超载' },
+    aqua:       { name: '附水', color: '#4aa8ff', score: 4, element: 'water',   desc: () => '附着水', long: () => '命中时给敌人附「💧水」；与火→蒸发，与雷→感电，与冰→冻结' },
+    volt:       { name: '附雷', color: '#e8c84a', score: 4, element: 'thunder', desc: () => '附着雷', long: () => '命中时给敌人附「⚡雷」；与火→超载，与水→感电，与冰→超导' },
+    frost:      { name: '附冰', color: '#8fe0ec', score: 4, element: 'ice',     desc: () => '附着冰', long: () => '命中时给敌人附「❄️冰」；与火→融化（本击 ×1.5），与水→冻结，与雷→超导' },
   };
 
   const DEBUFFS = {
@@ -63,6 +68,31 @@ window.CG = window.CG || {};
   CG.affixDisplayName = (id, level) => (level === 2 ? '更' : level === 3 ? '最' : '') + CG.AFFIXES[id].name;
 
   /* =========================================================================
+   *  元素 & 元素反应 —— 敌人身上最多挂 1 种元素（一种状态，值=1，不随回合衰减）。
+   *  再附一种元素时：能反应→触发反应并清空双方；同元素→刷新；异元素无反应→替换
+   *  （当前 4 元素两两都反应，故不会出现“替换”）。反应在 game.js 的 playCard 里结算：
+   *    放大型(amplify)：本次攻击伤害 ×amplify（沿用力量塔罗/连击的伤害重建写法）。
+   *    转化型(effect)：apply(game, source, target) 调引擎原语（复用中毒/冰冻/易伤/穿透爆发）。
+   * ========================================================================= */
+  CG.ELEMENT_IDS = ['fire', 'water', 'thunder', 'ice'];
+  CG.ELEMENTS = {
+    fire:    { name: '火', icon: '🔥', color: '#ff7a4a' },
+    water:   { name: '水', icon: '💧', color: '#4aa8ff' },
+    thunder: { name: '雷', icon: '⚡', color: '#e8c84a' },
+    ice:     { name: '冰', icon: '❄️', color: '#8fe0ec' },
+  };
+  const RX = {
+    'fire+water':    { name: '蒸发', icon: '💨', type: 'amplify', amplify: 1.5, desc: '本次攻击伤害 ×1.5' },
+    'fire+ice':      { name: '融化', icon: '🫠', type: 'amplify', amplify: 1.5, desc: '本次攻击伤害 ×1.5' },
+    'fire+thunder':  { name: '超载', icon: '💥', type: 'effect', desc: '立即造成 10 点穿透伤害（无视格挡）', apply: (g, s, t) => g._reactionBurst(t, 10) },
+    'thunder+water': { name: '感电', icon: '⚡', type: 'effect', desc: '给敌人附加 3 层中毒', apply: (g, s, t) => g.applyStatus(t, 'poison', 3) },
+    'ice+water':     { name: '冻结', icon: '🧊', type: 'effect', desc: '冰冻：跳过其下一次行动', apply: (g, s, t) => g.applyStatus(t, 'frozen', 1) },
+    'ice+thunder':   { name: '超导', icon: '🔻', type: 'effect', desc: '给敌人施加 2 层易伤', apply: (g, s, t) => g.applyStatus(t, 'vulnerable', 2) },
+  };
+  CG.REACTIONS = RX;
+  CG.reactionFor = (a, b) => RX[[a, b].sort().join('+')] || null;
+
+  /* =========================================================================
    *  Booster Pack —— 把词条按玩法主题分包；战斗后开到的是「一个主题包」，
    *  包内宝石的词条只来自该包（buffs 为主题增益池，debuffs 为大宝石的减益池）。
    *  商店 / 祭坛 / 遗物 等其它产宝石处也按包生成（rollGem 不传 pack 时自动选包）。
@@ -85,6 +115,9 @@ window.CG = window.CG || {};
     vitality: { name: '生机包', icon: '🌿', color: '#7fd6a0', desc: '治疗 / 续航 / 反伤。',
                 buffs: ['lifesteal', 'recover', 'regen', 'barbs', 'bulwark'],
                 debuffs: ['recoil', 'expose', 'feeble'] },
+    elements: { name: '元素包', icon: '⚗️', color: '#cf6fd0', desc: '附火/水/雷/冰，叠加触发蒸发/融化/超载/感电/冻结/超导（连招型，建议在商店「五选二」凑齐两种）。',
+                buffs: ['flame', 'aqua', 'volt', 'frost'],
+                debuffs: ['blunt', 'recoil', 'cumbersome'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 })(window.CG);

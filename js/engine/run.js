@@ -153,8 +153,8 @@ window.CG = window.CG || {};
       tarot.push({ id: pick(CG.TAROT_IDS), price: Math.floor(C().shop.tarotPrice * mult), bought: false });
     // booster pack 货架：每个各自一个主题包；买下后开启从 count 颗里挑 1
     const packs = (C().shop.packs || []).map(opt => ({
-      pack: CG.pickPack(opt.tier), tier: opt.tier, count: opt.count,
-      price: Math.floor(opt.price * mult), bought: false, taken: false, rolled: null,
+      pack: CG.pickPack(opt.tier), tier: opt.tier, count: opt.count, pick: opt.pick || 1,
+      price: Math.floor(opt.price * mult), bought: false, taken: false, rolled: null, takenUids: [],
     }));
     return { gems, cards, tarot, packs };
   }
@@ -426,13 +426,17 @@ window.CG = window.CG || {};
       it.rolled = Array.from({ length: it.count }, () => CG.rollGem({ tier: it.tier, pack: it.pack, minLevel: this.forgeMinLevel() }));
       this._emit();
     }
-    // 从已购买的包里挑 1 颗进背包（按 uid）
+    // 从已购买的包里挑宝石进背包（按 uid）；可挑至 pick 颗，挑满即 taken
     takePackGem(i, gemUid) {
       const it = this.pending.packs && this.pending.packs[i];
       if (!it || !it.rolled || it.taken) return;
+      it.takenUids = it.takenUids || [];
+      if (it.takenUids.length >= (it.pick || 1) || it.takenUids.includes(gemUid)) return;
       const gem = it.rolled.find(g => g.uid === gemUid);
       if (!gem) return;
-      this.gems.push(gem); it.taken = true; this._emit();
+      this.gems.push(gem); it.takenUids.push(gemUid);
+      if (it.takenUids.length >= (it.pick || 1)) it.taken = true;
+      this._emit();
     }
     // 商店服务：治疗（每店一次）
     svcUsed(k) { return !!(this.pending && this.pending.usedSvc && this.pending.usedSvc[k]); }
@@ -471,10 +475,13 @@ window.CG = window.CG || {};
       this.gold -= this.socketPrice(); CG.addSocket(card); this._emit();
     }
     leaveShop() {
-      // 安全网：已买下但还没挑选的包，自动取走其中最值钱的一颗（避免金币白花）
+      // 安全网：已买下但还没挑满的包，自动取走剩余名额里最值钱的几颗（避免金币白花）
       ((this.pending && this.pending.packs) || []).forEach(it => {
-        if (it.bought && !it.taken && it.rolled && it.rolled.length) {
-          this.gems.push(it.rolled.slice().sort((a, b) => CG.gemPrice(b) - CG.gemPrice(a))[0]);
+        if (it.bought && !it.taken && it.rolled) {
+          it.takenUids = it.takenUids || [];
+          const remaining = (it.pick || 1) - it.takenUids.length;
+          const pool = it.rolled.filter(g => !it.takenUids.includes(g.uid)).sort((a, b) => CG.gemPrice(b) - CG.gemPrice(a));
+          for (let k = 0; k < remaining && k < pool.length; k++) { this.gems.push(pool[k]); it.takenUids.push(pool[k].uid); }
           it.taken = true;
         }
       });

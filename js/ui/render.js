@@ -27,6 +27,10 @@ window.CG = window.CG || {};
     leech:      { label: '寄生', cls: 'badge-poison' },
     regen:      { label: '再生', cls: 'badge-buff' },
     thorns:     { label: '荆棘', cls: 'badge-buff' },
+    fire:       { label: '🔥火', cls: 'badge-fire' },
+    water:      { label: '💧水', cls: 'badge-water' },
+    thunder:    { label: '⚡雷', cls: 'badge-thunder' },
+    ice:        { label: '❄️冰', cls: 'badge-ice' },
   };
 
   // ---------- 卡牌贴图（占据卡牌上半张） ----------
@@ -342,7 +346,8 @@ window.CG = window.CG || {};
   function statusBadges(s) {
     return Object.keys(s).map(k => {
       const m = STATUS_META[k] || { label: k, cls: '' };
-      return `<span class="badge ${m.cls}">${m.label} ${s[k]}</span>`;
+      const elem = CG.ELEMENT_IDS && CG.ELEMENT_IDS.includes(k);   // 元素光环固定 1，不显数字
+      return `<span class="badge ${m.cls}">${m.label}${elem ? '' : ' ' + s[k]}</span>`;
     }).join('');
   }
   function intentHTML(game, e) {
