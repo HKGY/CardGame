@@ -54,7 +54,7 @@
 - **Booster pack（词条分类）**：词条按主题分进 `CG.PACKS`（`affixes.js`，5 包：基础/强攻/诅咒/节奏/生机）。`CG.rollGem` 接 `opts.pack` 把增益/减益限定在该包池内；**不传 pack 时按 tier 自动选包**（`CG.pickPack`，权重见 `config.js` 的 `packW`），故所有产宝石处（奖励/商店/祭坛/重铸/遗物）都按包生成。战斗奖励整包同一主题并存 `pending.pack`，奖励界面先展示未拆封的包再点开三选一。卸下惩罚 `gemAddRandomDebuff` 例外，仍从全部减益池抽。
 - **商店出售 booster pack**：货架含三种包（`config.js` 的 `shop.packs` 定 `count/pick/tier/price`）：三选一、五选一、**五选二**（`pick:2`，凑元素连招用）。`run.buyPack(i)` 扣钱并 roll 出 `count` 颗同主题宝石存 `pending.packs[i].rolled`；`run.takePackGem(i,uid)` 挑宝石进背包，最多 `pick` 颗（记 `takenUids`，挑满置 `taken`）；`leaveShop` 安全网：买了没挑满的包自动按 `gemPrice` 补走剩余名额。UI 复用既有 picker（`openPackPicker`，挑一颗后若有名额自动续开），无新增 DOM。
 - **元素 / 元素反应（元素包）**：4 元素 `CG.ELEMENTS`（火/水/雷/冰）+ 反应矩阵 `CG.REACTIONS`/`CG.reactionFor`（`affixes.js`）。元素＝敌人身上的一种状态，**至多 1 种、层数 1~3（值即层数）、不进 `_tickStatuses` 故不衰减**；附着词条 `flame/aqua/volt/frost`（`element` 字段，附着层数=词条等级）→ `cardStats().element` / `.elementLevel`。结算在 `game.js` 的 `playCard`：异元素消耗 `min(prev,new)` 级、反应「发生这么多次」、余量留在层数多的一方，同元素叠加封顶 3。放大型(蒸发/融化)按 `×amplify^消耗层数` 重建伤害、需本牌有伤害；转化型(超载/感电/冻结/超导)把 `apply` 调用「消耗层数」次（复用 `_reactionBurst`/中毒/冰冻/易伤）。`_auraOf/_setAura(el,level)/_clearAura` 管理唯一光环；徽标在 `render.js` 的 `STATUS_META`。
-- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=56`）。
+- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=57`）。
 
 ## 改内容 / 调平衡的位置
 
