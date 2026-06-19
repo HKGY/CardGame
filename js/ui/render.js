@@ -346,8 +346,7 @@ window.CG = window.CG || {};
   function statusBadges(s) {
     return Object.keys(s).map(k => {
       const m = STATUS_META[k] || { label: k, cls: '' };
-      const elem = CG.ELEMENT_IDS && CG.ELEMENT_IDS.includes(k);   // 元素光环固定 1，不显数字
-      return `<span class="badge ${m.cls}">${m.label}${elem ? '' : ' ' + s[k]}</span>`;
+      return `<span class="badge ${m.cls}">${m.label} ${s[k]}</span>`;
     }).join('');
   }
   function intentHTML(game, e) {

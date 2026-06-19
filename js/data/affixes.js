@@ -40,10 +40,10 @@ window.CG = window.CG || {};
     bulwark:    { name: '壁垒', color: '#7fa8c8', score: 3, block: 4,     desc: n => `格挡 +${4 * n}`,   long: n => `打出时额外获得 ${4 * n} 点格挡（任意卡均生效）` },
     combo:      { name: '连击', color: '#e0563a', score: 4, combo: 1, damageOnly: true, desc: n => `连击 +${n}`, long: n => `本回合你每打出过一张牌，本牌伤害 +${n}（打出顺序越靠后越强）` },
     // —— 元素附着（元素包）：命中时给敌人附一种元素；与已有元素叠加触发反应 ——
-    flame:      { name: '附火', color: '#ff7a4a', score: 4, element: 'fire',    desc: () => '附着火', long: () => '命中时给敌人附「🔥火」；与水/冰相遇→蒸发/融化（本击 ×1.5），与雷→超载' },
-    aqua:       { name: '附水', color: '#4aa8ff', score: 4, element: 'water',   desc: () => '附着水', long: () => '命中时给敌人附「💧水」；与火→蒸发，与雷→感电，与冰→冻结' },
-    volt:       { name: '附雷', color: '#e8c84a', score: 4, element: 'thunder', desc: () => '附着雷', long: () => '命中时给敌人附「⚡雷」；与火→超载，与水→感电，与冰→超导' },
-    frost:      { name: '附冰', color: '#8fe0ec', score: 4, element: 'ice',     desc: () => '附着冰', long: () => '命中时给敌人附「❄️冰」；与火→融化（本击 ×1.5），与水→冻结，与雷→超导' },
+    flame:      { name: '附火', color: '#ff7a4a', score: 4, element: 'fire',    desc: n => `附火 ${n} 层`, long: n => `命中给敌人附 ${n} 层🔥（至多 3）；与水/冰→蒸发/融化（本击每消耗 1 层 ×1.5），与雷→超载` },
+    aqua:       { name: '附水', color: '#4aa8ff', score: 4, element: 'water',   desc: n => `附水 ${n} 层`, long: n => `命中给敌人附 ${n} 层💧（至多 3）；与火→蒸发，与雷→感电，与冰→冻结` },
+    volt:       { name: '附雷', color: '#e8c84a', score: 4, element: 'thunder', desc: n => `附雷 ${n} 层`, long: n => `命中给敌人附 ${n} 层⚡（至多 3）；与火→超载，与水→感电，与冰→超导` },
+    frost:      { name: '附冰', color: '#8fe0ec', score: 4, element: 'ice',     desc: n => `附冰 ${n} 层`, long: n => `命中给敌人附 ${n} 层❄️（至多 3）；与火→融化，与水→冻结，与雷→超导` },
   };
 
   const DEBUFFS = {
@@ -68,11 +68,12 @@ window.CG = window.CG || {};
   CG.affixDisplayName = (id, level) => (level === 2 ? '更' : level === 3 ? '最' : '') + CG.AFFIXES[id].name;
 
   /* =========================================================================
-   *  元素 & 元素反应 —— 敌人身上最多挂 1 种元素（一种状态，值=1，不随回合衰减）。
-   *  再附一种元素时：能反应→触发反应并清空双方；同元素→刷新；异元素无反应→替换
-   *  （当前 4 元素两两都反应，故不会出现“替换”）。反应在 game.js 的 playCard 里结算：
-   *    放大型(amplify)：本次攻击伤害 ×amplify（沿用力量塔罗/连击的伤害重建写法）。
-   *    转化型(effect)：apply(game, source, target) 调引擎原语（复用中毒/冰冻/易伤/穿透爆发）。
+   *  元素 & 元素反应 —— 敌人身上最多挂 1 种元素，层数 1~3（一种状态，不随回合衰减）。
+   *  附着层数 = 元素词条等级。再附一种元素时（game.js 的 playCard 结算）：
+   *    异元素：消耗 min(已有层, 新附层) 级，反应「发生这么多次」，余量留在层数较多的一方；
+   *    同元素：叠加（封顶 3）；当前 4 元素两两都反应，故异元素必触发反应、不会单纯替换。
+   *    放大型(amplify)：本次攻击伤害 ×amplify^消耗层数（沿用力量塔罗/连击的伤害重建写法）。
+   *    转化型(effect)：apply(game, source, target) 按消耗层数调用多次（复用中毒/冰冻/易伤/穿透爆发）。
    * ========================================================================= */
   CG.ELEMENT_IDS = ['fire', 'water', 'thunder', 'ice'];
   CG.ELEMENTS = {

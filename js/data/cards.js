@@ -84,7 +84,7 @@ window.CG = window.CG || {};
         drawN = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
         costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false,
         blockFlat = 0, freeNextN = 0, comboN = 0;
-    let elementId = null;                                    // 元素附着（火/水/雷/冰），多个取最后一个
+    let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {};
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
@@ -109,7 +109,7 @@ window.CG = window.CG || {};
       if (d.block)     blockFlat += d.block * L;        // 壁垒：附加格挡
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
-      if (d.element)   elementId = d.element;           // 元素附着：命中时给敌人附该元素
+      if (d.element) { elementId = d.element; elementLevel = L; }   // 元素附着：命中时给敌人附 L 层该元素
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -155,7 +155,7 @@ window.CG = window.CG || {};
       value, hits, effects, buffs, debuffs, gemViews, baseText,
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
-      freeNext: freeNextN, combo: comboN, element: elementId,
+      freeNext: freeNextN, combo: comboN, element: elementId, elementLevel,
       nextEnergyPenalty: -nextE,
       name,
     };

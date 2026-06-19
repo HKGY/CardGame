@@ -140,7 +140,7 @@ window.CG = window.CG || {};
                  `<span class="codex-desc">${el(a)} ＋ ${el(b)} → ${r.desc}</span></div>`;
         }).join('');
         html += '<div class="codex-sub">元素反应（元素包）</div>' +
-          '<p class="codex-note">敌人身上至多挂 1 种元素（不随回合衰减）；再附一种元素即触发反应、消耗双方。商店「五选二」可一次拿 2 颗凑连招。</p>' + rows;
+          '<p class="codex-note">敌人身上至多挂 1 种元素、层数 1~3（不随回合衰减）；再附异元素＝消耗 min(双方层数) 级、反应发生这么多次、余量留存（放大型按消耗层数叠乘）。商店「五选二」可一次拿 2 颗凑连招。</p>' + rows;
       }
     } else if (tab === 'tarot') {
       html = CG.TAROT_IDS.map(id => {

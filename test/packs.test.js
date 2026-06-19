@@ -107,7 +107,9 @@ test('元素：4 个附着词条、ELEMENTS 展示齐全、都收进元素包', 
     assert.equal(CG.isDebuff(aff), false);
     assert.ok(CG.PACKS.elements.buffs.includes(aff), aff + ' 应在元素包');
   });
-  assert.equal(CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'flame', level: 1 }])])).element, 'fire');
+  const s = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'flame', level: 3 }])]));
+  assert.equal(s.element, 'fire');
+  assert.equal(s.elementLevel, 3);          // 附着层数 = 词条等级
 });
 
 test('元素反应矩阵：4 元素两两都反应、对称、同元素不反应', () => {

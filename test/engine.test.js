@@ -241,3 +241,43 @@ test('元素·放大型需本牌有伤害：无伤害的防御牌附水→不触
   assert.equal(e.statuses.water, 1);
   assert.ok(!e.statuses.fire);
 });
+
+// 元素层数（≤3）：消耗 min(prev,new) 级、效果发生这么多次、余量留存
+const elemStrikeLv = (el, lv) => CG.makeCard('strike', 1, [CG.makeGem([{ id: el, level: lv }])]);
+
+test('元素·多级附着：同元素叠加，封顶 3 层', () => {
+  const b = elemBattle(), e = b.enemies[0];
+  b.hand = [elemStrikeLv('flame', 1), elemStrikeLv('flame', 1), elemStrikeLv('flame', 2)];
+  b.playCard(b.hand[0].uid); b.playCard(b.hand[0].uid);
+  assert.equal(e.statuses.fire, 2);        // 1 + 1
+  b.playCard(b.hand[0].uid);
+  assert.equal(e.statuses.fire, 3);        // 2 + 2 → 封顶 3
+});
+
+test('元素·多级蒸发：水2→火3 消耗 2 级，伤害 ×1.5^2，余火 1 层', () => {
+  const b = elemBattle(), e = b.enemies[0], hp0 = e.hp;
+  const w = elemStrikeLv('aqua', 2), f = elemStrikeLv('flame', 3); b.hand = [w, f];
+  b.playCard(w.uid);
+  assert.equal(e.statuses.water, 2);
+  b.playCard(f.uid);                       // consumed=min(2,3)=2 → ×2.25 → floor(6×2.25)=13
+  assert.equal(e.hp, hp0 - 6 - 13);
+  assert.equal(e.statuses.fire, 1);        // 余 3-2=1 层火
+  assert.ok(!e.statuses.water);
+});
+
+test('元素·多级感电：雷3→水2 消耗 2 级，感电生效 2 次（中毒 6），余雷 1 层', () => {
+  const b = elemBattle(), e = b.enemies[0];
+  const v = elemStrikeLv('volt', 3), w = elemStrikeLv('aqua', 2); b.hand = [v, w];
+  b.playCard(v.uid); b.playCard(w.uid);
+  assert.equal(e.statuses.poison, 6);      // 3 × 2 次
+  assert.equal(e.statuses.thunder, 1);     // 余 3-2=1 层雷
+  assert.ok(!e.statuses.water);
+});
+
+test('元素·等量抵消：水2→火2 全消耗、双方清空，伤害 ×1.5^2', () => {
+  const b = elemBattle(), e = b.enemies[0], hp0 = e.hp;
+  const w = elemStrikeLv('aqua', 2), f = elemStrikeLv('flame', 2); b.hand = [w, f];
+  b.playCard(w.uid); b.playCard(f.uid);
+  assert.equal(e.hp, hp0 - 6 - 13);        // floor(6×2.25)=13
+  assert.ok(!e.statuses.fire && !e.statuses.water);
+});
