@@ -19,9 +19,10 @@ CG.CONFIG = {
     boss:   { 1: [[1, 1]], 2: [[1, 1]], 3: [[1, 1]] },
   },
 
-  // 地图：每层一张《以撒的结合》式房间布局。在 gridW×gridH 网格上随机生成 rooms 个房间，
+  // 地图：每层一张《以撒的结合》式房间布局（BFS 泛洪生成，见 run.js genIsaacFloor）。
+  // 目标房间数 = ri(0,2) + roomsBase + round(act × roomsPerAct)，封顶 maxRooms、不足 minRooms 则重生成。
   // 死路安放特殊房（首领/宝藏/商店/诅咒/小boss），其余普通房按 normalEnemyChance 藏敌人。
-  map: { gridW: 9, gridH: 8, rooms: [10, 13], minRooms: 9, normalEnemyChance: 0.7 },
+  map: { gridW: 11, gridH: 9, roomsBase: 5, roomsPerAct: 2.5, maxRooms: 15, minRooms: 7, normalEnemyChance: 0.7 },
   // 诅咒房：进入耗血 = max(minHpCost, 最大生命 × hpCostPct)
   curse: { hpCostPct: 0.12, minHpCost: 8 },
 

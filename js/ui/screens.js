@@ -17,6 +17,7 @@ window.CG = window.CG || {};
   const ICON  = { start: '🚩', normal: '', elite: '👹', boss: '👑', shop: '🛒', treasure: '🎁', curse: '🩸' };
   const LABEL = { start: '起点', normal: '房间', elite: '小boss房', boss: '首领房', shop: '商店', treasure: '宝藏房', curse: '诅咒房' };
   const SCREENS = ['menu', 'map', 'battle', 'reward', 'shop', 'event', 'gameover'];
+  const REDUCE = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   function init(handlers) {
     H = handlers;
@@ -148,6 +149,36 @@ window.CG = window.CG || {};
   }
 
   function showScreen(id) { SCREENS.forEach(s => $('screen-' + s).classList.toggle('active', s === id)); }
+
+  // 进入战斗：镜头缩放放大到指定房间格（缩放原点对准该格中心），结束后回调切到战斗界面。
+  function zoomMapToRoom(id, cb) {
+    const area = $('map-area');
+    const cell = (area && id != null) ? area.querySelector(`.map-cell[data-id="${id}"]`) : null;
+    let called = false, anim = null;
+    const done = () => {
+      if (called) return; called = true;
+      if (anim) { try { anim.cancel(); } catch (e) {} }
+      if (area) area.style.transformOrigin = '';
+      cb();
+    };
+    if (!cell || REDUCE || !area.animate) { done(); return; }
+    const ar = area.getBoundingClientRect(), cr = cell.getBoundingClientRect();
+    const ox = ar.width ? ((cr.left + cr.width / 2 - ar.left) / ar.width) * 100 : 50;
+    const oy = ar.height ? ((cr.top + cr.height / 2 - ar.top) / ar.height) * 100 : 50;
+    area.style.transformOrigin = `${ox}% ${oy}%`;
+    anim = area.animate(
+      [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(3.4)', opacity: 0 }],
+      { duration: 430, easing: 'cubic-bezier(.5,.05,.5,1)', fill: 'forwards' });
+    anim.onfinish = done;
+    setTimeout(done, 620);   // 安全兜底（动画异常也能进战斗）
+  }
+  // 战斗界面控件一次性「飞入」动画（加 class 触发 CSS keyframes，播完移除以免重复）。
+  function playBattleEntrance() {
+    if (REDUCE) return;
+    const el = $('screen-battle');
+    el.classList.remove('entering'); void el.offsetWidth; el.classList.add('entering');
+    setTimeout(() => el.classList.remove('entering'), 950);
+  }
 
   function updateHeader(run, show) {
     $('run-header').classList.toggle('hidden', !show);
@@ -498,5 +529,5 @@ window.CG = window.CG || {};
     $('pile-modal').classList.remove('hidden');
   }
 
-  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showEvent, showGameOver, pickCardList, choose, openCodex, showMenu };
+  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showEvent, showGameOver, pickCardList, choose, openCodex, showMenu, zoomMapToRoom, playBattleEntrance };
 })(window.CG);

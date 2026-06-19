@@ -56,6 +56,11 @@ test('以撒式布局：起点/首领/宝藏/商店/诅咒/小boss 各一，房�
     const seen = new Set([g.entrance]), q = [g.entrance];
     while (q.length) { const c = q.shift(); for (const n of adj(c)) if (!seen.has(n)) { seen.add(n); q.push(n); } }
     assert.equal(seen.size, g.rooms.length, '所有房间应从起点可达');
+    // 树结构：相邻=门，边数 = 房间数-1（无环）
+    let edges = 0; g.rooms.forEach(r => { if (g.rooms.some(o => o.gx === r.gx + 1 && o.gy === r.gy)) edges++; if (g.rooms.some(o => o.gx === r.gx && o.gy === r.gy + 1)) edges++; });
+    assert.equal(edges, g.rooms.length - 1, '应为树（无环）');
+    // 首领不与起点相邻
+    assert.ok(Math.abs(g.boss.gx - g.entrance.gx) + Math.abs(g.boss.gy - g.entrance.gy) >= 2, '首领不应与起点相邻');
   }
 });
 

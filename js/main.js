@@ -30,12 +30,17 @@ window.CG = window.CG || {};
   }
 
   // 按当前阶段切换界面
+  let prevPhase = null;
   function route() {
     CG.Screens.updateHeader(run, run.phase !== 'battle');
     CG.Background.setScene(sceneFor());
     CG.Music.playScene(musicFor());
+    const from = prevPhase;
+    prevPhase = run.phase;
     switch (run.phase) {
-      case 'battle':   return startBattle();
+      case 'battle':                               // 从地图进战斗：先镜头缩放到所在房间，再开战
+        if (from === 'map') return CG.Screens.zoomMapToRoom(run.current && run.current.id, startBattle);
+        return startBattle();
       case 'map':      return CG.Screens.showMap(run);
       case 'reward':   return CG.Screens.showReward(run);
       case 'shop':     return CG.Screens.showShop(run);
@@ -71,6 +76,7 @@ window.CG = window.CG || {};
 
     CG.Screens.showScreen('battle');
     CG.UI.render(battle);
+    CG.Screens.playBattleEntrance();             // 控件从屏幕外飞入
   }
 
   function newRun(cls, seed) {

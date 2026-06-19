@@ -42,56 +42,73 @@ window.CG = window.CG || {};
   CG.ALTAR_IDS = ['setting', 'purify', 'bore', 'findgem', 'recut'];
 
   // ---------- 地图生成（《以撒的结合》式房间布局）----------
-  //  和以撒一样：从中心起点出发，随机往四邻扩展房间（新房间最多只贴 1 个已有房间，
-  //  避免连成块/环 → 得到一棵带许多死路的房间树）。死路用来安放特殊房：
-  //   首领房👑（最远死路，清掉即下一层）、宝藏房🎁（送遗物）、诅咒房🩸（耗血进入换更多遗物）、
-  //   商店🛒、小boss房👹（精英）。其余为普通房（按概率藏敌人）。相邻房间即有门相连。
+  //  参考 Boris the Brave 复刻的 gen.js：从居中起点 BFS 泛洪——每出队一个房间，依次试四邻：
+  //  未占用 && 该格当前相邻房间 ≤1（防成环/连块 → 始终是树）&& 未达 maxRooms && 再过一道 50% 随机门，
+  //  才长出新房并入队；某房一个子房都没长出 → 记为「死路(endroom)」。
+  //  首领＝最后一个死路（泛洪在外圈，故最远）且强制不与起点相邻；宝藏/商店/诅咒/小boss 占其余死路
+  //  （不足则用通路房）。房间数不足 / 首领贴脸 → 整张重生成（最多 200 次，再不行用兜底布局）。
   let _rid = 0;
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
     return arr;
   }
-  const ADJ = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const ADJ = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  const manhattan = (a, b) => Math.abs(a.gx - b.gx) + Math.abs(a.gy - b.gy);
   function genIsaacFloor(act) {
     const m = C().map, W = m.gridW, H = m.gridH;
-    const target = ri(m.rooms[0], m.rooms[1]);
-    const key = (x, y) => x + ',' + y;
-    const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
-    let cells, rooms;
-    for (let attempt = 0; attempt < 40; attempt++) {     // 失败重试，直到房间数达标
-      cells = {}; rooms = [];
-      const add = (x, y, type) => { const r = { id: _rid++, gx: x, gy: y, type, done: false, combat: false }; cells[key(x, y)] = r; rooms.push(r); return r; };
+    const maxRooms = Math.min(m.maxRooms, ri(0, 2) + m.roomsBase + Math.round(act * m.roomsPerAct));
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const cells = {}, order = [], endrooms = [], queue = [];
+      const key = (x, y) => x + ',' + y;
+      const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
       const filled = (x, y) => ADJ.reduce((n, d) => n + (cells[key(x + d[0], y + d[1])] ? 1 : 0), 0);
-      add(W >> 1, H >> 1, 'start');                       // 起点居中
-      let guard = 0;
-      while (rooms.length < target && guard++ < 800) {
-        const base = rooms[Math.floor(Math.random() * rooms.length)];
-        const spot = shuffle(ADJ.map(d => [base.gx + d[0], base.gy + d[1]]))
-          .find(([x, y]) => inb(x, y) && !cells[key(x, y)] && filled(x, y) <= 1);
-        if (spot) add(spot[0], spot[1], 'normal');
+      const visit = (x, y, force) => {
+        if (!inb(x, y) || cells[key(x, y)]) return false;
+        if (filled(x, y) > 1) return false;              // 不接到 ≥2 个已有房 → 永远是树、无环
+        if (order.length >= maxRooms) return false;
+        if (!force && Math.random() < 0.5) return false; // 每个邻格 50% 门槛
+        const r = { id: _rid++, gx: x, gy: y, type: 'normal', done: false, combat: false };
+        cells[key(x, y)] = r; order.push(r); queue.push(r);
+        return true;
+      };
+      visit(W >> 1, H >> 1, true);                        // 起点居中，必放
+      while (queue.length) {
+        const c = queue.shift();
+        let grew = false;
+        for (const d of ADJ) grew = visit(c.gx + d[0], c.gy + d[1]) || grew;
+        if (!grew) endrooms.push(c);                      // 没长出子房 → 死路
       }
-      if (rooms.length >= m.minRooms) break;
+      if (order.length < m.minRooms || order.length < 6) continue;
+      const start = order[0];
+      const ends = endrooms.filter(r => r !== start);
+      if (!ends.length) continue;
+      const boss = ends[ends.length - 1];                 // 最后一个死路＝最远
+      if (manhattan(boss, start) <= 1) continue;          // 首领不与起点相邻
+      boss.type = 'boss';
+      // 特殊房优先占死路，不够再用通路房
+      const slots = shuffle(ends.filter(r => r !== boss))
+        .concat(shuffle(order.filter(r => r !== start && r !== boss && !endrooms.includes(r))));
+      for (const t of ['treasure', 'shop', 'curse', 'elite']) { const r = slots.shift(); if (r) r.type = t; }
+      start.type = 'start';
+      order.forEach(r => { if (r.type === 'normal') r.combat = Math.random() < m.normalEnemyChance; });
+      return finishFloor(order, start, boss);
     }
-    const start = rooms[0];
-    // BFS 距离（用于把首领放在最远死路）
-    const dist = new Map([[start, 0]]); const q = [start];
-    const nb = r => rooms.filter(o => Math.abs(o.gx - r.gx) + Math.abs(o.gy - r.gy) === 1);
-    while (q.length) { const c = q.shift(); for (const n of nb(c)) if (!dist.has(n)) { dist.set(n, dist.get(c) + 1); q.push(n); } }
-    const others = rooms.filter(r => r !== start);
-    const deadEnds = others.filter(r => nb(r).length === 1).sort((a, b) => dist.get(b) - dist.get(a));
-    const rest = others.filter(r => nb(r).length > 1);
-    const queue = deadEnds.concat(shuffle(rest));         // 优先占用死路，不够再用通路房
-    const assign = type => { const r = queue.shift(); if (r) r.type = type; return r; };
-    const boss = assign('boss');                          // 最远死路 = 首领
-    ['treasure', 'shop', 'curse', 'elite'].forEach(assign);
-    // 其余普通房：按概率藏敌人
-    rooms.forEach(r => { if (r.type === 'normal') r.combat = Math.random() < m.normalEnemyChance; });
-    // 裁掉空白边框 → 紧凑棋盘
-    const xs = rooms.map(r => r.gx), ys = rooms.map(r => r.gy);
-    const minX = Math.min(...xs), minY = Math.min(...ys);
+    return genIsaacFallback();                            // 兜底（几乎不会触发）
+  }
+  function finishFloor(rooms, start, boss) {              // 裁掉空白边框 → 紧凑
+    const minX = Math.min(...rooms.map(r => r.gx)), minY = Math.min(...rooms.map(r => r.gy));
     rooms.forEach(r => { r.gx -= minX; r.gy -= minY; });
     const cols = Math.max(...rooms.map(r => r.gx)) + 1, rows = Math.max(...rooms.map(r => r.gy)) + 1;
     return { type: 'isaac', cols, rows, rooms, entrance: start, boss };
+  }
+  function genIsaacFallback() {                           // 固定布局：起点 + 四臂，特殊房齐全、首领不贴脸
+    const spec = [[2, 2, 'start'], [2, 1, 'normal'], [2, 0, 'boss'], [1, 2, 'shop'], [3, 2, 'curse'], [2, 3, 'treasure'], [2, 4, 'elite']];
+    let start = null, boss = null;
+    const rooms = spec.map(([gx, gy, type]) => {
+      const r = { id: _rid++, gx, gy, type, done: false, combat: type === 'normal' };
+      if (type === 'start') start = r; if (type === 'boss') boss = r; return r;
+    });
+    return finishFloor(rooms, start, boss);
   }
 
   // ---------- 奖励 / 商店 ----------
