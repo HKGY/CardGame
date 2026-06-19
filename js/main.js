@@ -75,6 +75,7 @@ window.CG = window.CG || {};
     });
 
     CG.Screens.showScreen('battle');
+    CG.Screens.renderMinimap(run);               // 左上角略缩地图
     CG.UI.render(battle);
     CG.Screens.playBattleEntrance();             // 控件从屏幕外飞入
   }

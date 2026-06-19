@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>残响之塔 · 卡牌爬塔</title>
-  <link rel="stylesheet" href="css/style.css?v=51">
+  <link rel="stylesheet" href="css/style.css?v=53">
 </head>
 <body>
   <!-- 内联定位作兜底：即使样式表被浏览器缓存成旧版，画布也不会挤出空白条 -->
@@ -55,6 +55,7 @@
     <!-- ===== 战斗 ===== -->
     <section id="screen-battle" class="screen">
       <div class="battle-topbar">
+        <div id="battle-minimap" class="battle-minimap" title="本层地图（略缩）"></div>
         <span id="battle-relics" class="run-relics"></span>
         <div class="topbar-btns">
           <button id="mute-btn-2" class="mute-btn" title="音效开关">🔊</button>
@@ -145,22 +146,22 @@
   </div>
 
   <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
-  <script src="js/util/rng.js?v=51"></script>
-  <script src="js/data/cards.js?v=51"></script>
-  <script src="js/data/affixes.js?v=51"></script>
-  <script src="js/data/tarot.js?v=51"></script>
-  <script src="js/data/relics.js?v=51"></script>
-  <script src="js/data/config.js?v=51"></script>
-  <script src="js/data/enemies.js?v=51"></script>
-  <script src="js/engine/effects.js?v=51"></script>
-  <script src="js/engine/game.js?v=51"></script>
-  <script src="js/engine/run.js?v=51"></script>
-  <script src="js/ui/sprites.js?v=51"></script>
-  <script src="js/ui/audio.js?v=51"></script>
-  <script src="js/ui/music.js?v=51"></script>
-  <script src="js/ui/background.js?v=51"></script>
-  <script src="js/ui/render.js?v=51"></script>
-  <script src="js/ui/screens.js?v=51"></script>
-  <script src="js/main.js?v=51"></script>
+  <script src="js/util/rng.js?v=53"></script>
+  <script src="js/data/cards.js?v=53"></script>
+  <script src="js/data/affixes.js?v=53"></script>
+  <script src="js/data/tarot.js?v=53"></script>
+  <script src="js/data/relics.js?v=53"></script>
+  <script src="js/data/config.js?v=53"></script>
+  <script src="js/data/enemies.js?v=53"></script>
+  <script src="js/engine/effects.js?v=53"></script>
+  <script src="js/engine/game.js?v=53"></script>
+  <script src="js/engine/run.js?v=53"></script>
+  <script src="js/ui/sprites.js?v=53"></script>
+  <script src="js/ui/audio.js?v=53"></script>
+  <script src="js/ui/music.js?v=53"></script>
+  <script src="js/ui/background.js?v=53"></script>
+  <script src="js/ui/render.js?v=53"></script>
+  <script src="js/ui/screens.js?v=53"></script>
+  <script src="js/main.js?v=53"></script>
 </body>
 </html>

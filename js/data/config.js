@@ -21,8 +21,13 @@ CG.CONFIG = {
 
   // 地图：每层一张《以撒的结合》式房间布局（BFS 泛洪生成，见 run.js genIsaacFloor）。
   // 目标房间数 = ri(0,2) + roomsBase + round(act × roomsPerAct)，封顶 maxRooms、不足 minRooms 则重生成。
-  // 死路安放特殊房（首领/宝藏/商店/诅咒/小boss），其余普通房按 normalEnemyChance 藏敌人。
-  map: { gridW: 11, gridH: 9, roomsBase: 5, roomsPerAct: 2.5, maxRooms: 15, minRooms: 7, normalEnemyChance: 0.7 },
+  // 死路安放特殊房：首领恒 1；宝藏/商店/诅咒/小boss/祭坛 各保底 1，extra 为「再多一个」的概率。
+  // 其余普通房按 normalEnemyChance 藏敌（已调低）；藏敌房有 telegraphChance 概率在地图上明示（露出 ⚔️）。
+  map: {
+    gridW: 13, gridH: 11, roomsBase: 8, roomsPerAct: 3, maxRooms: 18, minRooms: 9,
+    normalEnemyChance: 0.45, telegraphChance: 0.5,
+    extra: { treasure: 0.4, shop: 0.4, elite: 0.4, altar: 0.4 },
+  },
   // 诅咒房：进入耗血 = max(minHpCost, 最大生命 × hpCostPct)
   curse: { hpCostPct: 0.12, minHpCost: 8 },
 

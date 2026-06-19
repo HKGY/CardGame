@@ -78,19 +78,30 @@ window.CG = window.CG || {};
         for (const d of ADJ) grew = visit(c.gx + d[0], c.gy + d[1]) || grew;
         if (!grew) endrooms.push(c);                      // 没长出子房 → 死路
       }
-      if (order.length < m.minRooms || order.length < 6) continue;
+      if (order.length < Math.max(m.minRooms, 7)) continue;   // 至少容下 起点+首领+5 个保底特殊房
       const start = order[0];
       const ends = endrooms.filter(r => r !== start);
       if (!ends.length) continue;
       const boss = ends[ends.length - 1];                 // 最后一个死路＝最远
       if (manhattan(boss, start) <= 1) continue;          // 首领不与起点相邻
       boss.type = 'boss';
-      // 特殊房优先占死路，不够再用通路房
+      // 特殊房槽位：优先死路（已按距离排好），不够再用通路房
       const slots = shuffle(ends.filter(r => r !== boss))
         .concat(shuffle(order.filter(r => r !== start && r !== boss && !endrooms.includes(r))));
-      for (const t of ['treasure', 'shop', 'curse', 'elite']) { const r = slots.shift(); if (r) r.type = t; }
+      // 宝藏/商店/诅咒/小boss/祭坛 各保底 1（先占，保证齐全），再按 extra 概率追加同类（有空位才放）
+      const base = ['treasure', 'shop', 'curse', 'elite', 'altar'];
+      const ex = m.extra || {};
+      const extras = [];
+      ['treasure', 'shop', 'elite', 'altar'].forEach(t => { if (Math.random() < (ex[t] || 0)) extras.push(t); });
+      for (const t of base) { const r = slots.shift(); if (r) r.type = t; }
+      for (const t of shuffle(extras)) { const r = slots.shift(); if (r) r.type = t; }
       start.type = 'start';
-      order.forEach(r => { if (r.type === 'normal') r.combat = Math.random() < m.normalEnemyChance; });
+      // 普通房：按概率藏敌；藏敌房有一半在地图上「明示」(reveal)
+      order.forEach(r => {
+        if (r.type !== 'normal') return;
+        r.combat = Math.random() < m.normalEnemyChance;
+        r.reveal = r.combat && Math.random() < m.telegraphChance;
+      });
       return finishFloor(order, start, boss);
     }
     return genIsaacFallback();                            // 兜底（几乎不会触发）
@@ -102,7 +113,7 @@ window.CG = window.CG || {};
     return { type: 'isaac', cols, rows, rooms, entrance: start, boss };
   }
   function genIsaacFallback() {                           // 固定布局：起点 + 四臂，特殊房齐全、首领不贴脸
-    const spec = [[2, 2, 'start'], [2, 1, 'normal'], [2, 0, 'boss'], [1, 2, 'shop'], [3, 2, 'curse'], [2, 3, 'treasure'], [2, 4, 'elite']];
+    const spec = [[2, 2, 'start'], [2, 1, 'normal'], [2, 0, 'boss'], [1, 2, 'shop'], [0, 2, 'altar'], [3, 2, 'curse'], [2, 3, 'treasure'], [2, 4, 'elite']];
     let start = null, boss = null;
     const rooms = spec.map(([gx, gy, type]) => {
       const r = { id: _rid++, gx, gy, type, done: false, combat: type === 'normal' };
@@ -244,6 +255,7 @@ window.CG = window.CG || {};
         if (t === 'shop')     return this._enterShop();
         if (t === 'treasure') return this._enterTreasure();
         if (t === 'curse')    return this._enterCurse();
+        if (t === 'altar')    return this._enterAltar();
       }
       node.done = true;                        // 起点 / 空房 / 折返已清房：仅移动
       this._recomputeAvailable();
@@ -264,13 +276,30 @@ window.CG = window.CG || {};
       this.phase = 'event';
       this._emit();
     }
-    // 诅咒房：进入即耗血，换取 2 件遗物（集齐则折算金币）。
+    // 诅咒房：进入即耗血，换取「2 个随机商店会卖的东西」（宝石/法杖/塔罗/遗物），立即免费入手。
     _enterCurse() {
       const before = this.hp;
       this.hp = Math.max(1, this.hp - this._curseCost());
-      const got = this._dropRelics(2), gold = got.length ? 0 : 110;
-      if (gold) this.gold += gold;
-      this.pending = { kind: 'curse', relics: got, hpPaid: before - this.hp, gold };
+      const hpPaid = before - this.hp;             // 先记真实血代价（后面发放的遗物 onPickup 可能再改血量）
+      const offers = [this._grantCurseOffer(), this._grantCurseOffer()];
+      this.pending = { kind: 'curse', hpPaid, offers };
+      this.phase = 'event';
+      this._emit();
+    }
+    _grantCurseOffer() {                          // 随机一个「商店类」商品并立即发放，返回展示用描述
+      const cats = ['gem', 'card', 'tarot', 'relic'].filter(c =>
+        c === 'gem' || c === 'card'
+        || (c === 'tarot' && this.canGainTarot() && this.tarot.length < this.tarotSlots())
+        || (c === 'relic' && CG.RELIC_IDS.some(id => !this.hasRelic(id))));
+      const cat = pick(cats.length ? cats : ['gem']);
+      if (cat === 'gem') { const pack = CG.pickPack('elite'); const g = CG.rollGem({ tier: 'elite', pack, minLevel: this.forgeMinLevel() }); this.gems.push(g); return { type: 'gem', gem: g, pack }; }
+      if (cat === 'card') { const base = pick(['strike', 'defend']); const c = CG.makeCard(base, weighted([[2, 3], [3, 2]]), []); this.deck.push(c); return { type: 'card', card: c }; }
+      if (cat === 'tarot') { const id = pick(CG.TAROT_IDS); this.tarot.push(id); return { type: 'tarot', id }; }
+      const got = this._dropRelics(1); return got.length ? { type: 'relic', id: got[0] } : { type: 'gold', gold: (this.gold += 40, 40) };
+    }
+    _enterAltar() {                              // 祭坛房：随机一种可用的宝石祭坛（复用事件屏）
+      const valid = CG.ALTAR_IDS.filter(id => this.altarUsable(id));
+      this.pending = { altar: pick(valid.length ? valid : ['findgem']) };
       this.phase = 'event';
       this._emit();
     }

@@ -19,7 +19,7 @@ function bfsStep(run, goalFilter) {
   let s = goal; while (prev.get(s) !== cur) s = prev.get(s);
   return s;
 }
-const isContent = r => r.type === 'shop' || r.type === 'treasure' || r.type === 'curse' || r.type === 'elite' || r.type === 'boss' || (r.type === 'normal' && r.combat);
+const isContent = r => r.type === 'shop' || r.type === 'treasure' || r.type === 'curse' || r.type === 'altar' || r.type === 'elite' || r.type === 'boss' || (r.type === 'normal' && r.combat);
 // 测试驱动：先清掉所有非首领内容房，再走空房，最后进首领（迈一步、严格推进）。
 function mapStep(run) {
   const next = bfsStep(run, r => !r.done && isContent(r) && r.type !== 'boss')
@@ -39,14 +39,16 @@ test('新跑图初始状态', () => {
   assert.equal(run.phase, 'map');
 });
 
-test('以撒式布局：起点/首领/宝藏/商店/诅咒/小boss 各一，房间全连通', () => {
+test('以撒式布局：起点/首领各一，宝藏/商店/诅咒/小boss/祭坛 至少各一，房间全连通', () => {
   for (let i = 0; i < 10; i++) {
     const run = newRun('isaac-' + i);
     const g = run.grid;
     assert.equal(g.type, 'isaac');
     assert.ok(g.rooms.length >= CG.CONFIG.map.minRooms);
-    ['start', 'boss', 'treasure', 'shop', 'curse', 'elite'].forEach(t =>
-      assert.equal(byType(run, t).length, 1, t + ' 应恰好 1 间'));
+    assert.equal(byType(run, 'start').length, 1, '起点恰好 1');
+    assert.equal(byType(run, 'boss').length, 1, '首领恰好 1');
+    ['treasure', 'shop', 'curse', 'elite', 'altar'].forEach(t =>
+      assert.ok(byType(run, t).length >= 1, t + ' 应至少 1 间'));
     assert.equal(byType(run, 'rest').length, 0);                       // 无篝火
     assert.equal(run.current, g.entrance);
     assert.equal(run.current.type, 'start');
@@ -64,37 +66,45 @@ test('以撒式布局：起点/首领/宝藏/商店/诅咒/小boss 各一，房�
   }
 });
 
-test('普通房按概率藏敌：跨多层既有藏敌也有空房', () => {
-  let combat = 0, empty = 0;
-  for (let i = 0; i < 12; i++) {
+test('普通房按概率藏敌：跨多层既有藏敌也有空房；藏敌房一半明示一半隐藏', () => {
+  let combat = 0, empty = 0, shown = 0, hidden = 0;
+  for (let i = 0; i < 14; i++) {
     const run = newRun('enemy-' + i);
-    byType(run, 'normal').forEach(r => (r.combat ? combat++ : empty++));
+    byType(run, 'normal').forEach(r => {
+      if (r.combat) { combat++; r.reveal ? shown++ : hidden++; } else empty++;
+    });
   }
   assert.ok(combat > 0 && empty > 0, '普通房应既有藏敌也有空房');
+  assert.ok(shown > 0 && hidden > 0, '藏敌房应有的明示(reveal)、有的隐藏');
 });
 
-test('诅咒房进入耗血、给 2 遗物；宝藏房免费给 1 遗物', () => {
+test('诅咒房：耗血换 2 个随机商店货色（立即入手）；宝藏房免费给 1 遗物', () => {
   const run = newRun('loot');
   const curse = byType(run, 'curse')[0];
   run.available = [curse];
-  const hp0 = run.hp;
+  const hp0 = run.hp, deck0 = run.deck.length, gems0 = run.gems.length, tarot0 = run.tarot.length, relics0 = run.relics.length;
   run.selectNode(curse);
   assert.equal(run.phase, 'event');
   assert.equal(run.pending.kind, 'curse');
   assert.ok(run.hp < hp0);                                            // 进入耗血
-  assert.equal(run.pending.hpPaid, hp0 - run.hp);
-  assert.ok(run.pending.relics.length === 2 || run.pending.gold > 0); // 2 遗物（集齐则折金）
+  assert.ok(run.pending.hpPaid > 0);                                  // 记录了血代价（遗物 onPickup 可能再改血量，故不比 hp0-hp）
+  assert.equal(run.pending.offers.length, 2);                        // 2 个商店货色
+  run.pending.offers.forEach(o => assert.ok(['gem', 'card', 'tarot', 'relic', 'gold'].includes(o.type)));
+  // 非金币的货色应已立即入手（背包/牌组/塔罗/遗物 合计净增 = 非金币个数）
+  const nonGold = run.pending.offers.filter(o => o.type !== 'gold').length;
+  const delta = (run.deck.length - deck0) + (run.gems.length - gems0) + (run.tarot.length - tarot0) + (run.relics.length - relics0);
+  assert.equal(delta, nonGold);
   run.leaveEvent();
   assert.equal(curse.done, true);
 
   const run2 = newRun('loot2');
   const t = byType(run2, 'treasure')[0];
   run2.available = [t];
-  const hp1 = run2.hp, relics0 = run2.relics.length;
+  const r0 = run2.relics.length;
   run2.selectNode(t);
   assert.equal(run2.pending.kind, 'treasure');
-  assert.equal(run2.hp, hp1);                                         // 宝藏房不耗血
-  assert.ok(run2.relics.length === relics0 + 1 || run2.pending.gold > 0);
+  assert.equal(run2.pending.hpPaid, undefined);                      // 宝藏房无血代价（遗物 onPickup 可能改血量，故不直接比 hp）
+  assert.ok(run2.relics.length === r0 + 1 || run2.pending.gold > 0); // 给 1 件遗物（集齐则折金）
 });
 
 test('皇帝塔罗：直达本层首领并开战', () => {

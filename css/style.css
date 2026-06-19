@@ -149,14 +149,14 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* ===== 地图（《以撒的结合》式房间布局） ===== */
 .map-hint { text-align: center; color: var(--muted); font-size: 13px; margin: 6px 0; line-height: 1.6; }
 .map-hint b { color: var(--accent); }
-.map-wrap { display: flex; justify-content: center; }
+.map-wrap { overflow-x: auto; }                 /* 地图过宽时横向滚动（房间大小固定，不缩放） */
 .map-grid {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(var(--cols, 9), 1fr);
-  grid-template-rows: repeat(var(--rows, 8), 1fr);
-  gap: 4px; width: 100%; max-width: 560px; aspect-ratio: var(--cols) / var(--rows);
-  margin: 8px auto 22px; border-radius: 14px; overflow: hidden;
+  grid-template-columns: repeat(var(--cols, 9), var(--cell));
+  grid-template-rows: repeat(var(--rows, 8), var(--cell));
+  --cell: 64px; gap: 4px; width: max-content; margin: 8px auto 22px;
+  border-radius: 14px; overflow: hidden;
   background: #0c0e16; box-shadow: inset 0 0 0 1px #2a2f44;
 }
 /* 门：相邻房间之间的连线，画在房间格之下，只在格缝里露出 */
@@ -165,7 +165,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .map-cell {
   position: relative; z-index: 1; padding: 0; border: none;
   display: flex; align-items: center; justify-content: center;
-  font-size: clamp(13px, 3vw, 24px); line-height: 1; color: var(--ink);
+  font-size: calc(var(--cell, 54px) * 0.42); line-height: 1; color: var(--ink);
 }
 .map-cell.void { background: transparent; cursor: default; }   /* 空地（无房间） */
 /* 房间地砖；按类型上色（靠 gap 留出门缝，圆角成砖块感） */
@@ -175,7 +175,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .map-cell.treasure { background: #4a3a1e; }
 .map-cell.curse    { background: #45222a; }
 .map-cell.elite    { background: #3a2540; }
-.map-cell.boss     { background: #5a2030; font-size: clamp(16px, 3.6vw, 28px); }
+.map-cell.altar    { background: #2e2a4e; }
+.map-cell.boss     { background: #5a2030; font-size: calc(var(--cell, 54px) * 0.5); }
 .map-cell.done { color: #6dbb7a; filter: brightness(.7); }
 .map-cell.available { cursor: pointer; }
 .map-cell.available:not(.done) { box-shadow: inset 0 0 0 2px var(--accent); animation: pulse 1.4s ease-in-out infinite; }
@@ -187,6 +188,22 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   0%,100% { box-shadow: inset 0 0 0 2px #f0c04088, 0 0 8px #f0c04044; }
   50%     { box-shadow: inset 0 0 0 2px #f0c040, 0 0 16px #f0c040aa; }
 }
+
+/* ===== 战斗界面左上角·略缩地图（缩略缩放到固定盒子，非交互） ===== */
+.battle-minimap { flex: 0 0 auto; display: flex; align-items: flex-start; }
+.battle-minimap:empty { display: none; }
+.battle-minimap .map-grid.mini {
+  grid-template-columns: repeat(var(--cols, 9), 1fr);
+  grid-template-rows: repeat(var(--rows, 8), 1fr);
+  height: 84px; width: auto; max-width: 168px;
+  aspect-ratio: var(--cols) / var(--rows);
+  gap: 1px; margin: 0; border-radius: 8px;
+}
+.battle-minimap .map-cell { font-size: 0; border-radius: 22%; }
+.battle-minimap .map-cell.void { background: transparent; box-shadow: none; }
+.battle-minimap .map-cell.current { box-shadow: inset 0 0 0 2px #ffe9a8; }
+.battle-minimap .map-hero { inset: 0; }
+.battle-minimap .map-doors line { stroke-width: .26; }
 
 /* ===== 进入战斗：控件从屏幕外飞入（一次性，由 JS 加 .entering 触发） ===== */
 #screen-battle.entering .battle-topbar { animation: fly-down .50s cubic-bezier(.2,.85,.25,1) both; }
@@ -596,7 +613,8 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
   .energy { font-size: 17px; padding: 6px 12px; }
   .end-turn { font-size: 15px; padding: 11px 18px; }
 
-  .map-grid { max-width: 100%; gap: 3px; }
+  .map-grid { --cell: 50px; gap: 3px; }
+  .battle-minimap .map-grid.mini { height: 64px; max-width: 132px; }
   .map-hint { font-size: 11px; }
 
   .menu { margin-top: 3vh; gap: 12px; }
@@ -626,4 +644,5 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
   .pile { width: 52px; }
   .menu-title { font-size: 30px; letter-spacing: 4px; }
   .gem { width: 92px; }
+  .map-grid { --cell: 42px; }
 }

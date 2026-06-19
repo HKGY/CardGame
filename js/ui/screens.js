@@ -16,8 +16,8 @@ window.CG = window.CG || {};
   let lastRewardPending = null;
 
   // 以撒式房间类型 → 图标 / 名称（普通房不剧透是否有敌人；清空后统一显示 ✓）
-  const ICON  = { start: '🚩', normal: '', elite: '👹', boss: '👑', shop: '🛒', treasure: '🎁', curse: '🩸' };
-  const LABEL = { start: '起点', normal: '房间', elite: '小boss房', boss: '首领房', shop: '商店', treasure: '宝藏房', curse: '诅咒房' };
+  const ICON  = { start: '🚩', normal: '', combat: '⚔️', elite: '👹', boss: '👑', shop: '🛒', treasure: '🎁', curse: '🩸', altar: '🔮' };
+  const LABEL = { start: '起点', normal: '房间', elite: '小boss房', boss: '首领房', shop: '商店', treasure: '宝藏房', curse: '诅咒房', altar: '祭坛' };
   const SCREENS = ['menu', 'map', 'battle', 'reward', 'shop', 'event', 'gameover'];
   const REDUCE = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -212,37 +212,67 @@ window.CG = window.CG || {};
   }
 
   // ---------- 地图（《以撒的结合》式房间布局）----------
-  const CLEARABLE = { normal: 1, elite: 1, shop: 1, treasure: 1, curse: 1 };   // 清空后显示 ✓ 的内容房
-  function showMap(run) {
-    showScreen('map');
+  const CLEARABLE = { normal: 1, elite: 1, shop: 1, treasure: 1, curse: 1, altar: 1 };   // 清空后显示 ✓ 的内容房
+  const SPECIAL = { elite: 1, boss: 1, shop: 1, treasure: 1, curse: 1, altar: 1 };       // 可见即露图标的特殊房
+  // 构建地图网格 HTML（含战争迷雾）。mini=true → 非交互的略缩版（div 格子、无图标，只标当前位）。
+  // 战争迷雾：只渲染「去过的房间」+「其正交相邻房」+「当前可前往房」，其余画成迷雾(void)。
+  function buildMapGrid(run, mini) {
     const g = run.grid;
-    const sub = $('map-subtitle');
-    if (sub) sub.innerHTML = `🗼 第 <b>${run.act}</b> / ${run.maxActs} 层　｜　WASD / 点击移动；🚩起点　👹小boss　🎁宝藏　🩸诅咒(耗血)　🛒商店　👑首领(通向下一层)`;
-
     const byXY = {};
     g.rooms.forEach(r => (byXY[r.gx + ',' + r.gy] = r));
-    // 门（相邻房间之间的连线）：viewBox 与网格对齐，画在房间格之下，只在格间缝隙显形
+    const revealed = new Set();
+    g.rooms.forEach(r => {
+      if (!r.done) return;
+      revealed.add(r);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(d => { const n = byXY[(r.gx + d[0]) + ',' + (r.gy + d[1])]; if (n) revealed.add(n); });
+    });
+    run.available.forEach(r => revealed.add(r));
     let doors = '';
     g.rooms.forEach(r => [[1, 0], [0, 1]].forEach(d => {
-      if (byXY[(r.gx + d[0]) + ',' + (r.gy + d[1])])
+      const n = byXY[(r.gx + d[0]) + ',' + (r.gy + d[1])];
+      if (n && revealed.has(r) && revealed.has(n))
         doors += `<line x1="${r.gx + 0.5}" y1="${r.gy + 0.5}" x2="${r.gx + d[0] + 0.5}" y2="${r.gy + d[1] + 0.5}"/>`;
     }));
     let cells = '';
     for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
       const r = byXY[x + ',' + y];
-      if (!r) { cells += `<div class="map-cell void"></div>`; continue; }
+      if (!r || !revealed.has(r)) { cells += `<div class="map-cell void"></div>`; continue; }   // 空地 / 未揭示 = 迷雾
       const avail = run.available.includes(r), cur = r === run.current;
-      const cls = ['map-cell', 'room', r.type, r.done ? 'done' : '', avail ? 'available' : '', cur ? 'current' : ''].join(' ').replace(/\s+/g, ' ').trim();
-      const glyph = cur ? `<span class="map-hero">${CG.Sprites.get('hero_token')}</span>`
-                        : ((r.done && CLEARABLE[r.type]) ? '✓' : ICON[r.type]);
+      const cls = ['map-cell', 'room', r.type, r.done ? 'done' : '', (avail && !mini) ? 'available' : '', cur ? 'current' : ''].join(' ').replace(/\s+/g, ' ').trim();
+      const hero = cur ? `<span class="map-hero">${CG.Sprites.get('hero_token')}</span>` : '';
+      if (mini) { cells += `<div class="${cls}">${hero}</div>`; continue; }     // 略缩图：靠底色 + 当前位
+      let glyph = hero;
+      if (!cur) {
+        if (r.done && CLEARABLE[r.type]) glyph = '✓';
+        else if (SPECIAL[r.type]) glyph = ICON[r.type];                          // 特殊房：可见即露图标
+        else if (r.type === 'normal') glyph = (r.combat && r.reveal) ? ICON.combat : '';  // 小怪房一半明示
+        else glyph = ICON[r.type] || '';
+      }
       const title = r.type === 'curse' ? `${LABEL.curse}（进入耗 ${run._curseCost()} 生命）` : (LABEL[r.type] || '');
       cells += `<button class="${cls}" data-id="${r.id}" title="${title}"><span class="cell-glyph">${glyph}</span></button>`;
     }
+    return { doors, cells, cols: g.cols, rows: g.rows };
+  }
+  const gridSvg = m => `<svg class="map-doors" viewBox="0 0 ${m.cols} ${m.rows}" preserveAspectRatio="none">${m.doors}</svg>${m.cells}`;
+
+  function showMap(run) {
+    showScreen('map');
+    const sub = $('map-subtitle');
+    if (sub) sub.innerHTML = `🗼 第 <b>${run.act}</b> / ${run.maxActs} 层　｜　WASD / 点击移动；🚩起点　⚔️小怪　👹小boss　🎁宝藏　🩸诅咒　🛒商店　🔮祭坛　👑首领`;
+    const m = buildMapGrid(run, false);
     const area = $('map-area');
-    area.style.setProperty('--cols', g.cols);
-    area.style.setProperty('--rows', g.rows);
-    area.innerHTML = `<svg class="map-doors" viewBox="0 0 ${g.cols} ${g.rows}" preserveAspectRatio="none">${doors}</svg>${cells}`;
+    area.style.setProperty('--cols', m.cols);
+    area.style.setProperty('--rows', m.rows);
+    area.innerHTML = gridSvg(m);
     $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
+  }
+  // 战斗界面左上角的略缩地图（非交互，进战斗时渲染一次）
+  function renderMinimap(run) {
+    const el = $('battle-minimap');
+    if (!el) return;
+    if (!run || !run.grid) { el.innerHTML = ''; return; }
+    const m = buildMapGrid(run, true);
+    el.innerHTML = `<div class="map-grid mini" style="--cols:${m.cols};--rows:${m.rows}">${gridSvg(m)}</div>`;
   }
 
   // ---------- 奖励（宝石＝主题 booster pack 三选一 / 或 空法杖三选一） ----------
@@ -416,16 +446,28 @@ window.CG = window.CG || {};
       }).join('') + '</p>';
     return `<p class="reward-gold">遗物已集齐，折算金币 💰 ${p.gold || 0}</p>`;
   }
+  // 诅咒房战利品：2 个随机「商店货色」（宝石 / 法杖 / 塔罗 / 遗物 / 兜底金币）
+  function curseOffersHTML(offers) {
+    return '<div class="reward-cards">' + (offers || []).map(o => {
+      if (o.type === 'gem') { const pk = CG.PACKS[o.pack]; return CG.UI.gemFace(o.gem, { tagLabel: pk ? pk.icon + ' ' + pk.name : '' }); }
+      if (o.type === 'card') return CG.UI.cardFace(o.card);
+      if (o.type === 'tarot') { const t = CG.TAROT[o.id]; return `<div class="shop-tarot-face" title="${t.desc}"><span class="shop-tarot-icon">${t.icon}</span><b>${t.name}</b><small>${t.desc}</small></div>`; }
+      if (o.type === 'relic') { const r = CG.RELICS[o.id]; return `<div class="shop-tarot-face relic-card" title="${r.desc}"><span class="shop-tarot-icon">${r.icon}</span><b>${r.name}</b><small>${r.desc}</small></div>`; }
+      return `<div class="shop-tarot-face"><span class="shop-tarot-icon">💰</span><b>${o.gold} 金币</b></div>`;
+    }).join('') + '</div>';
+  }
   function showEvent(run) {
     showScreen('event');
     const p = run.pending;
     if (p.kind === 'treasure' || p.kind === 'curse') {
       const curse = p.kind === 'curse';
+      const loot = curse ? curseOffersHTML(p.offers) : relicLootHTML(p);
+      const desc = curse ? `你以 ${p.hpPaid} 点生命为代价撬开诅咒之门，换来两样商店货色——` : '房间中央的基座上摆着——';
       $('screen-event').innerHTML = `
         <div class="panel center">
           <h2>${curse ? '🩸 诅咒房' : '🎁 宝藏房'}</h2>
-          <p class="altar-desc">${curse ? `你以 ${p.hpPaid} 点生命为代价，撬开了诅咒之门——` : '房间中央的基座上摆着——'}</p>
-          ${relicLootHTML(p)}
+          <p class="altar-desc">${desc}</p>
+          ${loot}
           <div class="event-actions"><button class="big-btn" data-act="leave">${curse ? '忍痛离开' : '收下并离开'}</button></div>
         </div>`;
       return;
@@ -561,5 +603,5 @@ window.CG = window.CG || {};
     $('pile-modal').classList.remove('hidden');
   }
 
-  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showEvent, showGameOver, pickCardList, choose, openCodex, showMenu, zoomMapToRoom, playBattleEntrance };
+  CG.Screens = { init, showScreen, updateHeader, showMap, showReward, showShop, showEvent, showGameOver, pickCardList, choose, openCodex, showMenu, zoomMapToRoom, playBattleEntrance, renderMinimap };
 })(window.CG);

@@ -45,16 +45,18 @@
 
 - **全局模式**：每个文件 `window.CG = window.CG || {}` + IIFE，成员挂到 `window.CG`；按 `index.html` 的 `<script>` 顺序加载，无打包器。`config.js`/`enemies.js` 用裸 `CG`（= 全局），其余用 IIFE 参数 `CG`。
 - **分层**：`data/`（数据）、`engine/`（纯逻辑，不碰 DOM）、`ui/`（碰 DOM）。`Run`（跑图持久态，run.js）与 `Game`（单场战斗，game.js）分离，靠 `onChange` 回调刷新界面。
-- **地图＝《以撒的结合》式房间布局**：每层 `act`（1..maxActs，定敌人池/数值膨胀/场景）一张 `genIsaacFloor`（**BFS 泛洪**，参考 boristhebrave 的 gen.js）：居中起点出队、依次试四邻——未占用 && 该格相邻房 ≤1（防环→始终是树）&& 未达 maxRooms && 50% 门槛，才长新房入队；没长出子房的房＝「死路」。首领＝最后一个死路（最远）且不与起点相邻；宝藏/商店/诅咒/小boss 占其余死路（不足用通路房）；房间数不足/首领贴脸→重生成（≤200 次，再不行 `genIsaacFallback`）。房间 `{id,gx,gy,type,done,combat}`，type ∈ `start|normal|elite|boss|shop|treasure|curse`（**正交相邻即有门相连**＝可走）。`selectNode`（点击 / **WASD**）走进相邻房：未清的 boss/elite/`normal&&combat`→开战，`shop`→商店，`treasure`→白送遗物，`curse`→耗血换 2 遗物（`_curseCost`），其余仅移动；首领清掉 `_nextAct` 进下一层/通关。`grid={type:'isaac',cols,rows,rooms,entrance,boss}`。地图自机贴图＝`sprites.js` 的 `hero_token`。
+- **地图＝《以撒的结合》式房间布局**：每层 `act`（1..maxActs，定敌人池/数值膨胀/场景）一张 `genIsaacFloor`（**BFS 泛洪**，参考 boristhebrave 的 gen.js）：居中起点出队、依次试四邻——未占用 && 该格相邻房 ≤1（防环→始终是树）&& 未达 maxRooms && 50% 门槛，才长新房入队；没长出子房的房＝「死路」。首领＝最后一个死路（最远）且不与起点相邻；**宝藏/商店/诅咒/小boss/祭坛 各保底 1（先占死路），再按 `map.extra` 概率追加同类**；房间数不足/首领贴脸→重生成（≤200 次，再不行 `genIsaacFallback`）。房间 `{id,gx,gy,type,done,combat,reveal}`，type ∈ `start|normal|elite|boss|shop|treasure|curse|altar`（**正交相邻即有门相连**＝可走）。普通房按 `normalEnemyChance`(已调低) 藏敌，藏敌房有 `telegraphChance` 概率 `reveal=true`（地图上露 ⚔️，**另一半隐藏不剧透**）。`selectNode`（点击 / **WASD**）走进相邻房：未清的 boss/elite/`normal&&combat`→开战，`shop`→商店，`treasure`→白送遗物，`curse`→`_enterCurse`（耗血换 **2 个随机商店货色**：宝石/法杖/塔罗/遗物，立即免费入手；`_grantCurseOffer`），`altar`→`_enterAltar`（宝石祭坛，复用事件屏），其余仅移动；首领清掉 `_nextAct` 进下一层/通关。`grid={type:'isaac',cols,rows,rooms,entrance,boss}`。地图自机贴图＝`sprites.js` 的 `hero_token`。
+- **地图渲染**：核心 `buildMapGrid(run, mini)` 产网格 HTML（带战争迷雾），`showMap` 用它出交互大图、`renderMinimap` 出非交互略缩图。**房间格尺寸固定**（CSS `.map-grid --cell`，网格随房间数变大、不缩放；`.map-wrap` 可横向滚动）。**战争迷雾**：只渲染「去过的房间 + 其正交相邻房 + 当前 available」，其余画成 `void` 迷雾；门只画两端都已揭示的。特殊房可见即露图标，普通藏敌房按 `reveal` 决定露不露 ⚔️。
+- **战斗界面左上角略缩地图**：`startBattle` 调 `CG.Screens.renderMinimap(run)` 填 `#battle-minimap`（`.map-grid.mini`：1fr 列 + `aspect-ratio` 缩进固定小盒、无图标只标当前位）。进战斗时只渲染一次（`render()` 不动它）。
 - **进入战斗的演出**：地图→战斗时 `route` 先调 `CG.Screens.zoomMapToRoom`（镜头缩放放大到所在房间格、淡出），回调里 `startBattle` 再 `playBattleEntrance`（给 `#screen-battle` 加 `.entering` 触发 CSS `fly-*` 关键帧，控件从屏幕外飞入）。两者都尊重 `prefers-reduced-motion`。
 - **无外部素材，别再引入 png/mp3**：立绘/卡面=内联 SVG（`sprites.js`/`render.js`），场景背景=纯 CSS 渐变（`background.js` + `css` 里的 `.scene-*`），音效=Web Audio 即时合成（`audio.js`），背景音乐已停用（`music.js` 为空壳接口）。
 - **宝石/法杖**：效果绑定在「宝石」上，宝石镶进「卡牌(法杖)」的孔位；`cardStats()` 聚合一张卡所有孔位里的词条 → 数值/效果/卡名。安装免费，卸下花钱且随机加一个 debuff。
 - **Booster pack（词条分类）**：词条按主题分进 `CG.PACKS`（`affixes.js`，5 包：基础/强攻/诅咒/节奏/生机）。`CG.rollGem` 接 `opts.pack` 把增益/减益限定在该包池内；**不传 pack 时按 tier 自动选包**（`CG.pickPack`，权重见 `config.js` 的 `packW`），故所有产宝石处（奖励/商店/祭坛/重铸/遗物）都按包生成。战斗奖励整包同一主题并存 `pending.pack`，奖励界面先展示未拆封的包再点开三选一。卸下惩罚 `gemAddRandomDebuff` 例外，仍从全部减益池抽。
-- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=51`）。
+- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=53`）。
 
 ## 改内容 / 调平衡的位置
 
-- 数值/经济：`js/data/config.js`（`map.gridW/gridH/roomsBase/roomsPerAct/maxRooms/minRooms/normalEnemyChance`、`curse.hpCostPct`、`packW` 选包权重）　｜　词条：`js/data/affixes.js`　｜　卡包分类：`affixes.js` 的 `CG.PACKS`　｜　宝石生成规则：`js/data/cards.js` 的 `rollGem` / `pickPack`。
+- 数值/经济：`js/data/config.js`（`map.gridW/gridH/roomsBase/roomsPerAct/maxRooms/minRooms/normalEnemyChance/telegraphChance/extra`、`curse.hpCostPct`、`packW` 选包权重）　｜　词条：`js/data/affixes.js`　｜　卡包分类：`affixes.js` 的 `CG.PACKS`　｜　宝石生成规则：`js/data/cards.js` 的 `rollGem` / `pickPack`。
 - 地图布局：`js/engine/run.js` 的 `genIsaacFloor`；地图渲染 + WASD：`js/ui/screens.js` 的 `showMap` / `init` 里的 keydown（CSS `.map-grid`/`.map-cell`/`.map-doors`/`.map-hero`）；进战斗演出：`zoomMapToRoom` + `playBattleEntrance`（CSS `.entering` / `fly-*`）。
 - 加敌人：`js/data/enemies.js` + `ENEMY_POOLS`；加敌人贴图：`js/ui/sprites.js`（一段 SVG，key 对应敌人 `sprite`）。
 - 加新效果：`CG.Effects.register('type', (game, eff, source, target) => {…})`（`js/engine/effects.js`），卡与敌人招式共用。
