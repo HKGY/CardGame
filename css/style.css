@@ -26,7 +26,7 @@ body {
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
 }
-button, .card, .map-node, .pile, .tarot-btn, .codex-tab, .relic-icon { touch-action: manipulation; }
+button, .card, .map-cell, .pile, .tarot-btn, .codex-tab, .relic-icon { touch-action: manipulation; }
 /* 缓慢流动的星云背景 */
 body::before {
   content: '';
@@ -64,7 +64,7 @@ body::before {
  *  --oct-fill（填充）/ --oct-rim（内圈色）/ --radius（圆角）/ --ring（内圈粗细）。
  * ======================================================================== */
 :where(
-  button:not(.map-node), .big-btn, .menu-story, .panel, .run-header,
+  button:not(.map-cell), .big-btn, .menu-story, .panel, .run-header,
   .shop-tarot-face, .card, .unit, .energy, .log, .pile, .modal-box
 ) {
   --oct-fill: #2b3242;
@@ -77,7 +77,7 @@ body::before {
   box-shadow: none !important;
 }
 /* 左上角对称折角（Art Deco 极简）；卡牌除外（左上为耗能徽标） */
-:where(button:not(.map-node), .big-btn, .menu-story, .panel, .run-header, .shop-tarot-face, .unit, .energy, .log, .pile, .modal-box)::before {
+:where(button:not(.map-cell), .big-btn, .menu-story, .panel, .run-header, .shop-tarot-face, .unit, .energy, .log, .pile, .modal-box)::before {
   content: ''; position: absolute; top: 3px; left: 3px; width: 19px; height: 19px;
   background: var(--corner) center/contain no-repeat; opacity: .82; pointer-events: none;
   transition: opacity .15s, filter .15s;
@@ -146,38 +146,53 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .reward-potion .pot-name { font-weight: 800; }
 .reward-potion .pot-desc { color: var(--muted); }
 
-/* ===== 地图 ===== */
-.map-hint { text-align: center; color: var(--muted); font-size: 13px; margin: 6px 0; }
+/* ===== 地图（棋盘格 + 障碍物） ===== */
+.map-hint { text-align: center; color: var(--muted); font-size: 13px; margin: 6px 0; line-height: 1.6; }
+.map-hint b { color: var(--accent); }
+.map-hint .sub-boss { color: #ff7a6a; }
 .map-wrap { display: flex; justify-content: center; }
-.map-area { position: relative; width: 100%; max-width: 560px; margin: 6px auto 24px; }
-.map-edges { position: absolute; inset: 0; width: 100%; height: 100%; }
-.map-edges line { stroke: #3a3f55; stroke-width: 0.6; }
-.map-node {
-  position: absolute; transform: translate(-50%, -50%);
-  width: 46px; height: 46px; padding: 0; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; background: var(--panel-2); border: 2px solid #444a63; color: var(--ink);
-  cursor: default;
+.map-grid {
+  display: grid; grid-template-columns: repeat(var(--cols, 6), 1fr);
+  gap: 5px; width: 100%; max-width: 560px; margin: 8px auto 24px;
+  padding: 10px; border-radius: 16px;
+  background: #0d0f18; border: 1px solid #2a2f44;
 }
-/* 关键：覆盖全局 button:active 的 translateY，否则按下时会丢失居中位移、
-   节点往右下跳走，导致鼠标抬起时已不在按钮上、点击不生效。 */
-.map-node:active { transform: translate(-50%, -50%) scale(.92); }
-.map-node.available:hover { transform: translate(-50%, -50%) scale(1.1); }
-
-.map-node.shop  { background: #2a3550; }
-.map-node.rest  { background: #23402c; }
-.map-node.event { background: #2e2a4e; }
-.map-node.elite { background: #3a2540; }
-.map-node.boss  { background: #42203a; width: 58px; height: 58px; font-size: 28px; }
-.map-node.locked { opacity: .4; }
-.map-node.done   { opacity: .5; border-color: #3a3f55; color: #6dbb7a; }
-.map-node.available {
-  cursor: pointer; border-color: var(--accent);
+.map-cell {
+  position: relative; aspect-ratio: 1 / 1; padding: 0; border: none; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(15px, 3.4vw, 26px); line-height: 1; color: var(--ink);
+}
+/* 障碍物：深色砖墙格，棋盘双色交替 */
+.map-cell.obstacle { background: #161922; box-shadow: inset 0 0 0 1px #20242433; cursor: default; }
+.map-cell.obstacle.alt { background: #12151d; }
+/* 房间：明亮地砖；按类型上色 */
+.map-cell.room { background: #2b3045; box-shadow: inset 0 0 0 1px #00000040; cursor: default; }
+.map-cell.room.alt { background: #2f3550; }
+.map-cell.room:active { transform: scale(.93); }
+.map-cell.entrance { background: #2a3b30; }
+.map-cell.exit     { background: #2c3b52; }
+.map-cell.path     { background: #242a3e; }
+.map-cell.shop     { background: #2a3550; }
+.map-cell.event    { background: #2e2a4e; }
+.map-cell.elite    { background: #3a2540; }
+.map-cell.monster  { background: #3a2f2a; }
+.map-cell.boss     { background: #42203a; font-size: clamp(18px, 4vw, 30px); }
+.map-cell.done { color: #6dbb7a; opacity: .62; }
+.map-cell.done.path, .map-cell.done.entrance { color: var(--muted); }
+.map-cell.available { cursor: pointer; }
+.map-cell.available:not(.done) {
+  border: 2px solid var(--accent);
   animation: pulse 1.4s ease-in-out infinite;
 }
+.map-cell.available:not(.done):hover { transform: scale(1.06); }
+.map-cell.current { box-shadow: inset 0 0 0 3px #ffe9a8, 0 0 12px #f0c04088; }
+.map-cell.current::after {                       /* 玩家位置标记（攀爬者） */
+  content: "🧗"; position: absolute; top: 1px; right: 1px; font-size: .5em;
+  filter: drop-shadow(0 1px 1px #000); pointer-events: none;
+}
 @keyframes pulse {
-  0%,100% { box-shadow: 0 0 0 3px #f0c04033, 0 0 10px #f0c04055; }
-  50%     { box-shadow: 0 0 0 4px #f0c04066, 0 0 18px #f0c040aa; }
+  0%,100% { box-shadow: 0 0 0 2px #f0c04033, 0 0 9px #f0c04055; }
+  50%     { box-shadow: 0 0 0 3px #f0c04066, 0 0 16px #f0c040aa; }
 }
 
 /* ===== 通用面板（奖励/商店/休息/结算） ===== */
@@ -457,10 +472,10 @@ button.menu-start, button.end-turn {
 @keyframes turn-flash { 0%{ opacity:0; transform:translate(-50%,-50%) scale(.82); } 18%{ opacity:1; transform:translate(-50%,-50%) scale(1); } 72%{ opacity:1; } 100%{ opacity:0; transform:translate(-50%,-50%) scale(1.06); } }
 
 /* ===== 交互 / 文字效果增强（纯 CSS，无外部素材） ===== */
-:where(button:not(.map-node), .card, .pile, .shop-tarot-face):hover {
+:where(button:not(.map-cell), .card, .pile, .shop-tarot-face):hover {
   box-shadow: inset 0 0 0 1px #f0c04077, 0 0 16px #f0c04044 !important;
 }
-:where(button:not(.map-node), .big-btn, .pile, .shop-tarot-face):hover::before { opacity: 1; filter: drop-shadow(0 0 4px #f0c040); }
+:where(button:not(.map-cell), .big-btn, .pile, .shop-tarot-face):hover::before { opacity: 1; filter: drop-shadow(0 0 4px #f0c040); }
 button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008, 0 0 9px #00000040; }
 .menu-sub { text-shadow: 0 0 12px #6fa8dc66; }
 .run-title, .unit-name { text-shadow: 0 1px 3px #000, 0 0 10px #00000055; }
@@ -547,9 +562,7 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
   .energy { font-size: 17px; padding: 6px 12px; }
   .end-turn { font-size: 15px; padding: 11px 18px; }
 
-  .map-area { max-width: 100%; }
-  .map-node { width: 42px; height: 42px; font-size: 19px; }
-  .map-node.boss { width: 50px; height: 50px; font-size: 24px; }
+  .map-grid { max-width: 100%; gap: 4px; padding: 7px; }
   .map-hint { font-size: 11px; }
 
   .menu { margin-top: 3vh; gap: 12px; }

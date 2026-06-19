@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>残响之塔 · 卡牌爬塔</title>
-  <link rel="stylesheet" href="css/style.css?v=46">
+  <link rel="stylesheet" href="css/style.css?v=47">
 </head>
 <body>
   <!-- 内联定位作兜底：即使样式表被浏览器缓存成旧版，画布也不会挤出空白条 -->
@@ -31,7 +31,7 @@
 
     <!-- 顶栏：跑图信息（战斗时隐藏） -->
     <header id="run-header" class="run-header">
-      <div class="run-title">🗼 第 <span id="run-act">1</span> 层</div>
+      <div class="run-title">🗼 第 <span id="run-act">1</span> / 9 层</div>
       <div class="run-stats">
         <span id="run-seed" class="run-seed" title="本局随机种子"></span>
         <span id="run-hp">❤️ 0/0</span>
@@ -47,8 +47,8 @@
 
     <!-- ===== 地图 ===== -->
     <section id="screen-map" class="screen">
-      <p class="map-hint">点击发光节点前进。⚔️战斗　💀精英　🛒商店　🔮事件　👑首领（Boss 前必有商店）</p>
-      <div class="map-wrap"><div id="map-area" class="map-area"></div></div>
+      <p id="map-subtitle" class="map-hint"></p>
+      <div class="map-wrap"><div id="map-area" class="map-grid"></div></div>
       <div class="tarot-bar" id="map-tarot-bar"></div>
     </section>
 
@@ -143,22 +143,22 @@
   </div>
 
   <!-- 加载顺序：数据 -> 引擎 -> 贴图/界面 -> 入口（都挂在 window.CG 上） -->
-  <script src="js/util/rng.js?v=46"></script>
-  <script src="js/data/cards.js?v=46"></script>
-  <script src="js/data/affixes.js?v=46"></script>
-  <script src="js/data/tarot.js?v=46"></script>
-  <script src="js/data/relics.js?v=46"></script>
-  <script src="js/data/config.js?v=46"></script>
-  <script src="js/data/enemies.js?v=46"></script>
-  <script src="js/engine/effects.js?v=46"></script>
-  <script src="js/engine/game.js?v=46"></script>
-  <script src="js/engine/run.js?v=46"></script>
-  <script src="js/ui/sprites.js?v=46"></script>
-  <script src="js/ui/audio.js?v=46"></script>
-  <script src="js/ui/music.js?v=46"></script>
-  <script src="js/ui/background.js?v=46"></script>
-  <script src="js/ui/render.js?v=46"></script>
-  <script src="js/ui/screens.js?v=46"></script>
-  <script src="js/main.js?v=46"></script>
+  <script src="js/util/rng.js?v=47"></script>
+  <script src="js/data/cards.js?v=47"></script>
+  <script src="js/data/affixes.js?v=47"></script>
+  <script src="js/data/tarot.js?v=47"></script>
+  <script src="js/data/relics.js?v=47"></script>
+  <script src="js/data/config.js?v=47"></script>
+  <script src="js/data/enemies.js?v=47"></script>
+  <script src="js/engine/effects.js?v=47"></script>
+  <script src="js/engine/game.js?v=47"></script>
+  <script src="js/engine/run.js?v=47"></script>
+  <script src="js/ui/sprites.js?v=47"></script>
+  <script src="js/ui/audio.js?v=47"></script>
+  <script src="js/ui/music.js?v=47"></script>
+  <script src="js/ui/background.js?v=47"></script>
+  <script src="js/ui/render.js?v=47"></script>
+  <script src="js/ui/screens.js?v=47"></script>
+  <script src="js/main.js?v=47"></script>
 </body>
 </html>

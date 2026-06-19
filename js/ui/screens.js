@@ -13,8 +13,8 @@ window.CG = window.CG || {};
   let chooseState = null;     // 当前三选一弹窗状态
   let benchSel = null;        // 工作台：当前选中的背包宝石 uid
 
-  const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', boss: '👑', event: '🔮' };
-  const LABEL = { monster: '战斗', elite: '精英', shop: '商店', boss: '首领', event: '事件' };
+  const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', boss: '👑', event: '🔮', entrance: '🏁', exit: '🚪', path: '' };
+  const LABEL = { monster: '战斗', elite: '精英', shop: '商店', boss: '首领', event: '祭坛', entrance: '入口', exit: '出口', path: '通路' };
   const SCREENS = ['menu', 'map', 'battle', 'reward', 'shop', 'event', 'gameover'];
 
   function init(handlers) {
@@ -23,10 +23,10 @@ window.CG = window.CG || {};
     $('bench-btn').addEventListener('click', () => openBench());
 
     $('map-area').addEventListener('click', ev => {
-      const el = ev.target.closest('.map-node');
+      const el = ev.target.closest('.map-cell.room');
       if (!el || !el.classList.contains('available')) return;
       CG.Audio.play('select');
-      H.onSelectNode(H.getRun().map[+el.dataset.row][+el.dataset.idx]);
+      H.onSelectNode(H.getRun().roomById(+el.dataset.id));
     });
     $('screen-reward').addEventListener('click', onRewardClick);
     $('screen-shop').addEventListener('click', onShopClick);
@@ -136,7 +136,7 @@ window.CG = window.CG || {};
   function updateHeader(run, show) {
     $('run-header').classList.toggle('hidden', !show);
     const seedEl = $('run-seed'); if (seedEl) seedEl.textContent = run.seed ? '🌱 ' + run.seed : '';
-    $('run-act').textContent = run.act;
+    $('run-act').textContent = (run.act - 1) * run.maxFloors + run.floor;   // 全局楼层（1..9）
     $('run-hp').textContent = `❤️ ${run.hp}/${run.maxHp}`;
     $('run-gold').textContent = `💰 ${run.gold}`;
     $('bench-btn').innerHTML = `💎 宝石 <b>${run.gems.length}</b>`;
@@ -153,31 +153,30 @@ window.CG = window.CG || {};
     return s;
   }
 
-  // ---------- 地图 ----------
+  // ---------- 地图（棋盘格 + 障碍物）----------
+  const CLEARABLE = { monster: 1, elite: 1, shop: 1, event: 1 };   // 通过后显示 ✓ 的内容房
   function showMap(run) {
     showScreen('map');
-    const rows = run.map, total = rows.length;
-    const GAP = 84, TOP = 46, H_px = TOP * 2 + (total - 1) * GAP;
-    const xOf = (r, i) => 100 * (i + 1) / (rows[r].length + 1);   // 0..100（百分比）
-    const yOf = r => TOP + (total - 1 - r) * GAP;                 // 第 0 行在底部
+    const g = run.grid, total = run.maxActs * run.maxFloors, gf = (run.act - 1) * run.maxFloors + run.floor;
+    const sub = $('map-subtitle');
+    if (sub) sub.innerHTML = g.type === 'boss'
+      ? `🗼 第 <b>${gf}</b> / ${total} 层 · <b class="sub-boss">首领关</b>　｜　一本道直达首领 👑`
+      : `🗼 第 <b>${gf}</b> / ${total} 层 · 第 ${run.act} 区第 ${run.floor} 小层　｜　穿过两只挡路的小怪 ⚔️ 抵达出口 🚪；精英 💀 / 商店 🛒 / 祭坛 🔮 可选`;
 
-    let edges = '';
-    for (let r = 0; r < total - 1; r++)
-      rows[r].forEach((node, i) => node.next.forEach(j => {
-        edges += `<line x1="${xOf(r, i)}" y1="${yOf(r)}" x2="${xOf(r + 1, j)}" y2="${yOf(r + 1)}"/>`;
-      }));
-
-    let nodes = '';
-    rows.forEach((row, r) => row.forEach((node, i) => {
-      const avail = run.available.includes(node);
-      const cls = ['map-node', node.type, node.done ? 'done' : '', avail ? 'available' : (node.done ? '' : 'locked')].join(' ');
-      nodes += `<button class="${cls}" data-row="${r}" data-idx="${i}" title="${LABEL[node.type]}"
-        style="left:${xOf(r, i)}%; top:${yOf(r)}px">${node.done ? '✓' : ICON[node.type]}</button>`;
-    }));
-
-    $('map-area').style.height = H_px + 'px';
-    $('map-area').innerHTML =
-      `<svg class="map-edges" viewBox="0 0 100 ${H_px}" preserveAspectRatio="none">${edges}</svg>` + nodes;
+    const byXY = {};
+    g.rooms.forEach(r => (byXY[r.gx + ',' + r.gy] = r));
+    let html = '';
+    for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
+      const r = byXY[x + ',' + y], alt = (x + y) % 2 ? ' alt' : '';
+      if (!r) { html += `<div class="map-cell obstacle${alt}"></div>`; continue; }
+      const avail = run.available.includes(r), cur = r === run.current;
+      const cls = ['map-cell', 'room', r.type, alt.trim(), r.done ? 'done' : '', avail ? 'available' : '', cur ? 'current' : ''].join(' ').replace(/\s+/g, ' ');
+      const glyph = (r.done && CLEARABLE[r.type]) ? '✓' : ICON[r.type];
+      html += `<button class="${cls}" data-id="${r.id}" title="${LABEL[r.type] || ''}"><span class="cell-glyph">${glyph}</span></button>`;
+    }
+    const area = $('map-area');
+    area.style.setProperty('--cols', g.cols);
+    area.innerHTML = html;
     $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
   }
 

@@ -5,7 +5,20 @@ const assert = require('node:assert/strict');
 const CG = require('./harness');
 
 const newRun = (seed = 'unit-test') => { CG.RNG.seed(seed); return new CG.Run('warrior'); };
-const allNodes = run => [].concat(...run.map);
+const rooms = run => run.grid.rooms;
+const byType = (run, t) => rooms(run).filter(r => r.type === t);
+
+// 在地图上走一步：优先进可选房（精英/商店/祭坛）→ 必经小怪/首领 → 通路 → 出口（最后）。
+// 保证每步都踩到一个未通过的格子（严格推进），并尽量覆盖可选房。
+function step(run) {
+  const a = run.available;
+  const pick = a.find(r => !r.done && (r.type === 'elite' || r.type === 'shop' || r.type === 'event'))
+            || a.find(r => !r.done && (r.type === 'monster' || r.type === 'boss'))
+            || a.find(r => !r.done && r.type !== 'exit')
+            || a.find(r => r.type === 'exit')
+            || a[0];
+  run.selectNode(pick);
+}
 
 test('新跑图初始状态', () => {
   const run = newRun();
@@ -18,17 +31,55 @@ test('新跑图初始状态', () => {
   assert.equal(run.phase, 'map');
 });
 
-test('地图：无篝火节点、Boss 前一行全为商店、末行为 Boss', () => {
+test('棋盘格小层：入口/出口各一、两只必经小怪、精英/商店/祭坛各一、无篝火', () => {
   for (let i = 0; i < 8; i++) {
-    const run = newRun('map-' + i);
-    assert.equal(allNodes(run).some(n => n.type === 'rest'), false);   // 篝火已移除
-    const bossRow = run.map[run.map.length - 1];
-    assert.equal(bossRow.length, 1);
-    assert.equal(bossRow[0].type, 'boss');
-    const preBoss = run.map[run.map.length - 2];
-    assert.ok(preBoss.every(n => n.type === 'shop'));                  // Boss 前必有商店
-    assert.ok(run.map[0].every(n => n.type === 'monster'));            // 起始行为普通战斗
+    const run = newRun('floor-' + i);
+    assert.equal(run.act, 1);
+    assert.equal(run.floor, 1);
+    assert.equal(run.grid.type, 'normal');
+    assert.equal(byType(run, 'rest').length, 0);          // 篝火已移除
+    assert.equal(byType(run, 'entrance').length, 1);
+    assert.equal(byType(run, 'exit').length, 1);
+    assert.equal(byType(run, 'monster').length, 2);       // 两只挡路小怪
+    assert.equal(byType(run, 'elite').length, 1);         // 可选精英
+    assert.equal(byType(run, 'shop').length, 1);          // 可选商店
+    assert.equal(byType(run, 'event').length, 1);         // 可选祭坛
+    assert.equal(run.current, run.grid.entrance);         // 从入口出发
+    assert.equal(run.current.done, true);
+    assert.ok(run.available.length > 0);
   }
+});
+
+test('两只小怪是必经割点：堵住任一只则入口到出口断开；可选房可绕过', () => {
+  const run = newRun('cut-test');
+  const g = run.grid;
+  const reach = blocked => {                              // 从入口 BFS，blocked 内的格子不可踏入
+    const seen = new Set([g.entrance]), q = [g.entrance];
+    while (q.length) {
+      const c = q.shift();
+      for (const n of g.rooms) {
+        if (n === c || blocked.has(n) || seen.has(n)) continue;
+        if (Math.abs(n.gx - c.gx) + Math.abs(n.gy - c.gy) === 1) { seen.add(n); q.push(n); }
+      }
+    }
+    return seen;
+  };
+  assert.ok(reach(new Set()).has(g.exit));               // 正常可达出口
+  for (const m of byType(run, 'monster')) assert.equal(reach(new Set([m])).has(g.exit), false);  // 堵小怪 → 断开
+  const optional = g.rooms.filter(r => ['elite', 'shop', 'event'].includes(r.type));
+  assert.ok(reach(new Set(optional)).has(g.exit));       // 可选房全堵住仍可达 → 它们可绕过
+});
+
+test('每第三小层为首领一本道：直线走廊、尽头首领、无其它房间', () => {
+  const run = newRun('boss-floor');
+  run.floor = run.maxFloors;                             // 跳到第 3 小层
+  run._newFloor();
+  const g = run.grid;
+  assert.equal(g.type, 'boss');
+  assert.equal(byType(run, 'boss').length, 1);
+  ['monster', 'elite', 'shop', 'event', 'exit'].forEach(t => assert.equal(byType(run, t).length, 0));
+  assert.equal(new Set(g.rooms.map(r => r.gy)).size, 1);              // 全在同一行（一本道）
+  assert.equal(byType(run, 'path').length, g.rooms.length - 2);       // 除入口/首领外都是通路
 });
 
 test('安装免费：installGemInv 把背包宝石装进空孔', () => {
@@ -121,12 +172,12 @@ test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）',
   assert.equal(run.shopMult(), 0.5);
 });
 
-test('整局推进：自动获胜并跳过一切 → 通关', () => {
+test('整局推进：自动获胜并跳过一切 → 通关（3 区 × 3 小层）', () => {
   const run = newRun('full-run');
   let guard = 0;
-  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 3000) {
+  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 5000) {
     switch (run.phase) {
-      case 'map':    run.selectNode(run.available[0]); break;
+      case 'map':    step(run); break;
       case 'battle': run.finishBattle(true, run.hp); break;
       case 'reward': run.chooseReward(null); break;
       case 'shop':   run.leaveShop(); break;
@@ -136,15 +187,16 @@ test('整局推进：自动获胜并跳过一切 → 通关', () => {
   }
   assert.equal(run.phase, 'victory');
   assert.equal(run.act, CG.CONFIG.acts);
+  assert.equal(run.floor, run.maxFloors);
 });
 
-test('整局推进：领取奖励 + 镶嵌宝石（覆盖宝石/法杖两类奖励）', () => {
+test('整局推进：领取奖励 + 镶嵌 + 逛可选房（覆盖宝石/法杖/商店/祭坛/精英）', () => {
   const run = newRun('full-run-collect');
-  let guard = 0, gotGem = false, gotCard = false;
-  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 3000) {
+  let guard = 0, gotGem = false, gotCard = false, sawShop = false, sawEvent = false, sawElite = false;
+  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 5000) {
     switch (run.phase) {
-      case 'map': run.selectNode(run.available[0]); break;
-      case 'battle': run.finishBattle(true, run.hp); break;
+      case 'map': step(run); break;
+      case 'battle': if (run.pending.tier === 'elite') sawElite = true; run.finishBattle(true, run.hp); break;
       case 'reward': {
         const p = run.pending;
         if (p.kind === 'gem') { gotGem = true; run.chooseReward(p.gems[0]); }
@@ -154,12 +206,13 @@ test('整局推进：领取奖励 + 镶嵌宝石（覆盖宝石/法杖两类奖�
         if (g && slot) run.installGemInv(g.uid, slot.uid);
         break;
       }
-      case 'shop': run.leaveShop(); break;
-      case 'event': run.leaveEvent(); break;
+      case 'shop': sawShop = true; run.leaveShop(); break;
+      case 'event': sawEvent = true; run.leaveEvent(); break;
       default: guard = 1e9;
     }
   }
   assert.equal(run.phase, 'victory');
   assert.ok(gotGem && gotCard, '应当同时遇到过宝石奖励与法杖奖励');
+  assert.ok(sawShop && sawEvent && sawElite, '应当逛过可选的商店 / 祭坛 / 精英');
   assert.ok(run.deck.length >= 10);
 });

@@ -19,9 +19,9 @@ CG.CONFIG = {
     boss:   { 1: [[1, 1]], 2: [[1, 1]], 3: [[1, 1]] },
   },
 
-  // 地图：rows = Boss 之前的“内容行”数量；最后会再自动补一行 Boss。
-  // 已去掉篝火（休息）；Boss 前一行强制为商店。
-  map: { rows: 6, minWidth: 2, maxWidth: 4 },
+  // 地图：每个大层（act）含 floorsPerAct 个小层（棋盘）。
+  // 第 1/2 小层为普通棋盘（两只必经小怪 + 可选精英/商店/祭坛），第 3 小层为「直达首领的一本道」。
+  map: { floorsPerAct: 3 },
 
   gold: { monster: [14, 24], elite: [30, 46], boss: [64, 96] },   // 经济略上调（一切都要花钱）
   reward: { count: 3 },

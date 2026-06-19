@@ -41,47 +41,42 @@ window.CG = window.CG || {};
   };
   CG.ALTAR_IDS = ['setting', 'purify', 'bore', 'findgem', 'recut'];
 
-  // ---------- 地图生成 ----------
-  function pickNodeType(r, contentRows) {
-    if (r === 0) return 'monster';                 // 起始行：普通战斗
-    if (r === contentRows - 1) return 'shop';      // Boss 前固定商店（合并自篝火）
-    const opts = [['monster', 5], ['shop', 3], ['event', 3]];   // 商店频率调高
-    if (r >= 2) opts.push(['elite', 2]);
-    return weighted(opts);
+  // ---------- 地图生成（棋盘格 + 障碍物）----------
+  //  每个「小层(floor)」是一张棋盘：只有少数格子是「房间」，其余皆为障碍物（墙）。
+  //  房间之间「正交相邻」即视为连通；玩家在格子间走动，踩到房间即触发其内容。
+  //  · 普通层：入口→[小怪1]→[小怪2]→出口 为唯一主干（两只小怪是「必经」的割点，
+  //            移除任一都会让入口与出口断开）；精英/商店/祭坛各一个，挂成可绕过的支线（死路）。
+  //  · 首领层：入口→……→首领 的一本道（直线走廊，无任何支线）。
+  let _rid = 0;
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
   }
-  // 连接相邻两行（单调阶梯连边，详见原注释）：永不交叉、全覆盖、只连邻近。
-  function connectRows(a, b) {
-    const m = a.length, n = b.length;
-    for (const node of a) node.next = [];
-    let L = 0;
-    for (let i = 0; i < m; i++) {
-      const after = m - 1 - i;
-      let R;
-      if (i === m - 1) { R = n - 1; }
-      else {
-        const hi = Math.min(L + 1, n - 1);
-        let lo = Math.max(L, (n - 1) - (after + 1) * 2);
-        lo = Math.min(lo, hi);
-        R = lo + Math.floor(Math.random() * (hi - lo + 1));
-      }
-      if (R < L) R = L;
-      if (R > n - 1) R = n - 1;
-      for (let j = L; j <= R; j++) a[i].next.push(j);
-      if (i < m - 1) L = (R < n - 1 && Math.random() < 0.5) ? R + 1 : R;
-    }
+  // 普通层：6×5 棋盘，主干在中行；两只小怪当割点，三个可选房间挂支线。
+  function genNormalFloor() {
+    const COLS = 6, ROWS = 5, MID = 2;
+    const rooms = [];
+    const add = (gx, gy, type) => { const r = { id: _rid++, gx, gy, type, done: false }; rooms.push(r); return r; };
+    const entrance = add(0, MID, 'entrance');
+    add(1, MID, 'monster');                 // 小怪 1（割点）
+    add(2, MID, 'path');
+    add(3, MID, 'monster');                 // 小怪 2（割点）
+    add(4, MID, 'path');
+    const exit = add(5, MID, 'exit');
+    // 三个可选房间：分别挂在 入口 / (2,MID) / (4,MID) 的上方或下方（互不相邻 → 各自是死路支线）
+    const optTypes = shuffle(['elite', 'shop', 'event']);
+    [0, 2, 4].forEach((ax, i) => add(ax, MID + (Math.random() < 0.5 ? -1 : 1), optTypes[i]));
+    return { type: 'normal', cols: COLS, rows: ROWS, rooms, entrance, exit };
   }
-  function generateMap() {
-    const rowsN = C().map.rows;
-    const rows = [];
-    for (let r = 0; r < rowsN; r++) {
-      const w = ri(C().map.minWidth, C().map.maxWidth);
-      const nodes = [];
-      for (let i = 0; i < w; i++) nodes.push({ row: r, idx: i, type: pickNodeType(r, rowsN), next: [], done: false });
-      rows.push(nodes);
-    }
-    rows.push([{ row: rowsN, idx: 0, type: 'boss', next: [], done: false }]);  // Boss 行
-    for (let r = 0; r < rows.length - 1; r++) connectRows(rows[r], rows[r + 1]);
-    return rows;
+  // 首领层：一本道直线走廊，尽头是首领。
+  function genBossFloor() {
+    const MID = 1, ROWS = 3, len = ri(4, 5);     // 走廊长度（入口在 0，首领在 len）
+    const rooms = [];
+    const add = (gx, gy, type) => { const r = { id: _rid++, gx, gy, type, done: false }; rooms.push(r); return r; };
+    const entrance = add(0, MID, 'entrance');
+    for (let c = 1; c < len; c++) add(c, MID, 'path');
+    const boss = add(len, MID, 'boss');
+    return { type: 'boss', cols: len + 1, rows: ROWS, rooms, entrance, exit: boss };
   }
 
   // ---------- 奖励 / 商店 ----------
@@ -121,8 +116,10 @@ window.CG = window.CG || {};
       this.maxHp = C().startHp;
       this.hp = this.maxHp;
       this.gold = C().startGold;
-      this.act = 1;
+      this.act = 1;                            // 大层（区域：决定敌人池 / 数值膨胀 / 场景）
       this.maxActs = C().acts;
+      this.floor = 1;                          // 小层（每个大层 3 小层：1/2 普通、3 首领）
+      this.maxFloors = C().map.floorsPerAct;
       this.tarot = [];                         // 消耗品栏（塔罗牌）
       this.gems = [];                          // 宝石背包（未镶嵌）
       this.relics = [];                        // 遗物
@@ -133,15 +130,27 @@ window.CG = window.CG || {};
       this.current = null;
       this.pending = null;                     // 暂存：本场战斗信息 / 奖励 / 商店货架
       this.phase = 'map';
-      this._newMap();                          // 先生成地图：同种子下地图最先确定，不受职业牌组随机影响
+      this._newFloor();                        // 先生成地图：同种子下地图最先确定，不受职业牌组随机影响
       this.deck = CG.buildDeck(this.cls);      // 按职业构建初始牌组
     }
 
-    _newMap() {
-      this.map = generateMap();
-      this.current = null;
-      this.available = this.map[0].slice();    // 起点：第 0 行任选其一
+    // 生成当前 (act, floor) 的小层棋盘：第 3 小层为首领一本道，其余为普通棋盘。
+    _newFloor() {
+      this.grid = this.floor >= this.maxFloors ? genBossFloor() : genNormalFloor();
+      this.current = this.grid.entrance;
+      this.current.done = true;                // 玩家从入口出发
+      this.flags.freeRoute = false;            // 倒吊人的「无视连线」不跨层延续
+      this._recomputeAvailable();
     }
+    // 当前格的可前往邻居（正交相邻的房间；含已通过的房间以便从死路支线折返）。
+    _neighbors(room) {
+      return this.grid.rooms.filter(r => r !== room && Math.abs(r.gx - room.gx) + Math.abs(r.gy - room.gy) === 1);
+    }
+    _recomputeAvailable() {
+      if (this.flags.freeRoute) { this.flags.freeRoute = false; this.available = this.grid.rooms.filter(r => r !== this.current && !r.done); }
+      else this.available = this._neighbors(this.current);
+    }
+    roomById(id) { return this.grid.rooms.find(r => r.id === id) || null; }
 
     onChange(fn) { this.listeners.push(fn); return this; }
     _emit() { this.listeners.forEach(fn => fn(this)); }
@@ -193,32 +202,44 @@ window.CG = window.CG || {};
     }
     installGemInv(gemUid, cardUid) { if (this._doInstall(gemUid, cardUid)) this._emit(); }   // 工作台：免费、留在原界面
 
-    // 玩家在地图上选择一个节点进入
+    // 玩家在地图上点一个相邻格：未通过的内容房 → 触发其内容；出口 → 下一小层；其余（入口/通路/已通过）→ 走过去。
     selectNode(node) {
       if (!this.isAvailable(node)) return;
       this.current = node;
-      if (node.type === 'monster' || node.type === 'elite' || node.type === 'boss') {
-        const tier = node.type === 'monster' ? 'normal' : node.type;
-        this.pending = { tier: node.type, enemyIds: pickEncounter(tier, this.act) };
-        this.phase = 'battle';
-      } else if (node.type === 'shop') {
-        this.pending = rollShopStock(this.shopMult(), this);
-        const avail = CG.RELIC_IDS.filter(id => !this.hasRelic(id));   // 商店遗物（未拥有）
-        this.pending.relics = [];
-        for (let i = 0; i < C().relic.shopCount && avail.length; i++) {
-          const id = avail.splice(Math.floor(Math.random() * avail.length), 1)[0];
-          this.pending.relics.push({ id, price: Math.floor(C().relic.shopPrice * this.shopMult()), bought: false });
-        }
-        if (this.flags.freeShopCard && this.pending.gems[0]) {   // 隐士：首件商品免费（改作首颗宝石）
-          this.pending.gems[0].price = 0;
-          this.flags.freeShopCard = false;
-        }
-        this.phase = 'shop';
-      } else if (node.type === 'event') {
-        const valid = CG.ALTAR_IDS.filter(id => this.altarUsable(id));
-        this.pending = { altar: pick(valid.length ? valid : ['findgem']) };   // 随机一种可用祭坛
-        this.phase = 'event';
+      const t = node.type;
+      if (t === 'exit') { node.done = true; this._descend(); return; }
+      if (!node.done && (t === 'monster' || t === 'elite' || t === 'boss')) return this._enterBattle(t);
+      if (!node.done && t === 'shop') return this._enterShop();
+      if (!node.done && t === 'event') return this._enterEvent();
+      node.done = true;                        // 入口 / 通路 / 折返已通过的房间：仅移动
+      this._recomputeAvailable();
+      this._emit();
+    }
+    _enterBattle(type) {
+      const tier = type === 'monster' ? 'normal' : type;
+      this.pending = { tier: type, enemyIds: pickEncounter(tier, this.act) };
+      this.phase = 'battle';
+      this._emit();
+    }
+    _enterShop() {
+      this.pending = rollShopStock(this.shopMult(), this);
+      const avail = CG.RELIC_IDS.filter(id => !this.hasRelic(id));   // 商店遗物（未拥有）
+      this.pending.relics = [];
+      for (let i = 0; i < C().relic.shopCount && avail.length; i++) {
+        const id = avail.splice(Math.floor(Math.random() * avail.length), 1)[0];
+        this.pending.relics.push({ id, price: Math.floor(C().relic.shopPrice * this.shopMult()), bought: false });
       }
+      if (this.flags.freeShopCard && this.pending.gems[0]) {   // 隐士：首件商品免费（改作首颗宝石）
+        this.pending.gems[0].price = 0;
+        this.flags.freeShopCard = false;
+      }
+      this.phase = 'shop';
+      this._emit();
+    }
+    _enterEvent() {
+      const valid = CG.ALTAR_IDS.filter(id => this.altarUsable(id));
+      this.pending = { altar: pick(valid.length ? valid : ['findgem']) };   // 随机一种可用祭坛
+      this.phase = 'event';
       this._emit();
     }
 
@@ -357,39 +378,47 @@ window.CG = window.CG || {};
     // ---- 塔罗牌触发的跑图效果 ----
     fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(pick(CG.TAROT_IDS)); }
     gainGem(opts) { this.gems.push(CG.rollGem(opts || { tier: 'elite', minLevel: this.forgeMinLevel() })); }   // 节制·逆等可调用
-    gotoActBoss() {                                       // 皇帝：传送到本层 Boss
-      this.current = this.map[this.map.length - 1][0];
-      this.pending = { tier: 'boss', enemyIds: pickEncounter('boss', this.act) };
-      this.phase = 'battle';
-      this._emit();
+    gotoActBoss() {                                       // 皇帝：直达本层（区域）首领 —— 跳到首领一本道并开战
+      this.floor = this.maxFloors;
+      this._newFloor();
+      this.current = this.grid.rooms.find(r => r.type === 'boss');
+      this._enterBattle('boss');
     }
-    teleportRandom() {                                    // 月亮：传送到随机（非 Boss）房间
-      const all = [].concat(...this.map).filter(n => !n.done && n.type !== 'boss' && n !== this.current);
+    teleportRandom() {                                    // 月亮：传送到本小层一个随机未通过的内容房间并触发
+      const all = this.grid.rooms.filter(n => !n.done && n !== this.current &&
+        ['monster', 'elite', 'shop', 'event'].includes(n.type));
       if (!all.length) return;
       const node = all[Math.floor(Math.random() * all.length)];
       this.available = [node];
       this.selectNode(node);
     }
-    freeRoute() {                                         // 倒吊人：无视连线任选下层
-      if (this.phase === 'map' && this.available.length) {
-        const row = this.available[0].row;
-        this.available = this.map[row].filter(n => !n.done);
-      } else this.flags.freeRoute = true;
+    freeRoute() {                                         // 倒吊人：无视连线，本小层任选未通过房间
+      this.flags.freeRoute = true;
+      if (this.phase === 'map') { this._recomputeAvailable(); this._emit(); }
     }
 
-    // 结算当前节点，前进到下一行（Boss 节点 -> 通关）
+    // 结算当前房间内容（战斗胜利 / 逛完商店 / 用完祭坛）后，回到地图。
     _advance() {
-      const node = this.current;
-      node.done = true;
-      if (node.type === 'boss') {                        // 通关 Boss：进入下一层，或全部通关
-        if (this.act < this.maxActs) { this.act++; this._newMap(); this.phase = 'map'; this._emit(); return; }
-        this.phase = 'victory'; this._emit(); return;
-      }
-      const nextRow = this.map[node.row + 1];
-      this.available = this.flags.freeRoute ? nextRow.slice() : node.next.map(i => nextRow[i]);
-      this.flags.freeRoute = false;
+      const room = this.current;
+      room.done = true;
+      if (room.type === 'boss') return this._nextAct();   // 首领 -> 进入下一区域 / 通关
+      const nb = this._neighbors(room);
+      if (nb.length === 1) this.current = nb[0];           // 死路支线（精英/商店/祭坛）：自动退回主干
+      this._recomputeAvailable();
       this.phase = 'map';
       this._emit();
+    }
+    // 踩到出口：进入本区域的下一小层（最后一小层是首领一本道）。
+    _descend() {
+      this.floor++;
+      this._newFloor();
+      this.phase = 'map';
+      this._emit();
+    }
+    // 击败首领：进入下一区域（act+1，回到第 1 小层），或全部通关。
+    _nextAct() {
+      if (this.act < this.maxActs) { this.act++; this.floor = 1; this._newFloor(); this.phase = 'map'; this._emit(); return; }
+      this.phase = 'victory'; this._emit();
     }
   }
 
