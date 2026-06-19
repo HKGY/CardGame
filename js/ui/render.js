@@ -154,6 +154,8 @@ window.CG = window.CG || {};
     $('player-sprite').innerHTML = CG.Sprites.get('knight');
 
     $('end-turn').addEventListener('click', () => { if (!busy) handlers.onEndTurn(); });
+    const dbg = $('debug-win');   // 调试：直接赢得本场战斗
+    if (dbg) dbg.addEventListener('click', () => { if (!busy && handlers.onDebugWin) handlers.onDebugWin(); });
     $('view-deck').addEventListener('click', () => openPile('deck'));
     $('draw-pile').addEventListener('click', () => openPile('draw'));
     $('discard-pile').addEventListener('click', () => openPile('discard'));

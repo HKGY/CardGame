@@ -125,6 +125,7 @@ window.CG = window.CG || {};
     },
     onPlayCard(uid) { if (battle) battle.playCard(uid); },
     onUseTarot(i) { useTarot(i); },
+    onDebugWin() { if (battle) battle.debugWin(); },   // 调试按钮：直接赢得本场战斗
   };
 
   // 静音开关（顶栏 + 战斗顶栏两个按钮共用一个状态）

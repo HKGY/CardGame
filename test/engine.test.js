@@ -133,6 +133,14 @@ test('整场战斗可推进到胜利（不抛错、玩家存活）', () => {
   assert.ok(b.player.hp > 0);
 });
 
+test('调试：debugWin 直接杀光敌人并判胜', () => {
+  const b = CG.makeBattle({ enemyIds: ['green_slime', 'jaw_worm'] });
+  assert.equal(b.phase, 'player');
+  b.debugWin();
+  assert.equal(b.phase, 'won');
+  assert.ok(b.enemies.every(e => e.hp <= 0 && !e.alive));
+});
+
 test('达摩克利斯遗物：卡牌数值翻倍', () => {
   const b = CG.makeBattle({ deck: deckOf(10), relics: ['damocles'], run: { flags: {}, relics: ['damocles'] } });
   const hp0 = b.enemies[0].hp;

@@ -347,6 +347,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* 结束回合按钮置于弃牌堆上方 */
 .board-side { display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex-shrink: 0; width: 124px; }
 .board-side .end-turn { width: 100%; padding: 18px 8px; font-size: 17px; font-weight: 800; line-height: 1.25; }
+/* 调试按钮：直接赢得战斗（紫色，明显区别于绿色结束回合） */
+.board-side .debug-win { width: 100%; padding: 8px; font-size: 12.5px; font-weight: 700; --oct-fill: #4a3a5a; --oct-rim: #b483d6; opacity: .92; }
 .board-side .pile { width: 100%; }
 .board-side .energy { width: 100%; aspect-ratio: 1 / 1; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
 

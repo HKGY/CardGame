@@ -112,6 +112,15 @@ window.CG = window.CG || {};
     }
     addLog(msg) { this.log.push(msg); if (this.log.length > 60) this.log.shift(); }
 
+    // 调试：直接赢得本场战斗（杀光所有敌人并触发结算）
+    debugWin() {
+      if (this.phase !== 'player' && this.phase !== 'enemy') return;
+      this.enemies.forEach(e => { e.hp = 0; });
+      this.addLog('（调试）直接赢得战斗。');
+      this._checkEnd();      // 全部敌人阵亡 -> phase 'won'
+      this._emit();          // 通知界面：上层据 phase==='won' 走战斗结束流程
+    }
+
     _startBattle({ enemyIds, tier, deck, hp, maxHp, tarot, actScale, hpMult, relics, run }) {
       const sc = actScale || { hp: 1, dmg: 1 };
       this.tier = tier || 'normal';
