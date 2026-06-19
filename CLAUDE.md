@@ -21,7 +21,7 @@
 
 - **测试全绿后，agent 可自行 commit**（无需每次再征求同意）；但 **push 始终由用户掌控**，不要擅自 push。
 - 在默认分支（`main`）上做**大改动先开分支**再提交；小修按用户指示。
-- **合并分支一律用 squash（GitHub 的 squash and merge 方式）：最终只留一个普通单亲 commit，不产生 merge commit（两个 parent）。** 本地解决冲突后若处于 merge 状态，提交前先清掉 `.git/MERGE_HEAD` 再 `git commit`，使其落成单亲提交。
+- **合并分支一律用 rebase（GitHub 的 rebase and merge 方式）：把分支上的每个 commit 逐个按原样接到目标分支顶端，保留各 commit 独立、全部是单亲，不产生 merge commit（两个 parent）、也不把它们压成一个。** 本地操作用 `git rebase`（而非 `git merge`）；若处于 merge 状态请先 `git merge --abort` 改走 rebase。
 - 提交信息用**中文摘要行**（跟随本仓库历史风格，无 `feat:`/`fix:` 之类前缀），例：
   `法杖/宝石系统重做 + 单元测试`。较大改动：摘要行 + 空行 + `-` 要点列表。
 - **每条 commit 信息结尾必须带**（单独一行）：
