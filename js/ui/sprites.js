@@ -23,6 +23,19 @@ window.CG = window.CG || {};
       <circle cx="84" cy="86" r="5" fill="#f0c040"/>
     </svg>`,
 
+    // 地图自机：女骑士俯视小像（蓝甲 + 金羽盔 + 盾与剑），方形 viewBox 适配格子
+    hero_token: `<svg viewBox="0 0 48 48" class="hero-token">
+      <ellipse cx="24" cy="41" rx="13" ry="3.6" fill="#0005"/>
+      <path d="M11 40 q-2 -19 13 -19 q15 0 13 19 q-13 5 -26 0z" fill="#3a6ea5"/>
+      <path d="M24 21 q15 0 13 19 q-13 5 -13 5z" fill="#2c557e"/>
+      <path d="M7 23 q-3 7 0 14 q5 -2 5 -7 q0 -5 -5 -7z" fill="#c9d6e8" stroke="#2a3b52" stroke-width="1.4"/>
+      <circle cx="36" cy="20" r="2.4" fill="#f0c040"/>
+      <rect x="35" y="20" width="2.4" height="16" rx="1.2" fill="#dfe6f0" transform="rotate(10 36 28)"/>
+      <circle cx="24" cy="17" r="9" fill="#7aa7d6" stroke="#dfe6f0" stroke-width="1.6"/>
+      <rect x="18.5" y="15" width="11" height="3.4" rx="1.7" fill="#1a2433"/>
+      <path d="M24 4 l2.4 6 -4.8 0z" fill="#f0c040"/><circle cx="24" cy="4" r="2" fill="#f0c040"/>
+    </svg>`,
+
     // 颚虫
     worm: `<svg viewBox="0 0 120 140" class="char">
       <ellipse cx="60" cy="132" rx="38" ry="8" fill="#0003"/>

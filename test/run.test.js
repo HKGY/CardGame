@@ -8,16 +8,24 @@ const newRun = (seed = 'unit-test') => { CG.RNG.seed(seed); return new CG.Run('w
 const rooms = run => run.grid.rooms;
 const byType = (run, t) => rooms(run).filter(r => r.type === t);
 
-// 在地图上走一步：优先进可选房（精英/商店/祭坛）→ 必经小怪/首领 → 通路 → 出口（最后）。
-// 保证每步都踩到一个未通过的格子（严格推进），并尽量覆盖可选房。
-function step(run) {
-  const a = run.available;
-  const pick = a.find(r => !r.done && (r.type === 'elite' || r.type === 'shop' || r.type === 'event'))
-            || a.find(r => !r.done && (r.type === 'monster' || r.type === 'boss'))
-            || a.find(r => !r.done && r.type !== 'exit')
-            || a.find(r => r.type === 'exit')
-            || a[0];
-  run.selectNode(pick);
+// 从当前房间 BFS 找最近的「符合 goalFilter」房间，返回通往它的第一步房间。
+function bfsStep(run, goalFilter) {
+  const g = run.grid, cur = run.current;
+  const adj = r => g.rooms.filter(o => Math.abs(o.gx - r.gx) + Math.abs(o.gy - r.gy) === 1);
+  const prev = new Map([[cur, null]]), q = [cur];
+  let goal = null;
+  while (q.length) { const c = q.shift(); if (c !== cur && goalFilter(c)) { goal = c; break; } for (const n of adj(c)) if (!prev.has(n)) { prev.set(n, c); q.push(n); } }
+  if (!goal) return null;
+  let s = goal; while (prev.get(s) !== cur) s = prev.get(s);
+  return s;
+}
+const isContent = r => r.type === 'shop' || r.type === 'treasure' || r.type === 'curse' || r.type === 'elite' || r.type === 'boss' || (r.type === 'normal' && r.combat);
+// 测试驱动：先清掉所有非首领内容房，再走空房，最后进首领（迈一步、严格推进）。
+function mapStep(run) {
+  const next = bfsStep(run, r => !r.done && isContent(r) && r.type !== 'boss')
+            || bfsStep(run, r => !r.done)
+            || run.available[0];
+  run.selectNode(next);
 }
 
 test('新跑图初始状态', () => {
@@ -31,55 +39,65 @@ test('新跑图初始状态', () => {
   assert.equal(run.phase, 'map');
 });
 
-test('棋盘格小层：入口/出口各一、两只必经小怪、精英/商店/祭坛各一、无篝火', () => {
-  for (let i = 0; i < 8; i++) {
-    const run = newRun('floor-' + i);
-    assert.equal(run.act, 1);
-    assert.equal(run.floor, 1);
-    assert.equal(run.grid.type, 'normal');
-    assert.equal(byType(run, 'rest').length, 0);          // 篝火已移除
-    assert.equal(byType(run, 'entrance').length, 1);
-    assert.equal(byType(run, 'exit').length, 1);
-    assert.equal(byType(run, 'monster').length, 2);       // 两只挡路小怪
-    assert.equal(byType(run, 'elite').length, 1);         // 可选精英
-    assert.equal(byType(run, 'shop').length, 1);          // 可选商店
-    assert.equal(byType(run, 'event').length, 1);         // 可选祭坛
-    assert.equal(run.current, run.grid.entrance);         // 从入口出发
+test('以撒式布局：起点/首领/宝藏/商店/诅咒/小boss 各一，房间全连通', () => {
+  for (let i = 0; i < 10; i++) {
+    const run = newRun('isaac-' + i);
+    const g = run.grid;
+    assert.equal(g.type, 'isaac');
+    assert.ok(g.rooms.length >= CG.CONFIG.map.minRooms);
+    ['start', 'boss', 'treasure', 'shop', 'curse', 'elite'].forEach(t =>
+      assert.equal(byType(run, t).length, 1, t + ' 应恰好 1 间'));
+    assert.equal(byType(run, 'rest').length, 0);                       // 无篝火
+    assert.equal(run.current, g.entrance);
+    assert.equal(run.current.type, 'start');
     assert.equal(run.current.done, true);
-    assert.ok(run.available.length > 0);
+    // 全连通：从起点 BFS 能到每个房间（相邻即有门）
+    const adj = r => g.rooms.filter(o => Math.abs(o.gx - r.gx) + Math.abs(o.gy - r.gy) === 1);
+    const seen = new Set([g.entrance]), q = [g.entrance];
+    while (q.length) { const c = q.shift(); for (const n of adj(c)) if (!seen.has(n)) { seen.add(n); q.push(n); } }
+    assert.equal(seen.size, g.rooms.length, '所有房间应从起点可达');
   }
 });
 
-test('两只小怪是必经割点：堵住任一只则入口到出口断开；可选房可绕过', () => {
-  const run = newRun('cut-test');
-  const g = run.grid;
-  const reach = blocked => {                              // 从入口 BFS，blocked 内的格子不可踏入
-    const seen = new Set([g.entrance]), q = [g.entrance];
-    while (q.length) {
-      const c = q.shift();
-      for (const n of g.rooms) {
-        if (n === c || blocked.has(n) || seen.has(n)) continue;
-        if (Math.abs(n.gx - c.gx) + Math.abs(n.gy - c.gy) === 1) { seen.add(n); q.push(n); }
-      }
-    }
-    return seen;
-  };
-  assert.ok(reach(new Set()).has(g.exit));               // 正常可达出口
-  for (const m of byType(run, 'monster')) assert.equal(reach(new Set([m])).has(g.exit), false);  // 堵小怪 → 断开
-  const optional = g.rooms.filter(r => ['elite', 'shop', 'event'].includes(r.type));
-  assert.ok(reach(new Set(optional)).has(g.exit));       // 可选房全堵住仍可达 → 它们可绕过
+test('普通房按概率藏敌：跨多层既有藏敌也有空房', () => {
+  let combat = 0, empty = 0;
+  for (let i = 0; i < 12; i++) {
+    const run = newRun('enemy-' + i);
+    byType(run, 'normal').forEach(r => (r.combat ? combat++ : empty++));
+  }
+  assert.ok(combat > 0 && empty > 0, '普通房应既有藏敌也有空房');
 });
 
-test('每第三小层为首领一本道：直线走廊、尽头首领、无其它房间', () => {
-  const run = newRun('boss-floor');
-  run.floor = run.maxFloors;                             // 跳到第 3 小层
-  run._newFloor();
-  const g = run.grid;
-  assert.equal(g.type, 'boss');
-  assert.equal(byType(run, 'boss').length, 1);
-  ['monster', 'elite', 'shop', 'event', 'exit'].forEach(t => assert.equal(byType(run, t).length, 0));
-  assert.equal(new Set(g.rooms.map(r => r.gy)).size, 1);              // 全在同一行（一本道）
-  assert.equal(byType(run, 'path').length, g.rooms.length - 2);       // 除入口/首领外都是通路
+test('诅咒房进入耗血、给 2 遗物；宝藏房免费给 1 遗物', () => {
+  const run = newRun('loot');
+  const curse = byType(run, 'curse')[0];
+  run.available = [curse];
+  const hp0 = run.hp;
+  run.selectNode(curse);
+  assert.equal(run.phase, 'event');
+  assert.equal(run.pending.kind, 'curse');
+  assert.ok(run.hp < hp0);                                            // 进入耗血
+  assert.equal(run.pending.hpPaid, hp0 - run.hp);
+  assert.ok(run.pending.relics.length === 2 || run.pending.gold > 0); // 2 遗物（集齐则折金）
+  run.leaveEvent();
+  assert.equal(curse.done, true);
+
+  const run2 = newRun('loot2');
+  const t = byType(run2, 'treasure')[0];
+  run2.available = [t];
+  const hp1 = run2.hp, relics0 = run2.relics.length;
+  run2.selectNode(t);
+  assert.equal(run2.pending.kind, 'treasure');
+  assert.equal(run2.hp, hp1);                                         // 宝藏房不耗血
+  assert.ok(run2.relics.length === relics0 + 1 || run2.pending.gold > 0);
+});
+
+test('皇帝塔罗：直达本层首领并开战', () => {
+  const run = newRun('emperor');
+  run.gotoActBoss();
+  assert.equal(run.phase, 'battle');
+  assert.equal(run.pending.tier, 'boss');
+  assert.equal(run.current.type, 'boss');
 });
 
 test('安装免费：installGemInv 把背包宝石装进空孔', () => {
@@ -172,12 +190,12 @@ test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）',
   assert.equal(run.shopMult(), 0.5);
 });
 
-test('整局推进：自动获胜并跳过一切 → 通关（3 区 × 3 小层）', () => {
+test('整局推进：清完每层并击败首领 → 通关（3 层）', () => {
   const run = newRun('full-run');
   let guard = 0;
-  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 5000) {
+  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 6000) {
     switch (run.phase) {
-      case 'map':    step(run); break;
+      case 'map':    mapStep(run); break;
       case 'battle': run.finishBattle(true, run.hp); break;
       case 'reward': run.chooseReward(null); break;
       case 'shop':   run.leaveShop(); break;
@@ -187,32 +205,34 @@ test('整局推进：自动获胜并跳过一切 → 通关（3 区 × 3 小层�
   }
   assert.equal(run.phase, 'victory');
   assert.equal(run.act, CG.CONFIG.acts);
-  assert.equal(run.floor, run.maxFloors);
 });
 
-test('整局推进：领取奖励 + 镶嵌 + 逛可选房（覆盖宝石/法杖/商店/祭坛/精英）', () => {
+test('整局推进：领奖励 + 镶嵌 + 逛遍房型（覆盖宝石/法杖/商店/宝藏/诅咒/小boss）', () => {
   const run = newRun('full-run-collect');
-  let guard = 0, gotGem = false, gotCard = false, sawShop = false, sawEvent = false, sawElite = false;
-  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 5000) {
+  let guard = 0, gotGem = false, gotCard = false, sawShop = false, sawTreasure = false, sawCurse = false, sawElite = false;
+  while (run.phase !== 'victory' && run.phase !== 'dead' && guard++ < 6000) {
     switch (run.phase) {
-      case 'map': step(run); break;
+      case 'map': mapStep(run); break;
       case 'battle': if (run.pending.tier === 'elite') sawElite = true; run.finishBattle(true, run.hp); break;
       case 'reward': {
         const p = run.pending;
         if (p.kind === 'gem') { gotGem = true; run.chooseReward(p.gems[0]); }
         else { gotCard = true; run.chooseReward(p.cards[0]); }
-        // 顺手把背包宝石装进任意空孔（验证安装路径）
         const g = run.gems[0], slot = run.cardsWithEmptySocket()[0];
-        if (g && slot) run.installGemInv(g.uid, slot.uid);
+        if (g && slot) run.installGemInv(g.uid, slot.uid);     // 验证安装路径
         break;
       }
       case 'shop': sawShop = true; run.leaveShop(); break;
-      case 'event': sawEvent = true; run.leaveEvent(); break;
+      case 'event':
+        if (run.pending.kind === 'treasure') sawTreasure = true;
+        if (run.pending.kind === 'curse') sawCurse = true;
+        run.leaveEvent();
+        break;
       default: guard = 1e9;
     }
   }
   assert.equal(run.phase, 'victory');
   assert.ok(gotGem && gotCard, '应当同时遇到过宝石奖励与法杖奖励');
-  assert.ok(sawShop && sawEvent && sawElite, '应当逛过可选的商店 / 祭坛 / 精英');
+  assert.ok(sawShop && sawTreasure && sawCurse && sawElite, '应当逛过商店 / 宝藏 / 诅咒 / 小boss');
   assert.ok(run.deck.length >= 10);
 });

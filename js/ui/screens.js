@@ -13,8 +13,9 @@ window.CG = window.CG || {};
   let chooseState = null;     // 当前三选一弹窗状态
   let benchSel = null;        // 工作台：当前选中的背包宝石 uid
 
-  const ICON  = { monster: '⚔️', elite: '💀', shop: '🛒', boss: '👑', event: '🔮', entrance: '🏁', exit: '🚪', path: '' };
-  const LABEL = { monster: '战斗', elite: '精英', shop: '商店', boss: '首领', event: '祭坛', entrance: '入口', exit: '出口', path: '通路' };
+  // 以撒式房间类型 → 图标 / 名称（普通房不剧透是否有敌人；清空后统一显示 ✓）
+  const ICON  = { start: '🚩', normal: '', elite: '👹', boss: '👑', shop: '🛒', treasure: '🎁', curse: '🩸' };
+  const LABEL = { start: '起点', normal: '房间', elite: '小boss房', boss: '首领房', shop: '商店', treasure: '宝藏房', curse: '诅咒房' };
   const SCREENS = ['menu', 'map', 'battle', 'reward', 'shop', 'event', 'gameover'];
 
   function init(handlers) {
@@ -27,6 +28,21 @@ window.CG = window.CG || {};
       if (!el || !el.classList.contains('available')) return;
       CG.Audio.play('select');
       H.onSelectNode(H.getRun().roomById(+el.dataset.id));
+    });
+    // WASD / 方向键：朝该方向走进相邻房间（仅地图阶段、无弹窗、未在输入框时）
+    const DIRS = { w: [0, -1], a: [-1, 0], s: [0, 1], d: [1, 0], arrowup: [0, -1], arrowleft: [-1, 0], arrowdown: [0, 1], arrowright: [1, 0] };
+    document.addEventListener('keydown', ev => {
+      const run = H.getRun();
+      if (!run || run.phase !== 'map') return;
+      if (document.querySelector('.modal:not(.hidden)')) return;
+      const ae = document.activeElement;
+      if (ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName)) return;
+      const dir = DIRS[ev.key.toLowerCase()];
+      if (!dir) return;
+      ev.preventDefault();
+      const cur = run.current;
+      const target = run.grid.rooms.find(r => r.gx === cur.gx + dir[0] && r.gy === cur.gy + dir[1]);
+      if (target && run.available.includes(target)) { CG.Audio.play('select'); H.onSelectNode(target); }
     });
     $('screen-reward').addEventListener('click', onRewardClick);
     $('screen-shop').addEventListener('click', onShopClick);
@@ -136,7 +152,7 @@ window.CG = window.CG || {};
   function updateHeader(run, show) {
     $('run-header').classList.toggle('hidden', !show);
     const seedEl = $('run-seed'); if (seedEl) seedEl.textContent = run.seed ? '🌱 ' + run.seed : '';
-    $('run-act').textContent = (run.act - 1) * run.maxFloors + run.floor;   // 全局楼层（1..9）
+    $('run-act').textContent = run.act;                                     // 当前层（1..maxActs）
     $('run-hp').textContent = `❤️ ${run.hp}/${run.maxHp}`;
     $('run-gold').textContent = `💰 ${run.gold}`;
     $('bench-btn').innerHTML = `💎 宝石 <b>${run.gems.length}</b>`;
@@ -153,30 +169,37 @@ window.CG = window.CG || {};
     return s;
   }
 
-  // ---------- 地图（棋盘格 + 障碍物）----------
-  const CLEARABLE = { monster: 1, elite: 1, shop: 1, event: 1 };   // 通过后显示 ✓ 的内容房
+  // ---------- 地图（《以撒的结合》式房间布局）----------
+  const CLEARABLE = { normal: 1, elite: 1, shop: 1, treasure: 1, curse: 1 };   // 清空后显示 ✓ 的内容房
   function showMap(run) {
     showScreen('map');
-    const g = run.grid, total = run.maxActs * run.maxFloors, gf = (run.act - 1) * run.maxFloors + run.floor;
+    const g = run.grid;
     const sub = $('map-subtitle');
-    if (sub) sub.innerHTML = g.type === 'boss'
-      ? `🗼 第 <b>${gf}</b> / ${total} 层 · <b class="sub-boss">首领关</b>　｜　一本道直达首领 👑`
-      : `🗼 第 <b>${gf}</b> / ${total} 层 · 第 ${run.act} 区第 ${run.floor} 小层　｜　穿过两只挡路的小怪 ⚔️ 抵达出口 🚪；精英 💀 / 商店 🛒 / 祭坛 🔮 可选`;
+    if (sub) sub.innerHTML = `🗼 第 <b>${run.act}</b> / ${run.maxActs} 层　｜　WASD / 点击移动；🚩起点　👹小boss　🎁宝藏　🩸诅咒(耗血)　🛒商店　👑首领(通向下一层)`;
 
     const byXY = {};
     g.rooms.forEach(r => (byXY[r.gx + ',' + r.gy] = r));
-    let html = '';
+    // 门（相邻房间之间的连线）：viewBox 与网格对齐，画在房间格之下，只在格间缝隙显形
+    let doors = '';
+    g.rooms.forEach(r => [[1, 0], [0, 1]].forEach(d => {
+      if (byXY[(r.gx + d[0]) + ',' + (r.gy + d[1])])
+        doors += `<line x1="${r.gx + 0.5}" y1="${r.gy + 0.5}" x2="${r.gx + d[0] + 0.5}" y2="${r.gy + d[1] + 0.5}"/>`;
+    }));
+    let cells = '';
     for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
-      const r = byXY[x + ',' + y], alt = (x + y) % 2 ? ' alt' : '';
-      if (!r) { html += `<div class="map-cell obstacle${alt}"></div>`; continue; }
+      const r = byXY[x + ',' + y];
+      if (!r) { cells += `<div class="map-cell void"></div>`; continue; }
       const avail = run.available.includes(r), cur = r === run.current;
-      const cls = ['map-cell', 'room', r.type, alt.trim(), r.done ? 'done' : '', avail ? 'available' : '', cur ? 'current' : ''].join(' ').replace(/\s+/g, ' ');
-      const glyph = (r.done && CLEARABLE[r.type]) ? '✓' : ICON[r.type];
-      html += `<button class="${cls}" data-id="${r.id}" title="${LABEL[r.type] || ''}"><span class="cell-glyph">${glyph}</span></button>`;
+      const cls = ['map-cell', 'room', r.type, r.done ? 'done' : '', avail ? 'available' : '', cur ? 'current' : ''].join(' ').replace(/\s+/g, ' ').trim();
+      const glyph = cur ? `<span class="map-hero">${CG.Sprites.get('hero_token')}</span>`
+                        : ((r.done && CLEARABLE[r.type]) ? '✓' : ICON[r.type]);
+      const title = r.type === 'curse' ? `${LABEL.curse}（进入耗 ${run._curseCost()} 生命）` : (LABEL[r.type] || '');
+      cells += `<button class="${cls}" data-id="${r.id}" title="${title}"><span class="cell-glyph">${glyph}</span></button>`;
     }
     const area = $('map-area');
     area.style.setProperty('--cols', g.cols);
-    area.innerHTML = html;
+    area.style.setProperty('--rows', g.rows);
+    area.innerHTML = `<svg class="map-doors" viewBox="0 0 ${g.cols} ${g.rows}" preserveAspectRatio="none">${doors}</svg>${cells}`;
     $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
   }
 
@@ -321,10 +344,30 @@ window.CG = window.CG || {};
     });
   }
 
-  // ---------- 事件（宝石祭坛） ----------
+  // ---------- 事件（宝藏房 / 诅咒房 / 宝石祭坛） ----------
+  function relicLootHTML(p) {
+    if (p.relics && p.relics.length)
+      return '<p class="reward-relics">' + p.relics.map(id => {
+        const r = CG.RELICS[id];
+        return `<span class="relic-got" title="${r.desc}">${r.icon} ${r.name}</span>`;
+      }).join('') + '</p>';
+    return `<p class="reward-gold">遗物已集齐，折算金币 💰 ${p.gold || 0}</p>`;
+  }
   function showEvent(run) {
     showScreen('event');
-    const a = CG.ALTARS[run.pending.altar];
+    const p = run.pending;
+    if (p.kind === 'treasure' || p.kind === 'curse') {
+      const curse = p.kind === 'curse';
+      $('screen-event').innerHTML = `
+        <div class="panel center">
+          <h2>${curse ? '🩸 诅咒房' : '🎁 宝藏房'}</h2>
+          <p class="altar-desc">${curse ? `你以 ${p.hpPaid} 点生命为代价，撬开了诅咒之门——` : '房间中央的基座上摆着——'}</p>
+          ${relicLootHTML(p)}
+          <div class="event-actions"><button class="big-btn" data-act="leave">${curse ? '忍痛离开' : '收下并离开'}</button></div>
+        </div>`;
+      return;
+    }
+    const a = CG.ALTARS[p.altar];
     $('screen-event').innerHTML = `
       <div class="panel center">
         <h2>${a.icon} ${a.name}</h2>

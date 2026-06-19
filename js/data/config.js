@@ -19,9 +19,11 @@ CG.CONFIG = {
     boss:   { 1: [[1, 1]], 2: [[1, 1]], 3: [[1, 1]] },
   },
 
-  // 地图：每个大层（act）含 floorsPerAct 个小层（棋盘）。
-  // 第 1/2 小层为普通棋盘（两只必经小怪 + 可选精英/商店/祭坛），第 3 小层为「直达首领的一本道」。
-  map: { floorsPerAct: 3 },
+  // 地图：每层一张《以撒的结合》式房间布局。在 gridW×gridH 网格上随机生成 rooms 个房间，
+  // 死路安放特殊房（首领/宝藏/商店/诅咒/小boss），其余普通房按 normalEnemyChance 藏敌人。
+  map: { gridW: 9, gridH: 8, rooms: [10, 13], minRooms: 9, normalEnemyChance: 0.7 },
+  // 诅咒房：进入耗血 = max(minHpCost, 最大生命 × hpCostPct)
+  curse: { hpCostPct: 0.12, minHpCost: 8 },
 
   gold: { monster: [14, 24], elite: [30, 46], boss: [64, 96] },   // 经济略上调（一切都要花钱）
   reward: { count: 3 },

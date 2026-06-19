@@ -41,42 +41,57 @@ window.CG = window.CG || {};
   };
   CG.ALTAR_IDS = ['setting', 'purify', 'bore', 'findgem', 'recut'];
 
-  // ---------- 地图生成（棋盘格 + 障碍物）----------
-  //  每个「小层(floor)」是一张棋盘：只有少数格子是「房间」，其余皆为障碍物（墙）。
-  //  房间之间「正交相邻」即视为连通；玩家在格子间走动，踩到房间即触发其内容。
-  //  · 普通层：入口→[小怪1]→[小怪2]→出口 为唯一主干（两只小怪是「必经」的割点，
-  //            移除任一都会让入口与出口断开）；精英/商店/祭坛各一个，挂成可绕过的支线（死路）。
-  //  · 首领层：入口→……→首领 的一本道（直线走廊，无任何支线）。
+  // ---------- 地图生成（《以撒的结合》式房间布局）----------
+  //  和以撒一样：从中心起点出发，随机往四邻扩展房间（新房间最多只贴 1 个已有房间，
+  //  避免连成块/环 → 得到一棵带许多死路的房间树）。死路用来安放特殊房：
+  //   首领房👑（最远死路，清掉即下一层）、宝藏房🎁（送遗物）、诅咒房🩸（耗血进入换更多遗物）、
+  //   商店🛒、小boss房👹（精英）。其余为普通房（按概率藏敌人）。相邻房间即有门相连。
   let _rid = 0;
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
     return arr;
   }
-  // 普通层：6×5 棋盘，主干在中行；两只小怪当割点，三个可选房间挂支线。
-  function genNormalFloor() {
-    const COLS = 6, ROWS = 5, MID = 2;
-    const rooms = [];
-    const add = (gx, gy, type) => { const r = { id: _rid++, gx, gy, type, done: false }; rooms.push(r); return r; };
-    const entrance = add(0, MID, 'entrance');
-    add(1, MID, 'monster');                 // 小怪 1（割点）
-    add(2, MID, 'path');
-    add(3, MID, 'monster');                 // 小怪 2（割点）
-    add(4, MID, 'path');
-    const exit = add(5, MID, 'exit');
-    // 三个可选房间：分别挂在 入口 / (2,MID) / (4,MID) 的上方或下方（互不相邻 → 各自是死路支线）
-    const optTypes = shuffle(['elite', 'shop', 'event']);
-    [0, 2, 4].forEach((ax, i) => add(ax, MID + (Math.random() < 0.5 ? -1 : 1), optTypes[i]));
-    return { type: 'normal', cols: COLS, rows: ROWS, rooms, entrance, exit };
-  }
-  // 首领层：一本道直线走廊，尽头是首领。
-  function genBossFloor() {
-    const MID = 1, ROWS = 3, len = ri(4, 5);     // 走廊长度（入口在 0，首领在 len）
-    const rooms = [];
-    const add = (gx, gy, type) => { const r = { id: _rid++, gx, gy, type, done: false }; rooms.push(r); return r; };
-    const entrance = add(0, MID, 'entrance');
-    for (let c = 1; c < len; c++) add(c, MID, 'path');
-    const boss = add(len, MID, 'boss');
-    return { type: 'boss', cols: len + 1, rows: ROWS, rooms, entrance, exit: boss };
+  const ADJ = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  function genIsaacFloor(act) {
+    const m = C().map, W = m.gridW, H = m.gridH;
+    const target = ri(m.rooms[0], m.rooms[1]);
+    const key = (x, y) => x + ',' + y;
+    const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+    let cells, rooms;
+    for (let attempt = 0; attempt < 40; attempt++) {     // 失败重试，直到房间数达标
+      cells = {}; rooms = [];
+      const add = (x, y, type) => { const r = { id: _rid++, gx: x, gy: y, type, done: false, combat: false }; cells[key(x, y)] = r; rooms.push(r); return r; };
+      const filled = (x, y) => ADJ.reduce((n, d) => n + (cells[key(x + d[0], y + d[1])] ? 1 : 0), 0);
+      add(W >> 1, H >> 1, 'start');                       // 起点居中
+      let guard = 0;
+      while (rooms.length < target && guard++ < 800) {
+        const base = rooms[Math.floor(Math.random() * rooms.length)];
+        const spot = shuffle(ADJ.map(d => [base.gx + d[0], base.gy + d[1]]))
+          .find(([x, y]) => inb(x, y) && !cells[key(x, y)] && filled(x, y) <= 1);
+        if (spot) add(spot[0], spot[1], 'normal');
+      }
+      if (rooms.length >= m.minRooms) break;
+    }
+    const start = rooms[0];
+    // BFS 距离（用于把首领放在最远死路）
+    const dist = new Map([[start, 0]]); const q = [start];
+    const nb = r => rooms.filter(o => Math.abs(o.gx - r.gx) + Math.abs(o.gy - r.gy) === 1);
+    while (q.length) { const c = q.shift(); for (const n of nb(c)) if (!dist.has(n)) { dist.set(n, dist.get(c) + 1); q.push(n); } }
+    const others = rooms.filter(r => r !== start);
+    const deadEnds = others.filter(r => nb(r).length === 1).sort((a, b) => dist.get(b) - dist.get(a));
+    const rest = others.filter(r => nb(r).length > 1);
+    const queue = deadEnds.concat(shuffle(rest));         // 优先占用死路，不够再用通路房
+    const assign = type => { const r = queue.shift(); if (r) r.type = type; return r; };
+    const boss = assign('boss');                          // 最远死路 = 首领
+    ['treasure', 'shop', 'curse', 'elite'].forEach(assign);
+    // 其余普通房：按概率藏敌人
+    rooms.forEach(r => { if (r.type === 'normal') r.combat = Math.random() < m.normalEnemyChance; });
+    // 裁掉空白边框 → 紧凑棋盘
+    const xs = rooms.map(r => r.gx), ys = rooms.map(r => r.gy);
+    const minX = Math.min(...xs), minY = Math.min(...ys);
+    rooms.forEach(r => { r.gx -= minX; r.gy -= minY; });
+    const cols = Math.max(...rooms.map(r => r.gx)) + 1, rows = Math.max(...rooms.map(r => r.gy)) + 1;
+    return { type: 'isaac', cols, rows, rooms, entrance: start, boss };
   }
 
   // ---------- 奖励 / 商店 ----------
@@ -116,10 +131,8 @@ window.CG = window.CG || {};
       this.maxHp = C().startHp;
       this.hp = this.maxHp;
       this.gold = C().startGold;
-      this.act = 1;                            // 大层（区域：决定敌人池 / 数值膨胀 / 场景）
+      this.act = 1;                            // 当前层（决定敌人池 / 数值膨胀 / 场景 / 进度）
       this.maxActs = C().acts;
-      this.floor = 1;                          // 小层（每个大层 3 小层：1/2 普通、3 首领）
-      this.maxFloors = C().map.floorsPerAct;
       this.tarot = [];                         // 消耗品栏（塔罗牌）
       this.gems = [];                          // 宝石背包（未镶嵌）
       this.relics = [];                        // 遗物
@@ -134,15 +147,15 @@ window.CG = window.CG || {};
       this.deck = CG.buildDeck(this.cls);      // 按职业构建初始牌组
     }
 
-    // 生成当前 (act, floor) 的小层棋盘：第 3 小层为首领一本道，其余为普通棋盘。
+    // 生成当前层的以撒式房间布局；玩家从起点出发。
     _newFloor() {
-      this.grid = this.floor >= this.maxFloors ? genBossFloor() : genNormalFloor();
+      this.grid = genIsaacFloor(this.act);
       this.current = this.grid.entrance;
-      this.current.done = true;                // 玩家从入口出发
-      this.flags.freeRoute = false;            // 倒吊人的「无视连线」不跨层延续
+      this.current.done = true;                // 玩家从起点出发
+      this.flags.freeRoute = false;            // 倒吊人的「无视门路」不跨层延续
       this._recomputeAvailable();
     }
-    // 当前格的可前往邻居（正交相邻的房间；含已通过的房间以便从死路支线折返）。
+    // 当前房间有门相连（正交相邻）的房间；含已清房间以便折返。
     _neighbors(room) {
       return this.grid.rooms.filter(r => r !== room && Math.abs(r.gx - room.gx) + Math.abs(r.gy - room.gy) === 1);
     }
@@ -202,23 +215,44 @@ window.CG = window.CG || {};
     }
     installGemInv(gemUid, cardUid) { if (this._doInstall(gemUid, cardUid)) this._emit(); }   // 工作台：免费、留在原界面
 
-    // 玩家在地图上点一个相邻格：未通过的内容房 → 触发其内容；出口 → 下一小层；其余（入口/通路/已通过）→ 走过去。
+    // 玩家走进一个相邻房间（WASD / 点击）：未清的内容房 → 触发；其余（起点/空房/已清）→ 走过去。
     selectNode(node) {
       if (!this.isAvailable(node)) return;
       this.current = node;
       const t = node.type;
-      if (t === 'exit') { node.done = true; this._descend(); return; }
-      if (!node.done && (t === 'monster' || t === 'elite' || t === 'boss')) return this._enterBattle(t);
-      if (!node.done && t === 'shop') return this._enterShop();
-      if (!node.done && t === 'event') return this._enterEvent();
-      node.done = true;                        // 入口 / 通路 / 折返已通过的房间：仅移动
+      if (!node.done) {
+        if (t === 'boss' || t === 'elite' || (t === 'normal' && node.combat)) return this._enterBattle(t);
+        if (t === 'shop')     return this._enterShop();
+        if (t === 'treasure') return this._enterTreasure();
+        if (t === 'curse')    return this._enterCurse();
+      }
+      node.done = true;                        // 起点 / 空房 / 折返已清房：仅移动
       this._recomputeAvailable();
       this._emit();
     }
-    _enterBattle(type) {
-      const tier = type === 'monster' ? 'normal' : type;
-      this.pending = { tier: type, enemyIds: pickEncounter(tier, this.act) };
+    _enterBattle(roomType) {
+      const tier = roomType === 'normal' ? 'monster' : roomType;   // 经济/奖励档（config 用 monster/elite/boss）
+      this.pending = { tier, enemyIds: pickEncounter(roomType, this.act) };  // 敌人池档用房间类型(normal/elite/boss)
       this.phase = 'battle';
+      this._emit();
+    }
+    _curseCost() { return Math.max(C().curse.minHpCost, Math.floor(this.maxHp * C().curse.hpCostPct)); }
+    // 宝藏房：免费得 1 件遗物（集齐则折算金币）。
+    _enterTreasure() {
+      const got = this._dropRelics(1), gold = got.length ? 0 : 60;
+      if (gold) this.gold += gold;
+      this.pending = { kind: 'treasure', relics: got, gold };
+      this.phase = 'event';
+      this._emit();
+    }
+    // 诅咒房：进入即耗血，换取 2 件遗物（集齐则折算金币）。
+    _enterCurse() {
+      const before = this.hp;
+      this.hp = Math.max(1, this.hp - this._curseCost());
+      const got = this._dropRelics(2), gold = got.length ? 0 : 110;
+      if (gold) this.gold += gold;
+      this.pending = { kind: 'curse', relics: got, hpPaid: before - this.hp, gold };
+      this.phase = 'event';
       this._emit();
     }
     _enterShop() {
@@ -236,14 +270,7 @@ window.CG = window.CG || {};
       this.phase = 'shop';
       this._emit();
     }
-    _enterEvent() {
-      const valid = CG.ALTAR_IDS.filter(id => this.altarUsable(id));
-      this.pending = { altar: pick(valid.length ? valid : ['findgem']) };   // 随机一种可用祭坛
-      this.phase = 'event';
-      this._emit();
-    }
-
-    // ---- 事件祭坛（宝石操作）----
+    // ---- 事件祭坛（宝石操作；现仅由「世界」塔罗触发，地图不再生成祭坛房）----
     altarUsable(id) {
       if (id === 'findgem') return true;
       if (id === 'setting') return this.gems.length > 0 && this.cardsWithEmptySocket().length > 0;
@@ -263,7 +290,7 @@ window.CG = window.CG || {};
     finishBattle(win, remainingHp) {
       this.hp = Math.max(0, remainingHp);
       if (!win || this.hp <= 0) { this.phase = 'dead'; this._emit(); return; }
-      const tier = this.current.type;                    // monster | elite | boss
+      const tier = (this.pending && this.pending.tier) || 'monster';   // 经济档：monster | elite | boss
       if (tier === 'boss') this.hp = this.maxHp;          // 每场 Boss 战后回满
       // 金币（含存钱罐）
       let earned = rollGold(tier, this.act);
@@ -378,46 +405,37 @@ window.CG = window.CG || {};
     // ---- 塔罗牌触发的跑图效果 ----
     fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(pick(CG.TAROT_IDS)); }
     gainGem(opts) { this.gems.push(CG.rollGem(opts || { tier: 'elite', minLevel: this.forgeMinLevel() })); }   // 节制·逆等可调用
-    gotoActBoss() {                                       // 皇帝：直达本层（区域）首领 —— 跳到首领一本道并开战
-      this.floor = this.maxFloors;
-      this._newFloor();
-      this.current = this.grid.rooms.find(r => r.type === 'boss');
+    gotoActBoss() {                                       // 皇帝：直达本层首领并开战
+      const boss = this.grid.rooms.find(r => r.type === 'boss');
+      if (!boss) return;
+      this.current = boss;
       this._enterBattle('boss');
     }
-    teleportRandom() {                                    // 月亮：传送到本小层一个随机未通过的内容房间并触发
-      const all = this.grid.rooms.filter(n => !n.done && n !== this.current &&
-        ['monster', 'elite', 'shop', 'event'].includes(n.type));
+    teleportRandom() {                                    // 月亮：传送到本层一个随机未清的内容房间并触发
+      const isContent = r => r.type === 'shop' || r.type === 'treasure' || r.type === 'curse' || r.type === 'elite' || (r.type === 'normal' && r.combat);
+      const all = this.grid.rooms.filter(n => !n.done && n !== this.current && isContent(n));
       if (!all.length) return;
       const node = all[Math.floor(Math.random() * all.length)];
       this.available = [node];
       this.selectNode(node);
     }
-    freeRoute() {                                         // 倒吊人：无视连线，本小层任选未通过房间
+    freeRoute() {                                         // 倒吊人：无视门路，本层任选未清房间
       this.flags.freeRoute = true;
       if (this.phase === 'map') { this._recomputeAvailable(); this._emit(); }
     }
 
-    // 结算当前房间内容（战斗胜利 / 逛完商店 / 用完祭坛）后，回到地图。
+    // 结算当前房间内容（战斗胜利 / 逛完商店 / 取完宝藏 / 用完祭坛）后，回到地图。
     _advance() {
       const room = this.current;
       room.done = true;
-      if (room.type === 'boss') return this._nextAct();   // 首领 -> 进入下一区域 / 通关
-      const nb = this._neighbors(room);
-      if (nb.length === 1) this.current = nb[0];           // 死路支线（精英/商店/祭坛）：自动退回主干
+      if (room.type === 'boss') return this._nextAct();   // 首领 -> 下一层 / 通关
       this._recomputeAvailable();
       this.phase = 'map';
       this._emit();
     }
-    // 踩到出口：进入本区域的下一小层（最后一小层是首领一本道）。
-    _descend() {
-      this.floor++;
-      this._newFloor();
-      this.phase = 'map';
-      this._emit();
-    }
-    // 击败首领：进入下一区域（act+1，回到第 1 小层），或全部通关。
+    // 击败首领：进入下一层（act+1，重新生成布局），或全部通关。
     _nextAct() {
-      if (this.act < this.maxActs) { this.act++; this.floor = 1; this._newFloor(); this.phase = 'map'; this._emit(); return; }
+      if (this.act < this.maxActs) { this.act++; this._newFloor(); this.phase = 'map'; this._emit(); return; }
       this.phase = 'victory'; this._emit();
     }
   }
