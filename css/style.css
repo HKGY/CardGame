@@ -149,15 +149,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* ===== 地图（《以撒的结合》式房间布局） ===== */
 .map-hint { text-align: center; color: var(--muted); font-size: 13px; margin: 6px 0; line-height: 1.6; }
 .map-hint b { color: var(--accent); }
-.map-wrap { overflow-x: auto; }                 /* 地图过宽时横向滚动（房间大小固定，不缩放） */
+/* 地图视口：固定高度的镜头框，超出部分可滚动；JS 把玩家所在房间滚到正中 */
+.map-wrap { position: relative; overflow: auto; height: clamp(320px, 62vh, 760px); overscroll-behavior: contain; }
 .map-grid {
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--cols, 9), var(--cell));
   grid-template-rows: repeat(var(--rows, 8), var(--cell));
-  --cell: 92px; gap: 5px; width: max-content; margin: 8px auto 22px;
-  border-radius: 14px; overflow: hidden;
-  background: #0c0e16; box-shadow: inset 0 0 0 1px #2a2f44;
+  --cell: 92px; gap: 5px; width: max-content; margin: 8px auto;
+  /* 不显示外边框：无背景框 / 无描边 / 无圆角，房间直接漂在页面背景上 */
 }
 /* 门：相邻房间之间的连线，画在房间格之下，只在格缝里露出 */
 .map-doors { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
@@ -198,6 +198,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   height: 116px; width: auto; max-width: 230px;
   aspect-ratio: var(--cols) / var(--rows);
   gap: 1px; margin: 0; border-radius: 8px;
+  overflow: hidden; background: #0c0e16; box-shadow: inset 0 0 0 1px #2a2f44;  /* 略缩图保留小边框便于辨识 */
 }
 .battle-minimap .map-cell { font-size: 0; border-radius: 22%; }
 .battle-minimap .map-cell.void { background: transparent; box-shadow: none; }

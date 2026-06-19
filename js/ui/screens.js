@@ -266,6 +266,16 @@ window.CG = window.CG || {};
   }
   const gridSvg = m => `<svg class="map-doors" viewBox="0 0 ${m.cols} ${m.rows}" preserveAspectRatio="none">${m.doors}</svg>${m.cells}`;
 
+  // 滚动地图视口，使「当前所在房间」处于正中（无可滚空间时浏览器自动夹取）。
+  function centerMapOnPlayer() {
+    const wrap = document.querySelector('.map-wrap'), area = $('map-area');
+    const cell = area && area.querySelector('.map-cell.current');
+    if (!wrap || !cell) return;
+    const cx = area.offsetLeft + cell.offsetLeft + cell.offsetWidth / 2;
+    const cy = area.offsetTop + cell.offsetTop + cell.offsetHeight / 2;
+    wrap.scrollLeft = cx - wrap.clientWidth / 2;
+    wrap.scrollTop = cy - wrap.clientHeight / 2;
+  }
   function showMap(run) {
     showScreen('map');
     const sub = $('map-subtitle');
@@ -275,6 +285,7 @@ window.CG = window.CG || {};
     area.style.setProperty('--cols', m.cols);
     area.style.setProperty('--rows', m.rows);
     area.innerHTML = gridSvg(m);
+    centerMapOnPlayer();                          // 把玩家所在房间滚到视口正中（出生 / 每次移动跟随）
     $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
   }
   // 战斗界面左上角的略缩地图（非交互，进战斗时渲染一次）
