@@ -384,6 +384,18 @@ window.CG = window.CG || {};
         <button class="buy-btn" data-buyrelic="${i}" ${dis ? 'disabled' : ''}>${it.bought ? '已购买' : '💰 ' + it.price}</button>
       </div>`;
     }).join('');
+    const packItems = (run.pending.packs || []).map((it, i) => {
+      const pk = CG.PACKS[it.pack];
+      const dis = it.taken || (!it.bought && run.gold < it.price);
+      const btn = it.taken ? '✓ 已取' : (it.bought ? '开启选择' : '💰 ' + it.price);
+      return `<div class="shop-item shop-tarot" title="${pk ? pk.desc : ''}">
+        <div class="shop-tarot-face booster-tile" style="--pk:${pk ? pk.color : '#cdd2e2'}">
+          <span class="shop-tarot-icon">${pk ? pk.icon : '📦'}</span><b>${pk ? pk.name : '宝石包'}</b>
+          <small>${it.count} 选一 · 词条限定本主题</small>
+        </div>
+        <button class="buy-btn" data-buypack="${i}" ${dis ? 'disabled' : ''}>${btn}</button>
+      </div>`;
+    }).join('');
     const healAmt = Math.ceil(run.maxHp * cfg.healPct);
     const rmPrice = run.removePrice(), unPrice = run.uninstallPrice(), skPrice = run.socketPrice(), hlPrice = run.healCost();
     const hasSocketed = run.allGems().some(x => x.loc === 'card');
@@ -393,6 +405,8 @@ window.CG = window.CG || {};
         <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span>　<span class="shop-bench-hint">背包宝石 💎 ${run.gems.length}（点顶栏「宝石」免费镶嵌）</span></h2>
         <div class="shop-section-title">宝石</div>
         <div class="shop-cards">${gemItems || '<span class="empty-note">（售罄）</span>'}</div>
+        <div class="shop-section-title">宝石包（booster pack · 开包挑 1 颗）</div>
+        <div class="shop-cards">${packItems || '<span class="empty-note">（售罄）</span>'}</div>
         <div class="shop-section-title">法杖（空孔卡）</div>
         <div class="shop-cards">${cardItems}</div>
         <div class="shop-section-title">塔罗 / 遗物</div>
@@ -417,6 +431,12 @@ window.CG = window.CG || {};
     if (bt && !bt.disabled) { CG.Audio.play('coin'); return H.onBuyTarot(+bt.dataset.buytarot); }
     const br = ev.target.closest('[data-buyrelic]');
     if (br && !br.disabled) { CG.Audio.play('coin'); return H.onBuyRelic(+br.dataset.buyrelic); }
+    const bp = ev.target.closest('[data-buypack]');
+    if (bp && !bp.disabled) {
+      const i = +bp.dataset.buypack, it = run.pending.packs[i];
+      if (!it.bought) { CG.Audio.play('coin'); H.onBuyPack(i); }   // 首次：扣钱滚出 N 颗
+      return openPackPicker(i);                                    // 立即开启挑选（已购买则重开）
+    }
     const act = ev.target.closest('[data-act]');
     if (!act || act.disabled) return;
     const a = act.dataset.act;
@@ -435,6 +455,14 @@ window.CG = window.CG || {};
       const f = run.findGem(uid);
       if (f && f.loc === 'card') H.onBuyUninstall(f.card.uid, f.idx);
     });
+  }
+  // 开启已购买的 booster pack：从滚出的 count 颗里挑 1 颗（可重复打开直到取走）
+  function openPackPicker(i) {
+    const run = H.getRun(), it = run.pending.packs && run.pending.packs[i];
+    if (!it || !it.rolled || it.taken) return;
+    const pk = CG.PACKS[it.pack];
+    openGemPicker(`${pk ? pk.icon + ' ' + pk.name : '宝石包'} · ${it.count} 选一`,
+      it.rolled.map(g => ({ gem: g, uid: g.uid })), uid => H.onTakePackGem(i, uid));
   }
 
   // ---------- 事件（宝藏房 / 诅咒房 / 宝石祭坛） ----------

@@ -151,7 +151,12 @@ window.CG = window.CG || {};
     const tarot = [];
     for (let i = 0; i < C().shop.tarotCount; i++)
       tarot.push({ id: pick(CG.TAROT_IDS), price: Math.floor(C().shop.tarotPrice * mult), bought: false });
-    return { gems, cards, tarot };
+    // booster pack 货架：每个各自一个主题包；买下后开启从 count 颗里挑 1
+    const packs = (C().shop.packs || []).map(opt => ({
+      pack: CG.pickPack(opt.tier), tier: opt.tier, count: opt.count,
+      price: Math.floor(opt.price * mult), bought: false, taken: false, rolled: null,
+    }));
+    return { gems, cards, tarot, packs };
   }
 
   class Run {
@@ -413,6 +418,22 @@ window.CG = window.CG || {};
       if (!it || it.bought || this.gold < it.price || this.hasRelic(it.id)) return;
       this.gold -= it.price; it.bought = true; this.addRelic(it.id); this._emit();
     }
+    // 买 booster pack：扣钱后滚出 count 颗同主题宝石（存 rolled，由 takePackGem 挑 1 颗进背包）
+    buyPack(i) {
+      const it = this.pending.packs && this.pending.packs[i];
+      if (!it || it.bought || this.gold < it.price) return;
+      this.gold -= it.price; it.bought = true;
+      it.rolled = Array.from({ length: it.count }, () => CG.rollGem({ tier: it.tier, pack: it.pack, minLevel: this.forgeMinLevel() }));
+      this._emit();
+    }
+    // 从已购买的包里挑 1 颗进背包（按 uid）
+    takePackGem(i, gemUid) {
+      const it = this.pending.packs && this.pending.packs[i];
+      if (!it || !it.rolled || it.taken) return;
+      const gem = it.rolled.find(g => g.uid === gemUid);
+      if (!gem) return;
+      this.gems.push(gem); it.taken = true; this._emit();
+    }
     // 商店服务：治疗（每店一次）
     svcUsed(k) { return !!(this.pending && this.pending.usedSvc && this.pending.usedSvc[k]); }
     _markSvc(k) { if (this.pending) { this.pending.usedSvc = this.pending.usedSvc || {}; this.pending.usedSvc[k] = true; } }
@@ -449,7 +470,16 @@ window.CG = window.CG || {};
       if (this.gold < this.socketPrice() || !card || (card.limit || 0) >= CG.MAX_SOCKETS) return;
       this.gold -= this.socketPrice(); CG.addSocket(card); this._emit();
     }
-    leaveShop() { this.pending = null; this._advance(); }
+    leaveShop() {
+      // 安全网：已买下但还没挑选的包，自动取走其中最值钱的一颗（避免金币白花）
+      ((this.pending && this.pending.packs) || []).forEach(it => {
+        if (it.bought && !it.taken && it.rolled && it.rolled.length) {
+          this.gems.push(it.rolled.slice().sort((a, b) => CG.gemPrice(b) - CG.gemPrice(a))[0]);
+          it.taken = true;
+        }
+      });
+      this.pending = null; this._advance();
+    }
 
     // ---- 塔罗牌触发的跑图效果 ----
     fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(pick(CG.TAROT_IDS)); }

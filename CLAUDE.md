@@ -12,7 +12,7 @@
 
 ## 提交前必须全部测试通过（硬性要求）
 
-- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 59 例）才允许提交。** 红 / 跳过都不许提交。
+- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 61 例）才允许提交。** 红 / 跳过都不许提交。
 - 改了 `js/data/` 或 `js/engine/`（纯逻辑）→ **同步增改 `test/` 用例** 再跑测试，不要让覆盖率退化。
 - 改了 UI（`js/ui/*`、`css/`、`index.html`）→ 单测覆盖不到：**在浏览器打开 `index.html` 人工自测**，并在回复里说明已人工验证了什么。
 - 如实报告：测试失败就贴输出；某部分没验证就明说。**不得谎报“通过”。**
@@ -52,11 +52,12 @@
 - **无外部素材，别再引入 png/mp3**：立绘/卡面=内联 SVG（`sprites.js`/`render.js`），场景背景=纯 CSS 渐变（`background.js` + `css` 里的 `.scene-*`），音效=Web Audio 即时合成（`audio.js`），背景音乐已停用（`music.js` 为空壳接口）。
 - **宝石/法杖**：效果绑定在「宝石」上，宝石镶进「卡牌(法杖)」的孔位；`cardStats()` 聚合一张卡所有孔位里的词条 → 数值/效果/卡名。安装免费，卸下花钱且随机加一个 debuff。
 - **Booster pack（词条分类）**：词条按主题分进 `CG.PACKS`（`affixes.js`，5 包：基础/强攻/诅咒/节奏/生机）。`CG.rollGem` 接 `opts.pack` 把增益/减益限定在该包池内；**不传 pack 时按 tier 自动选包**（`CG.pickPack`，权重见 `config.js` 的 `packW`），故所有产宝石处（奖励/商店/祭坛/重铸/遗物）都按包生成。战斗奖励整包同一主题并存 `pending.pack`，奖励界面先展示未拆封的包再点开三选一。卸下惩罚 `gemAddRandomDebuff` 例外，仍从全部减益池抽。
-- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=53`）。
+- **商店出售 booster pack**：货架含「三选一/五选一」两种包（`config.js` 的 `shop.packs` 定 `count/tier/price`）。`run.buyPack(i)` 扣钱并 roll 出 `count` 颗同主题宝石存 `pending.packs[i].rolled`，`run.takePackGem(i,uid)` 挑 1 颗进背包；`leaveShop` 有安全网：买了没挑的包自动取走最值钱的一颗。UI 复用既有 picker（`openPackPicker`），无新增 DOM。
+- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=54`）。
 
 ## 改内容 / 调平衡的位置
 
-- 数值/经济：`js/data/config.js`（`map.gridW/gridH/roomsBase/roomsPerAct/maxRooms/minRooms/normalEnemyChance/telegraphChance/extra`、`curse.hpCostPct`、`packW` 选包权重）　｜　词条：`js/data/affixes.js`　｜　卡包分类：`affixes.js` 的 `CG.PACKS`　｜　宝石生成规则：`js/data/cards.js` 的 `rollGem` / `pickPack`。
+- 数值/经济：`js/data/config.js`（`map.gridW/gridH/roomsBase/roomsPerAct/maxRooms/minRooms/normalEnemyChance/telegraphChance/extra`、`curse.hpCostPct`、`packW` 选包权重、`shop.packs` 商店包档位/价格）　｜　词条：`js/data/affixes.js`　｜　卡包分类：`affixes.js` 的 `CG.PACKS`　｜　宝石生成规则：`js/data/cards.js` 的 `rollGem` / `pickPack`。
 - 地图布局：`js/engine/run.js` 的 `genIsaacFloor`；地图渲染 + WASD：`js/ui/screens.js` 的 `showMap` / `init` 里的 keydown（CSS `.map-grid`/`.map-cell`/`.map-doors`/`.map-hero`）；进战斗演出：`zoomMapToRoom` + `playBattleEntrance`（CSS `.entering` / `fly-*`）。
 - 加敌人：`js/data/enemies.js` + `ENEMY_POOLS`；加敌人贴图：`js/ui/sprites.js`（一段 SVG，key 对应敌人 `sprite`）。
 - 加新效果：`CG.Effects.register('type', (game, eff, source, target) => {…})`（`js/engine/effects.js`），卡与敌人招式共用。

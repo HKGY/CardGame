@@ -265,6 +265,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .reward-relics { color: var(--accent); font-weight: 700; }
 .reward-relics .relic-got { margin: 0 6px; cursor: help; }
 .shop-tarot-face.relic-card { --oct-rim: var(--accent); }
+/* 商店里的 booster pack 货位：按所属主题包上色（环用 outline，不被基础规则的 box-shadow:none 覆盖） */
+.shop-tarot-face.booster-tile { --oct-rim: var(--pk); outline: 1.5px solid color-mix(in srgb, var(--pk) 60%, transparent); outline-offset: -2px; }
+.shop-tarot-face.booster-tile .shop-tarot-icon { color: var(--pk); filter: drop-shadow(0 0 9px color-mix(in srgb, var(--pk) 70%, transparent)); }
+.shop-tarot-face.booster-tile b { color: var(--pk); }
 /* 立绘居中为主视觉；血条 + 能量/塔罗（左）、结束回合/日志（右）分散到两侧；卡牌沉底 */
 #screen-battle.active { min-height: calc(100vh - 40px); }
 .battlefield { flex: 1; display: flex; align-items: stretch; justify-content: space-between; gap: 14px; min-height: 340px; padding: 6px 0 0; }

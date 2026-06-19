@@ -230,6 +230,53 @@ test('商店宝石带 pack 标记，且词条来自该包', () => {
   });
 });
 
+test('商店出售 booster pack：买下扣钱、滚出对应数量同主题宝石、挑 1 颗进背包', () => {
+  const run = newRun('shop-booster');
+  run.gold = 1000;
+  run._enterShop();
+  assert.ok(run.pending.packs && run.pending.packs.length >= 2, '商店应有 booster pack 货位（三选一 + 五选一）');
+  const idx = run.pending.packs.findIndex(p => p.count === 5);
+  assert.ok(idx >= 0, '应有五选一包');
+  const it = run.pending.packs[idx], pack = CG.PACKS[it.pack];
+  assert.ok(pack, '包应有合法主题');
+  const gold0 = run.gold, bag0 = run.gems.length;
+  run.buyPack(idx);
+  assert.equal(run.gold, gold0 - it.price);              // 扣钱
+  assert.equal(it.bought, true);
+  assert.equal(it.rolled.length, it.count);              // 滚出 count 颗
+  const inPack = id => pack.buffs.includes(id) || pack.debuffs.includes(id);
+  it.rolled.forEach(g => g.affixes.forEach(a => assert.ok(inPack(a.id), `包内宝石词条 ${a.id} 不属于 ${it.pack}`)));
+  const chosen = it.rolled[2];                            // 挑第 3 颗
+  run.takePackGem(idx, chosen.uid);
+  assert.equal(it.taken, true);
+  assert.equal(run.gems.length, bag0 + 1);
+  assert.equal(run.gems[run.gems.length - 1].uid, chosen.uid);
+});
+
+test('booster pack：钱不够买不了 / 取过不能再取 / 离开商店自动取走没挑的包', () => {
+  const run = newRun('shop-booster2');
+  run._enterShop();
+  const it0 = run.pending.packs[0];
+  run.gold = it0.price - 1;                               // 钱不够
+  run.buyPack(0);
+  assert.equal(it0.bought, false);
+  run.gold = 1000;
+  run.buyPack(0);
+  const bag1 = run.gems.length;
+  run.takePackGem(0, it0.rolled[0].uid);
+  assert.equal(run.gems.length, bag1 + 1);
+  run.takePackGem(0, it0.rolled[1].uid);                 // 已取过 → 无效
+  assert.equal(run.gems.length, bag1 + 1);
+
+  const it1 = run.pending.packs[1];                       // 买下但不挑
+  run.gold = 1000;
+  run.buyPack(1);
+  const before = run.gems.length;
+  run.leaveShop();                                        // 安全网：自动取走一颗
+  assert.equal(it1.taken, true);
+  assert.equal(run.gems.length, before + 1);
+});
+
 test('整局推进：清完每层并击败首领 → 通关（3 层）', () => {
   const run = newRun('full-run');
   let guard = 0;
