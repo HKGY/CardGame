@@ -155,7 +155,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   display: grid;
   grid-template-columns: repeat(var(--cols, 9), var(--cell));
   grid-template-rows: repeat(var(--rows, 8), var(--cell));
-  --cell: 64px; gap: 4px; width: max-content; margin: 8px auto 22px;
+  --cell: 92px; gap: 5px; width: max-content; margin: 8px auto 22px;
   border-radius: 14px; overflow: hidden;
   background: #0c0e16; box-shadow: inset 0 0 0 1px #2a2f44;
 }
@@ -195,7 +195,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .battle-minimap .map-grid.mini {
   grid-template-columns: repeat(var(--cols, 9), 1fr);
   grid-template-rows: repeat(var(--rows, 8), 1fr);
-  height: 84px; width: auto; max-width: 168px;
+  height: 116px; width: auto; max-width: 230px;
   aspect-ratio: var(--cols) / var(--rows);
   gap: 1px; margin: 0; border-radius: 8px;
 }
@@ -622,8 +622,8 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
   .energy { font-size: 17px; padding: 6px 12px; }
   .end-turn { font-size: 15px; padding: 11px 18px; }
 
-  .map-grid { --cell: 50px; gap: 3px; }
-  .battle-minimap .map-grid.mini { height: 64px; max-width: 132px; }
+  .map-grid { --cell: 66px; gap: 4px; }
+  .battle-minimap .map-grid.mini { height: 92px; max-width: 176px; }
   .map-hint { font-size: 11px; }
 
   .menu { margin-top: 3vh; gap: 12px; }
@@ -653,5 +653,5 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
   .pile { width: 52px; }
   .menu-title { font-size: 30px; letter-spacing: 4px; }
   .gem { width: 92px; }
-  .map-grid { --cell: 42px; }
+  .map-grid { --cell: 54px; }
 }
