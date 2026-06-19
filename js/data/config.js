@@ -40,6 +40,12 @@ CG.CONFIG = {
       boss:    [[1, 1], [2, 3], [3, 6]],
     },
   },
+  // Booster pack 选包权重 [包id, 权重]：普通层偏「基础包」，精英/首领偏主题包（更聚焦）。
+  packW: {
+    monster: [['basic', 6], ['power', 2], ['curse', 2], ['tempo', 2], ['vitality', 2]],
+    elite:   [['basic', 2], ['power', 3], ['curse', 3], ['tempo', 3], ['vitality', 3]],
+    boss:    [['basic', 1], ['power', 3], ['curse', 3], ['tempo', 3], ['vitality', 3]],
+  },
   // 卡牌奖励 / 商店法杖的孔位数权重（空法杖的价值在于孔位）
   cardLimitW: { monster: [[1, 3], [2, 4], [3, 2]], elite: [[2, 4], [3, 4]], boss: [[2, 2], [3, 5], [4, 3]] },
 

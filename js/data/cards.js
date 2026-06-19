@@ -82,7 +82,8 @@ window.CG = window.CG || {};
 
     let valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0, energy = 0,
         drawN = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
-        costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false;
+        costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false,
+        blockFlat = 0, freeNextN = 0, comboN = 0;
     const statuses = {}, selfStatuses = {};
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
@@ -104,6 +105,9 @@ window.CG = window.CG || {};
       if (d.lifesteal) lifesteal += d.lifesteal * L;   // 吸血
       if (d.silence)   silenceLv = L;                  // 沉默：按等级削减敌人力量
       if (d.pierce)    pierceN  += d.pierce * L;        // 穿刺：额外命中右侧敌人
+      if (d.block)     blockFlat += d.block * L;        // 壁垒：附加格挡
+      if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
+      if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -119,7 +123,8 @@ window.CG = window.CG || {};
     // 结算效果
     const KIND_TYPE = { damage: 'damage', block: 'block', heal: 'heal', randbuff: 'randbuff' };
     const effects = [{ type: KIND_TYPE[b.kind] || 'block', value, hits }];
-    if (b.block) effects.push({ type: 'block', value: b.block });   // 盾击：附带固定格挡
+    const flatBlock = (b.block || 0) + blockFlat;                   // 盾击固定格挡 + 壁垒附加格挡
+    if (flatBlock > 0) effects.push({ type: 'block', value: flatBlock });
     for (const k in statuses) effects.push({ type: k, value: statuses[k] });               // 给敌人
     for (const k in selfStatuses) effects.push({ type: 'selfStatus', status: k, value: selfStatuses[k] });
     if (energy)  effects.push({ type: 'energy', value: energy });
@@ -148,6 +153,7 @@ window.CG = window.CG || {};
       value, hits, effects, buffs, debuffs, gemViews, baseText,
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
+      freeNext: freeNextN, combo: comboN,
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -162,44 +168,61 @@ window.CG = window.CG || {};
   }
   CG.rollAffixLevel = () => weightedPick((CG.CONFIG && CG.CONFIG.upgradeLevelWeights) || [[1, 4], [2, 3], [3, 2]]);
 
-  // strong=true 偏向高分（强力）增益；否则偏向低分（朴素）增益
-  function pickBuffId(owned, strong) {
-    const pool = CG.BUFF_ORDER.filter(id => !owned.has(id))
+  // strong=true 偏向高分（强力）增益；否则偏向低分（朴素）增益。pool 为候选词条 id 列表。
+  function pickBuffId(pool, owned, strong) {
+    const p = pool.filter(id => !owned.has(id))
       .map(id => [id, strong ? Math.max(1, CG.AFFIXES[id].score) : Math.max(1, 8 - CG.AFFIXES[id].score)]);
-    return pool.length ? weightedPick(pool) : null;
+    return p.length ? weightedPick(p) : null;
   }
-  function pickDebuffId(owned) {                    // 严重 debuff 更稀有（score 越负越稀有）
-    const pool = CG.DEBUFF_ORDER.filter(id => !owned.has(id)).map(id => [id, Math.max(1, 6 + CG.AFFIXES[id].score)]);
-    return pool.length ? weightedPick(pool) : null;
+  function pickDebuffId(pool, owned) {              // 严重 debuff 更稀有（score 越负越稀有）
+    const p = pool.filter(id => !owned.has(id)).map(id => [id, Math.max(1, 6 + CG.AFFIXES[id].score)]);
+    return p.length ? weightedPick(p) : null;
   }
 
-  // 生成一颗宝石。opts: { tier:'monster'|'elite'|'boss', big:bool, minLevel:int }
+  // 按层数权重选一个 booster pack（缺 tier / 缺权重则在全部包里均匀选）。返回包 id。
+  CG.pickPack = function (tier) {
+    const w = (CG.CONFIG && CG.CONFIG.packW && tier && CG.CONFIG.packW[tier]) || null;
+    if (w && w.length) return weightedPick(w);
+    const ids = (CG.PACKS && Object.keys(CG.PACKS)) || [];
+    return ids.length ? ids[Math.floor(Math.random() * ids.length)] : 'basic';
+  };
+  // 把「包 id / 包对象 / 空」解析成一个含 {buffs, debuffs} 的包对象（空则按 tier 自动选包）。
+  function resolvePack(packOrId, tier) {
+    let p = typeof packOrId === 'string' ? (CG.PACKS && CG.PACKS[packOrId]) : packOrId;
+    if (!p && CG.PACKS) p = CG.PACKS[CG.pickPack(tier)];
+    return p || { buffs: CG.BUFF_ORDER, debuffs: CG.DEBUFF_ORDER };
+  }
+
+  // 生成一颗宝石。opts: { tier:'monster'|'elite'|'boss', big:bool, minLevel:int, level:int, pack:id|obj }
   //   小宝石 = 1 个朴素增益；大宝石 = 强增益(可多个) + 减益。
+  //   词条只从 pack 的增益/减益池里抽；不传 pack 时按 tier 自动选一个包（“所有产宝石处都按包”）。
   CG.rollGem = function (opts) {
     opts = opts || {};
     const tier = opts.tier || 'monster';
+    const pack = resolvePack(opts.pack, tier);
+    const buffPool = pack.buffs, debuffPool = pack.debuffs;
     const gcfg = (CG.CONFIG && CG.CONFIG.gem) || {};
     const lvW = (gcfg.levelW && gcfg.levelW[tier]) || [[1, 6], [2, 3], [3, 1]];
     const big = opts.big != null ? opts.big : Math.random() < ((gcfg.bigChance && gcfg.bigChance[tier]) || 0.35);
     const lvl = () => { let L = opts.level || weightedPick(lvW); if (opts.minLevel && L < opts.minLevel) L = opts.minLevel; return L; };
     const ownedB = new Set(), ownedD = new Set(), affixes = [];
     if (!big) {                                      // 小宝石：1 个朴素增益（最多 2 级）
-      const id = pickBuffId(ownedB, false);
+      const id = pickBuffId(buffPool, ownedB, false);
       if (id) affixes.push({ id, level: Math.min(2, lvl()) });
     } else {                                         // 大宝石：强增益 + 减益（首领可双增益/双减益）
       const nB = tier === 'boss' ? 2 : 1;
-      for (let i = 0; i < nB; i++) { const id = pickBuffId(ownedB, true); if (!id) break; ownedB.add(id); affixes.push({ id, level: lvl() }); }
+      for (let i = 0; i < nB; i++) { const id = pickBuffId(buffPool, ownedB, true); if (!id) break; ownedB.add(id); affixes.push({ id, level: lvl() }); }
       const nD = tier === 'boss' && Math.random() < 0.5 ? 2 : 1;
-      for (let i = 0; i < nD; i++) { const id = pickDebuffId(ownedD); if (!id) break; ownedD.add(id); affixes.push({ id, level: 1 }); }
+      for (let i = 0; i < nD; i++) { const id = pickDebuffId(debuffPool, ownedD); if (!id) break; ownedD.add(id); affixes.push({ id, level: 1 }); }
     }
-    if (!affixes.length) affixes.push({ id: CG.BUFF_ORDER[0], level: 1 });
+    if (!affixes.length) affixes.push({ id: buffPool[0] || CG.BUFF_ORDER[0], level: 1 });
     return CG.makeGem(affixes);
   };
 
-  // 卸下宝石时随机附带一个 debuff（已满则不再加）
+  // 卸下宝石时随机附带一个 debuff（已满则不再加）。这是「降级惩罚」，从全部减益池抽（不限包）。
   CG.gemAddRandomDebuff = function (gem) {
     const owned = new Set((gem.affixes || []).filter(a => CG.isDebuff(a.id)).map(a => a.id));
-    const id = pickDebuffId(owned);
+    const id = pickDebuffId(CG.DEBUFF_ORDER, owned);
     if (id) gem.affixes.push({ id, level: 1 });
     return id;
   };
@@ -210,13 +233,14 @@ window.CG = window.CG || {};
     if (idx) gem.affixes.splice(idx[1], 1);
     return !!idx;
   };
-  // 重铸：增益/减益数量不变，全部重掷
+  // 重铸：增益/减益数量不变，全部重掷（自动选一个包，重掷出的词条都来自该包）。
   CG.recutGem = function (gem) {
     const B = (gem.affixes || []).filter(a => !CG.isDebuff(a.id)).length;
     const D = (gem.affixes || []).length - B;
+    const pack = resolvePack(null, null);
     const ob = new Set(), od = new Set(), out = [];
-    for (let i = 0; i < B; i++) { const id = pickBuffId(ob, i === 0); if (!id) break; ob.add(id); out.push({ id, level: CG.rollAffixLevel() }); }
-    for (let i = 0; i < D; i++) { const id = pickDebuffId(od); if (!id) break; od.add(id); out.push({ id, level: 1 }); }
+    for (let i = 0; i < B; i++) { const id = pickBuffId(pack.buffs, ob, i === 0); if (!id) break; ob.add(id); out.push({ id, level: CG.rollAffixLevel() }); }
+    for (let i = 0; i < D; i++) { const id = pickDebuffId(pack.debuffs, od); if (!id) break; od.add(id); out.push({ id, level: 1 }); }
     gem.affixes = out.length ? out : gem.affixes;
   };
 

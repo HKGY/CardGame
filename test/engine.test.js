@@ -147,3 +147,45 @@ test('达摩克利斯遗物：卡牌数值翻倍', () => {
   b.playCard(b.hand[0].uid);
   assert.equal(b.enemies[0].hp, hp0 - 12);   // 6 ×2
 });
+
+test('回响：打出后下一张牌免费（不扣能量），且可连锁', () => {
+  const b = CG.makeBattle({ deck: deckOf(8, { id: 'echo', level: 1 }), hp: 80, maxHp: 80 });
+  assert.equal(b.player.energy, 3);
+  b.playCard(b.hand[0].uid);               // 第一张正常付费
+  assert.equal(b.player.energy, 2);
+  assert.equal(b.freeCards, 1);            // 获得 1 层回响
+  b.playCard(b.hand[0].uid);               // 免费打出
+  assert.equal(b.player.energy, 2);        // 能量未减
+  b.playCard(b.hand[0].uid);               // 连锁仍免费
+  assert.equal(b.player.energy, 2);
+
+  const c = CG.makeBattle({ deck: deckOf(8), hp: 80, maxHp: 80 });   // 对照：无回响逐张扣能量
+  c.playCard(c.hand[0].uid); c.playCard(c.hand[0].uid);
+  assert.equal(c.player.energy, 1);
+});
+
+test('回响计数在回合开始清零', () => {
+  const b = CG.makeBattle({ deck: deckOf(8, { id: 'echo', level: 1 }) });
+  b.playCard(b.hand[0].uid);
+  assert.equal(b.freeCards, 1);
+  b.endTurn(); b.runEnemyTurn();
+  assert.equal(b.freeCards, 0);
+});
+
+test('连击：本回合每多打出一张牌，后续打击伤害递增', () => {
+  const b = CG.makeBattle({ deck: deckOf(8, { id: 'combo', level: 2 }) });
+  const e = b.enemies[0], hp0 = e.hp;      // 28
+  b.playCard(b.hand[0].uid);               // 第1张：此前 0 张 → 6
+  assert.equal(e.hp, hp0 - 6);
+  b.playCard(b.hand[0].uid);               // 第2张：此前 1 张 → 6 + 2
+  assert.equal(e.hp, hp0 - 6 - 8);
+  b.playCard(b.hand[0].uid);               // 第3张：此前 2 张 → 6 + 4
+  assert.equal(e.hp, hp0 - 6 - 8 - 10);
+});
+
+test('壁垒：攻击牌打出后也获得格挡', () => {
+  const b = CG.makeBattle({ deck: deckOf(8, { id: 'bulwark', level: 1 }) });
+  assert.equal(b.player.block, 0);
+  b.playCard(b.hand[0].uid);
+  assert.equal(b.player.block, 4);         // 壁垒 4×1，攻击牌也生效
+});

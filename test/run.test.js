@@ -195,6 +195,31 @@ test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）',
   assert.equal(run.shopMult(), 0.5);
 });
 
+test('战斗奖励＝主题 booster pack：pending.pack 合法且每颗宝石词条都来自该包', () => {
+  const run = newRun('pack-reward');
+  run.pending = { tier: 'boss' };                 // 首领档必给宝石奖励（经济档由 pending.tier 决定）
+  run.finishBattle(true, run.hp);
+  assert.equal(run.phase, 'reward');
+  assert.equal(run.pending.kind, 'gem');
+  const pack = CG.PACKS[run.pending.pack];
+  assert.ok(pack, '应记录合法的包 id');
+  const inPack = id => pack.buffs.includes(id) || pack.debuffs.includes(id);
+  assert.equal(run.pending.gems.length, CG.CONFIG.reward.count);
+  run.pending.gems.forEach(g => g.affixes.forEach(a => assert.ok(inPack(a.id), `宝石词条 ${a.id} 不属于 ${run.pending.pack}`)));
+});
+
+test('商店宝石带 pack 标记，且词条来自该包', () => {
+  const run = newRun('shop-pack');
+  run._enterShop();
+  assert.ok(run.pending.gems.length >= 1);
+  run.pending.gems.forEach(it => {
+    const pack = CG.PACKS[it.pack];
+    assert.ok(pack, '商店宝石应记录合法包');
+    const inPack = id => pack.buffs.includes(id) || pack.debuffs.includes(id);
+    it.gem.affixes.forEach(a => assert.ok(inPack(a.id), `商店宝石词条 ${a.id} 不属于 ${it.pack}`));
+  });
+});
+
 test('整局推进：清完每层并击败首领 → 通关（3 层）', () => {
   const run = newRun('full-run');
   let guard = 0;

@@ -35,6 +35,10 @@ window.CG = window.CG || {};
     pierce:     { name: '穿刺', color: '#e0a83a', score: 4, pierce: 1, damageOnly: true, desc: n => `穿刺 ${n}`, long: n => `攻击额外命中右侧相邻的 ${n} 个敌人` },
     regen:      { name: '再生', color: '#7fd6a0', score: 3, selfStatus: 'regen',  desc: n => `再生 ${n}`,  long: n => `每回合开始回复 ${n} 点生命（逐回合 -1）` },
     barbs:      { name: '荆棘', color: '#c98a5a', score: 3, selfStatus: 'thorns', desc: n => `荆棘 ${n}`,  long: n => `本场战斗中，受到攻击时反弹 ${n} 点伤害` },
+    // —— 新增（booster pack 主题词条）——
+    echo:       { name: '回响', color: '#58c8d8', score: 5, freeNext: 1, desc: n => `下一张免费 ×${n}`, long: n => `打出后，本回合接下来 ${n} 张牌耗能为 0（可连锁）` },
+    bulwark:    { name: '壁垒', color: '#7fa8c8', score: 3, block: 4,     desc: n => `格挡 +${4 * n}`,   long: n => `打出时额外获得 ${4 * n} 点格挡（任意卡均生效）` },
+    combo:      { name: '连击', color: '#e0563a', score: 4, combo: 1, damageOnly: true, desc: n => `连击 +${n}`, long: n => `本回合你每打出过一张牌，本牌伤害 +${n}（打出顺序越靠后越强）` },
   };
 
   const DEBUFFS = {
@@ -57,4 +61,30 @@ window.CG = window.CG || {};
 
   CG.isDebuff = id => !!(CG.AFFIXES[id] && CG.AFFIXES[id].debuff);
   CG.affixDisplayName = (id, level) => (level === 2 ? '更' : level === 3 ? '最' : '') + CG.AFFIXES[id].name;
+
+  /* =========================================================================
+   *  Booster Pack —— 把词条按玩法主题分包；战斗后开到的是「一个主题包」，
+   *  包内宝石的词条只来自该包（buffs 为主题增益池，debuffs 为大宝石的减益池）。
+   *  商店 / 祭坛 / 遗物 等其它产宝石处也按包生成（rollGem 不传 pack 时自动选包）。
+   *  「基础包」做通用兜底，故与各主题包有意重叠；选包权重见 config.js 的 packW。
+   *  增益全部被覆盖、每个减益也至少进一个包（见 packs.test.js 的覆盖断言）。
+   * ========================================================================= */
+  CG.PACKS = {
+    basic:    { name: '基础包', icon: '🎴', color: '#cdd2e2', desc: '常见、通用，正负混合的入门包。',
+                buffs: ['suppress', 'neutralize', 'shatter', 'prepare', 'draw', 'recover', 'regen'],
+                debuffs: ['blunt', 'cumbersome', 'expose', 'feeble', 'decay', 'destroy'] },
+    power:    { name: '强攻包', icon: '⚔️', color: '#e89030', desc: '提升伤害与打击次数。',
+                buffs: ['multi', 'overload', 'repeat', 'pierce', 'prepare', 'combo'],
+                debuffs: ['blunt', 'recoil', 'coward', 'cumbersome', 'destroy'] },
+    curse:    { name: '诅咒包', icon: '☠️', color: '#8ab84a', desc: '削弱与控制敌人。',
+                buffs: ['suppress', 'neutralize', 'shatter', 'poison', 'freeze', 'silence'],
+                debuffs: ['expose', 'feeble', 'decay', 'clumsy'] },
+    tempo:    { name: '节奏包', icon: '🌀', color: '#4fb8ee', desc: '抽牌 / 能量 / 费用。',
+                buffs: ['draw', 'bright', 'thrift', 'windfury', 'echo'],
+                debuffs: ['leak', 'cumbersome'] },
+    vitality: { name: '生机包', icon: '🌿', color: '#7fd6a0', desc: '治疗 / 续航 / 反伤。',
+                buffs: ['lifesteal', 'recover', 'regen', 'barbs', 'bulwark'],
+                debuffs: ['recoil', 'expose', 'feeble'] },
+  };
+  CG.PACK_IDS = Object.keys(CG.PACKS);
 })(window.CG);

@@ -12,6 +12,8 @@ window.CG = window.CG || {};
   let pickerHandler = null;   // 当前选择弹窗的回调（卡 / 宝石通用，回传 uid）
   let chooseState = null;     // 当前三选一弹窗状态
   let benchSel = null;        // 工作台：当前选中的背包宝石 uid
+  let packOpened = false;     // 奖励界面：当前 booster pack 是否已拆开（纯 UI 翻面，不进 run 状态）
+  let lastRewardPending = null;
 
   // 以撒式房间类型 → 图标 / 名称（普通房不剧透是否有敌人；清空后统一显示 ✓）
   const ICON  = { start: '🚩', normal: '', elite: '👹', boss: '👑', shop: '🛒', treasure: '🎁', curse: '🩸' };
@@ -93,7 +95,7 @@ window.CG = window.CG || {};
   function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); showScreen('menu'); }
 
   // ---------- 百科大全 ----------
-  const CODEX_TABS = ['affix', 'tarot', 'relic', 'enemy'];
+  const CODEX_TABS = ['affix', 'pack', 'tarot', 'relic', 'enemy'];
   const WHERE_LABEL = { battle: '战斗', map: '地图', any: '通用' };
   const TIER_LABEL = { normal: '普通', elite: '精英', boss: '首领' };
   function enemyTier(id) { return CODEX_TIERS.find(t => CG.ENEMY_POOLS[t].includes(id)) || ''; }
@@ -120,6 +122,15 @@ window.CG = window.CG || {};
         '词条 1~3 级前加「更/最」、数值 ×2/×3。</p>' +
         '<div class="codex-sub">增益（正分）</div>' + (CG.BUFF_ORDER || []).map(row).join('') +
         '<div class="codex-sub">减益（负分）</div>' + (CG.DEBUFF_ORDER || []).map(row).join('');
+    } else if (tab === 'pack') {
+      const names = ids => (ids || []).map(a => `<span style="color:${CG.AFFIXES[a].color}">${CG.AFFIXES[a].name}</span>`).join('、');
+      html = '<p class="codex-note">战斗胜利后开到一个「booster pack」，包内宝石的词条<b>只来自该包主题</b>；商店 / 祭坛等其它产出的宝石也按包生成。' +
+        '一颗宝石仍是「小增益」或「强增益+减益」，只是取材被限定在包内（基础包做通用兜底，与各主题包有意重叠）。</p>' +
+        (CG.PACK_IDS || []).map(id => {
+          const p = CG.PACKS[id];
+          return `<div class="codex-item"><span class="codex-name" style="color:${p.color}">${p.icon} ${p.name}</span>` +
+                 `<span class="codex-desc">${p.desc}<br><b>增益：</b>${names(p.buffs)}<br><b>减益：</b>${names(p.debuffs)}</span></div>`;
+        }).join('');
     } else if (tab === 'tarot') {
       html = CG.TAROT_IDS.map(id => {
         const t = CG.TAROT[id];
@@ -234,19 +245,13 @@ window.CG = window.CG || {};
     $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
   }
 
-  // ---------- 奖励（宝石 或 空法杖，三选一） ----------
+  // ---------- 奖励（宝石＝主题 booster pack 三选一 / 或 空法杖三选一） ----------
   function showReward(run) {
     showScreen('reward');
-    CG.Audio.play('coin');
     const pend = run.pending;
-    let picks, picksLabel;
-    if (pend.kind === 'gem') {
-      picks = pend.gems.map((g, i) => CG.UI.gemFace(g, { clickable: true, data: { ridx: i } })).join('');
-      picksLabel = '选择一颗宝石放入背包（之后在 💎 工作台镶嵌；或跳过）：';
-    } else {
-      picks = pend.cards.map((spec, i) => CG.UI.cardFace(spec, { clickable: true, data: { ridx: i } })).join('');
-      picksLabel = '选择一把法杖加入牌组（空孔可日后镶嵌宝石；或跳过）：';
-    }
+    if (lastRewardPending !== pend) { packOpened = false; lastRewardPending = pend; }   // 新一轮奖励：包重新封口
+    CG.Audio.play('coin');
+
     let tarot = '';
     if (pend.tarot) {
       const t = CG.TAROT[pend.tarot];
@@ -265,17 +270,44 @@ window.CG = window.CG || {};
         return `<span class="relic-got" title="${r.desc}">${r.icon} ${r.name}</span>`;
       }).join('') + '</p>';
     }
+
+    let body;
+    if (pend.kind === 'gem') {
+      const pk = CG.PACKS && CG.PACKS[pend.pack];
+      const color = pk ? pk.color : '#cdd2e2';
+      if (!packOpened) {                                  // 先展示未拆封的包，点击撕开
+        body = `<p>战斗掉落了一个 booster pack：</p>
+          <div class="booster" style="--pk:${color}" data-act="open-pack" title="点击撕开">
+            <div class="booster-icon">${pk ? pk.icon : '📦'}</div>
+            <div class="booster-name">${pk ? pk.name : '宝石包'}</div>
+            <div class="booster-sub">${pk ? pk.desc : ''}</div>
+            <div class="booster-hint">✦ 点击撕开 ✦</div>
+          </div>
+          <button class="big-btn" data-act="skip">跳过</button>`;
+      } else {                                            // 拆开后：主题三选一
+        const picks = pend.gems.map((g, i) => CG.UI.gemFace(g, { clickable: true, data: { ridx: i } })).join('');
+        body = `<p class="pack-open" style="--pk:${color}">${pk ? pk.icon + ' ' + pk.name : '宝石包'} · 三选一放入背包（之后在 💎 工作台镶嵌）</p>
+          ${pk ? `<p class="altar-desc">${pk.desc}</p>` : ''}
+          <div class="reward-cards">${picks}</div>
+          <button class="big-btn" data-act="skip">跳过</button>`;
+      }
+    } else {
+      const picks = pend.cards.map((spec, i) => CG.UI.cardFace(spec, { clickable: true, data: { ridx: i } })).join('');
+      body = `<p>选择一把法杖加入牌组（空孔可日后镶嵌宝石；或跳过）：</p>
+        <div class="reward-cards">${picks}</div>
+        <button class="big-btn" data-act="skip">跳过</button>`;
+    }
+
     $('screen-reward').innerHTML = `
       <div class="panel">
         <h2>战斗胜利</h2>
         <p class="reward-gold">获得金币 💰 ${pend.gold}</p>
         ${relics}${tarot}
-        <p>${picksLabel}</p>
-        <div class="reward-cards">${picks}</div>
-        <button class="big-btn" data-act="skip">跳过</button>
+        ${body}
       </div>`;
   }
   function onRewardClick(ev) {
+    if (ev.target.closest('[data-act="open-pack"]')) { CG.Audio.play('upgrade'); packOpened = true; return showReward(H.getRun()); }
     if (ev.target.closest('[data-act="take-tarot"]')) { CG.Audio.play('coin'); return H.onTakeTarot(); }
     const pickEl = ev.target.closest('.card[data-ridx], .gem[data-ridx]');
     if (pickEl) {
@@ -292,7 +324,7 @@ window.CG = window.CG || {};
     const cfg = CG.CONFIG.shop;
     const gemItems = (run.pending.gems || []).map((it, i) => `
       <div class="shop-item">
-        ${CG.UI.gemFace(it.gem, { dim: it.bought || run.gold < it.price })}
+        ${CG.UI.gemFace(it.gem, { dim: it.bought || run.gold < it.price, tagLabel: (CG.PACKS[it.pack] && CG.PACKS[it.pack].icon + ' ' + CG.PACKS[it.pack].name) || '' })}
         <button class="buy-btn" data-buygem="${i}" ${(it.bought || run.gold < it.price) ? 'disabled' : ''}>
           ${it.bought ? '已购买' : (it.price === 0 ? '免费' : '💰 ' + it.price)}
         </button>

@@ -125,8 +125,10 @@ window.CG = window.CG || {};
     mult = mult || 1;
     const gems = [];
     for (let i = 0; i < C().shop.gemCount; i++) {
-      const g = CG.rollGem({ tier: i === C().shop.gemCount - 1 ? 'elite' : 'monster', minLevel: run.forgeMinLevel() });
-      gems.push({ gem: g, price: Math.floor(CG.gemPrice(g) * mult), bought: false });
+      const tier = i === C().shop.gemCount - 1 ? 'elite' : 'monster';
+      const pack = CG.pickPack(tier);                              // 每个货位各自一个主题包
+      const g = CG.rollGem({ tier, pack, minLevel: run.forgeMinLevel() });
+      gems.push({ gem: g, pack, price: Math.floor(CG.gemPrice(g) * mult), bought: false });
     }
     const cards = [];
     for (let i = 0; i < C().shop.cardCount; i++) {
@@ -332,12 +334,13 @@ window.CG = window.CG || {};
         this.pending = { altar: pick(valid.length ? valid : ['findgem']), relics: dropped };
         this.phase = 'event'; this._emit(); return;
       }
-      // 奖励：宝石（三选一进背包）或 空法杖（三选一进牌组）
+      // 奖励：宝石（开一个主题 booster pack，包内三选一进背包）或 空法杖（三选一进牌组）
       const gemTier = tier === 'monster' ? 'monster' : tier;
       const gemReward = tier === 'boss' || Math.random() < (C().rewardGemChance[tier] || 0.65);
-      const gems = gemReward ? Array.from({ length: C().reward.count }, () => CG.rollGem({ tier: gemTier, minLevel: this.forgeMinLevel() })) : null;
+      const packId = gemReward ? CG.pickPack(gemTier) : null;     // 该次奖励整包同一主题，词条只来自此包
+      const gems = gemReward ? Array.from({ length: C().reward.count }, () => CG.rollGem({ tier: gemTier, pack: packId, minLevel: this.forgeMinLevel() })) : null;
       const cards = gemReward ? null : Array.from({ length: C().reward.count }, () => rollCardReward(tier));
-      this.pending = { kind: gemReward ? 'gem' : 'card', gold: earned, gems, cards, tarot: tarotId, tarotTaken: false, relics: dropped };
+      this.pending = { kind: gemReward ? 'gem' : 'card', gold: earned, pack: packId, gems, cards, tarot: tarotId, tarotTaken: false, relics: dropped };
       this.phase = 'reward';
       this._emit();
     }

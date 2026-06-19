@@ -280,7 +280,7 @@ window.CG = window.CG || {};
       g.buffs.concat(g.debuffs).map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>')
     ).filter(Boolean).join('<span class="gem-sep"> ┃ </span>');
     const lines = descGroups ? `<div class="affix-lines">${descGroups}</div>` : '';
-    return `<div class="card-cost">${s.cost}</div>
+    return `<div class="card-cost${s._free ? ' free' : ''}">${s.cost}</div>
       <div class="card-art">${CG.CardArt.get(s.base)}</div>
       <div class="card-body">
         <div class="card-name">${name}</div>
@@ -314,8 +314,11 @@ window.CG = window.CG || {};
     return `<div class="${cls}" ${data}>${cardInner(s)}</div>`;
   }
   function handCardHTML(game, inst) {
-    const s = CG.cardStats(inst, { valueMult: game.cardValueMult });
-    const ok = game.phase === 'player' && s.cost <= game.player.energy;
+    let s = CG.cardStats(inst, { valueMult: game.cardValueMult });
+    const free = (game.freeCards || 0) > 0;                     // 回响：本张可免费打出
+    const payCost = free ? 0 : s.cost;
+    const ok = game.phase === 'player' && payCost <= game.player.energy;
+    if (free) s = Object.assign({}, s, { cost: 0, _free: true });
     return `<div class="card type-${s.type} ${ok ? '' : 'disabled'}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
   }
 
@@ -406,7 +409,8 @@ window.CG = window.CG || {};
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());
     $('battle-relics').innerHTML = relicIcons(game.relics);
-    $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}`;
+    const freeHint = (game.freeCards || 0) > 0 ? ` <small class="free-hint" title="回响：接下来 ${game.freeCards} 张牌免费打出">🔁${game.freeCards}</small>` : '';
+    $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}${freeHint}`;
     $('draw-pile').innerHTML = `🂠 抽牌堆 <b>${game.drawPile.length}</b><small>点击查看</small>`;
     $('discard-pile').innerHTML = `🗑️ 弃牌堆 <b>${game.discardPile.length}</b><small>点击查看</small>`;
 

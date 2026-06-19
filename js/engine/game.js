@@ -130,6 +130,8 @@ window.CG = window.CG || {};
       this._deck = deck;                       // 原始牌组引用（愚者重开时重新克隆）
       this.nextCardDmgMult = 1;                // 力量塔罗
       this._tempStrength = 0;                  // 战车（本回合力量）
+      this.freeCards = 0;                      // 回响：可免费打出的张数
+      this._playedThisTurn = 0;                // 连击：本回合已打出牌数
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -167,6 +169,8 @@ window.CG = window.CG || {};
       this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)) + energyBonus;
       this.nextEnergyPenalty = 0;
       this._turnPlays = {};                       // 风怒：本回合各卡已打出次数
+      this.freeCards = 0;                          // 回响：本回合可免费打出的张数
+      this._playedThisTurn = 0;                    // 连击：本回合已打出牌数
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -234,15 +238,23 @@ window.CG = window.CG || {};
       if (idx === -1) return;
       const card = this.hand[idx];
       let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
-      if (s.cost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
+      const free = (this.freeCards || 0) > 0;                          // 回响：本张免费打出
+      const payCost = free ? 0 : s.cost;
+      if (payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
 
       // 力量塔罗：下一张攻击牌造成 N 倍伤害（用后清除）
       if (this.nextCardDmgMult > 1 && s.kind === 'damage') {
         s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value * this.nextCardDmgMult }) : e) });
         this.nextCardDmgMult = 1;
       }
+      // 连击：本回合此前每打出过一张牌，本牌伤害 +combo
+      if (s.combo > 0) {
+        const bonus = s.combo * (this._playedThisTurn || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
 
-      this.player.energy -= s.cost;
+      if (free) this.freeCards -= 1;                                   // 消耗一层回响
+      this.player.energy -= payCost;
       this.hand.splice(idx, 1);
       this.addLog(`你打出了 ${s.name}。`);
 
@@ -263,6 +275,9 @@ window.CG = window.CG || {};
       if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
       // 透支：累计下回合能量惩罚
       if (s.nextEnergyPenalty) this.nextEnergyPenalty = (this.nextEnergyPenalty || 0) + s.nextEnergyPenalty;
+      // 回响：打出后使本回合接下来若干张牌免费；连击：本回合打出牌计数 +1
+      if (s.freeNext) this.freeCards = (this.freeCards || 0) + s.freeNext;
+      this._playedThisTurn = (this._playedThisTurn || 0) + 1;
 
       // 风怒：本回合前 N 次打出后回到手牌（销毁优先，不回手）
       let returned = false;
