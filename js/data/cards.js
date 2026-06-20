@@ -520,18 +520,38 @@ window.CG = window.CG || {};
     return p.length ? weightedPick(p) : null;
   }
 
-  // 本局可用的 booster 包集合（null = 全部）。开局由 Run 设定：基础包 + 3 个随机增强包。
+  // 本局选定的「主题」集合（null = 全部）。开局由 Run 设定：默认基础主题 + 3 个随机主题，可在开始菜单自选。
+  // 选定后把这些主题「融合」成唯一的一个 `CG.PACKS.fusion`：本局所有扩充包都＝这个融合包（主题混合）。
   let _activePacks = null;
-  CG.setActivePacks = function (ids) { _activePacks = (ids && ids.length) ? ids.slice() : null; };
+  CG.setActivePacks = function (ids) { _activePacks = (ids && ids.length) ? ids.slice() : null; CG.buildFusionPack(_activePacks); };
   CG.getActivePacks = function () { return _activePacks; };
-  // 开局随机：恒含「基础包」+ 从增强包里随机 3 个（其余增强包本局不出）。
+  // 把选定的主题融合成「一个」融合包：增益池 = 各主题增益之并集，减益池同理。每颗宝石都从这个并集里抽 → 主题混合。
+  CG.buildFusionPack = function (ids) {
+    if (!ids || !ids.length) { if (CG.PACKS) delete CG.PACKS.fusion; return null; }
+    const buffs = [], debuffs = [];
+    ids.forEach(id => { const p = CG.PACKS && CG.PACKS[id]; if (!p || p.fusion) return; (p.buffs || []).forEach(b => buffs.push(b)); (p.debuffs || []).forEach(d => debuffs.push(d)); });
+    const names = ids.map(id => (CG.PACKS[id] || {}).name).filter(Boolean);
+    CG.PACKS.fusion = { id: 'fusion', fusion: true, name: '融合包', icon: '🌀', color: '#b59ad8', themes: ids.slice(), buffs, debuffs, desc: '本局融合主题：' + names.join('、') };
+    return CG.PACKS.fusion;
+  };
+  CG.fusionPack = function () { return (CG.PACKS && CG.PACKS.fusion) || null; };
+  // 一颗宝石属于哪个「主题」（按其首个增益所在的主题分组）——用于在融合奖励里标注每颗宝石的取向。
+  CG.gemTheme = function (gem) {
+    const af = (gem && gem.affixes) || [];
+    const a = af.find(x => !CG.isDebuff(x.id)) || af[0];
+    if (!a) return null;
+    const key = CG.affixGroupOf ? CG.affixGroupOf(a.id) : null;
+    return (key && CG.PACKS && CG.PACKS[key]) || null;
+  };
+  // 开局默认主题：恒含「基础」+ 从其它主题里随机 3 个（玩家可在开始菜单改选任意主题，全部融合）。
   CG.rollRunPacks = function () {
-    const themed = (CG.PACK_IDS || []).filter(id => id !== 'basic');
+    const themed = (CG.PACK_IDS || []).filter(id => id !== 'basic' && id !== 'fusion');
     for (let i = themed.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [themed[i], themed[j]] = [themed[j], themed[i]]; }
     return ['basic'].concat(themed.slice(0, 3));
   };
-  // 按层数权重选一个 booster pack；本局有 activePacks 时只在其中选。返回包 id。
+  // 选包：本局有融合包时恒返回它（所有扩充包都＝融合包）；否则（无 run/单测）按权重在全部主题里兜底选一个。
   CG.pickPack = function (tier) {
+    if (CG.PACKS && CG.PACKS.fusion) return 'fusion';
     let w = (CG.CONFIG && CG.CONFIG.packW && tier && CG.CONFIG.packW[tier]) || null;
     if (w && _activePacks) w = w.filter(p => _activePacks.includes(p[0]));
     if (w && w.length) return weightedPick(w);

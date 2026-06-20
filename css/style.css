@@ -103,6 +103,7 @@ body::before {
 /* 开始菜单·调试卡包选择 */
 .menu-debug { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 8px; }
 .menu-debug-head { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.menu-debug-sub { color: var(--ink); font-size: 12px; line-height: 1.5; text-align: center; opacity: .85; }
 .menu-debug-packs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .pack-toggle { --oct-fill: #1c1f2c; --radius: 12px; font-size: 13px; font-weight: 700; padding: 8px 12px; opacity: .5; filter: grayscale(.55); }
 .pack-toggle.on { opacity: 1; filter: none; outline: 2px solid color-mix(in srgb, var(--pk) 78%, transparent); outline-offset: -2px;

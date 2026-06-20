@@ -14,7 +14,8 @@ window.CG = window.CG || {};
   let benchSel = null;        // 工作台：当前选中的背包宝石 uid
   let packOpened = false;     // 奖励界面：当前 booster pack 是否已拆开（纯 UI 翻面，不进 run 状态）
   let lastRewardPending = null;
-  let debugPacks = new Set(); // 开始菜单·调试：本局手动启用的卡包（默认全空，至少 1 个才能开始）
+  let debugPacks = new Set(); // 开始菜单：本局选定的主题（默认＝基础 + 3 随机，可自选；全部融合成一个融合包）
+  let menuPacksInit = false;  // 首次渲染菜单时把默认主题填进去
   let debugGem = [];          // 调试菜单·自定义宝石：构建中的词条 [{id, level}]
 
   // 以撒式房间类型 → 图标 / 名称（普通房不剧透是否有敌人；清空后统一显示 ✓）
@@ -107,17 +108,20 @@ window.CG = window.CG || {};
   function renderMenuDebug() {
     const box = $('menu-debug');
     if (!box) return;
-    const toggles = (CG.PACK_IDS || []).map(id => {
+    if (!menuPacksInit) { debugPacks = new Set(CG.rollRunPacks()); menuPacksInit = true; }   // 默认：基础 + 3 随机主题
+    const toggles = (CG.PACK_IDS || []).filter(id => id !== 'fusion').map(id => {
       const p = CG.PACKS[id];
       return `<button class="pack-toggle ${debugPacks.has(id) ? 'on' : ''}" data-pack="${id}" style="--pk:${p.color}" title="${p.desc}">${p.icon} ${p.name}</button>`;
     }).join('');
+    const names = getSelectedPacks().map(id => CG.PACKS[id].name);
     box.innerHTML =
-      `<div class="menu-debug-head">🐞 调试 · 选择本局启用的卡包（默认全关，至少开 1 个才能开始）</div>
+      `<div class="menu-debug-head">🎴 选择本局<b>主题</b>（选定的主题会融合成一个「融合包」，本局所有扩充包都从中混合产出）</div>
        <div class="menu-debug-packs">${toggles}</div>
+       <div class="menu-debug-sub">已选 ${debugPacks.size} 个 → 🌀 融合包${names.length ? '：' + names.join(' · ') : '（至少选 1 个）'}</div>
        <div class="menu-debug-tools">
          <button data-dbg="all">全选</button>
          <button data-dbg="none">清空</button>
-         <button data-dbg="random">🎲 随机 4 包</button>
+         <button data-dbg="random">🎲 基础 + 随机 3</button>
        </div>`;
     syncMenuStart();
   }
@@ -227,12 +231,12 @@ window.CG = window.CG || {};
     } else if (tab === 'pack') {
       const names = ids => (ids || []).map(a => `<span style="color:${CG.AFFIXES[a].color}">${CG.AFFIXES[a].name}</span>`).join('、');
       const active = (H.getRun && H.getRun() && H.getRun().packs) || null;
-      html = '<p class="codex-note">战斗胜利后开到一个「booster pack」，包内宝石的词条<b>只来自该包主题</b>；商店 / 祭坛等其它产出的宝石也按包生成。' +
-        '一颗宝石仍是「小增益」或「强增益+减益」，只是取材被限定在包内（基础包做通用兜底，与各主题包有意重叠）。</p>' +
-        (active ? `<p class="codex-note">本局启用：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' / ')}（每局＝基础包 + 随机 3 个增强包，其余本局不出）。</p>` : '') +
-        (CG.PACK_IDS || []).map(id => {
+      html = '<p class="codex-note">每个词条都属于一个<b>主题</b>。开局选定若干主题，它们会<b>融合成一个「🌀 融合包」</b>——本局战斗奖励 / 商店 / 祭坛产出的宝石全部从这些主题的<b>混合池</b>里抽（每颗宝石可能来自不同主题）。' +
+        '一颗宝石仍是「小增益」或「强增益+减益」。</p>' +
+        (active ? `<p class="codex-note">本局融合主题（${active.length} 个）：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' / ')}（默认＝基础 + 随机 3，开始菜单可自选）。</p>` : '') +
+        (CG.PACK_IDS || []).filter(id => id !== 'fusion').map(id => {
           const p = CG.PACKS[id], on = !active || active.includes(id);
-          const tag = active ? (on ? ' <span style="color:#6dbb7a">· 本局启用</span>' : ' <span style="color:var(--muted)">· 本局未启用</span>') : '';
+          const tag = active ? (on ? ' <span style="color:#6dbb7a">· 本局融合</span>' : ' <span style="color:var(--muted)">· 本局未选</span>') : '';
           return `<div class="codex-item" style="${on ? '' : 'opacity:.5'}"><span class="codex-name" style="color:${p.color}">${p.icon} ${p.name}${tag}</span>` +
                  `<span class="codex-desc">${p.desc}<br><b>增益：</b>${names(p.buffs)}<br><b>减益：</b>${names(p.debuffs)}</span></div>`;
         }).join('');
@@ -442,8 +446,8 @@ window.CG = window.CG || {};
           </div>
           <button class="big-btn" data-act="skip">跳过</button>`;
       } else {                                            // 拆开后：主题三选一
-        const picks = pend.gems.map((g, i) => CG.UI.gemFace(g, { clickable: true, data: { ridx: i } })).join('');
-        body = `<p class="pack-open" style="--pk:${color}">${pk ? pk.icon + ' ' + pk.name : '宝石包'} · 三选一放入背包（之后在 💎 工作台镶嵌）</p>
+        const picks = pend.gems.map((g, i) => { const th = CG.gemTheme && CG.gemTheme(g); return CG.UI.gemFace(g, { clickable: true, data: { ridx: i }, tagLabel: th ? th.icon + ' ' + th.name : '' }); }).join('');
+        body = `<p class="pack-open" style="--pk:${color}">${pk ? pk.icon + ' ' + pk.name : '宝石包'} · 三选一放入背包（每颗可能来自不同主题）</p>
           ${pk ? `<p class="altar-desc">${pk.desc}</p>` : ''}
           <div class="reward-cards">${picks}</div>
           <button class="big-btn" data-act="skip">跳过</button>`;
@@ -481,7 +485,7 @@ window.CG = window.CG || {};
     const cfg = CG.CONFIG.shop;
     const gemItems = (run.pending.gems || []).map((it, i) => `
       <div class="shop-item">
-        ${CG.UI.gemFace(it.gem, { dim: it.bought || run.gold < it.price, tagLabel: (CG.PACKS[it.pack] && CG.PACKS[it.pack].icon + ' ' + CG.PACKS[it.pack].name) || '' })}
+        ${CG.UI.gemFace(it.gem, { dim: it.bought || run.gold < it.price, tagLabel: (() => { const th = CG.gemTheme && CG.gemTheme(it.gem); return th ? th.icon + ' ' + th.name : ''; })() })}
         <button class="buy-btn" data-buygem="${i}" ${(it.bought || run.gold < it.price) ? 'disabled' : ''}>
           ${it.bought ? '已购买' : (it.price === 0 ? '免费' : '💰 ' + it.price)}
         </button>
@@ -591,7 +595,7 @@ window.CG = window.CG || {};
     const avail = it.rolled.filter(g => !taken.includes(g.uid));
     const remain = pick - taken.length;
     openGemPicker(`${pk ? pk.icon + ' ' + pk.name : '宝石包'} · ${it.count} 选 ${pick}（还可取 ${remain}）`,
-      avail.map(g => ({ gem: g, uid: g.uid })), uid => {
+      avail.map(g => { const th = CG.gemTheme && CG.gemTheme(g); return { gem: g, uid: g.uid, label: th ? th.icon + ' ' + th.name : '' }; }), uid => {
         H.onTakePackGem(i, uid);
         const it2 = (H.getRun().pending || {}).packs && H.getRun().pending.packs[i];
         if (it2 && !it2.taken) openPackPicker(i);     // 还有名额 → 续开挑下一颗
@@ -610,7 +614,7 @@ window.CG = window.CG || {};
   // 诅咒房战利品：2 个随机「商店货色」（宝石 / 法杖 / 塔罗 / 遗物 / 兜底金币）
   function curseOffersHTML(offers) {
     return '<div class="reward-cards">' + (offers || []).map(o => {
-      if (o.type === 'gem') { const pk = CG.PACKS[o.pack]; return CG.UI.gemFace(o.gem, { tagLabel: pk ? pk.icon + ' ' + pk.name : '' }); }
+      if (o.type === 'gem') { const th = CG.gemTheme && CG.gemTheme(o.gem); return CG.UI.gemFace(o.gem, { tagLabel: th ? th.icon + ' ' + th.name : '' }); }
       if (o.type === 'card') return CG.UI.cardFace(o.card);
       if (o.type === 'tarot') { const t = CG.TAROT[o.id]; return `<div class="shop-tarot-face" title="${t.desc}"><span class="shop-tarot-icon">${t.icon}</span><b>${t.name}</b><small>${t.desc}</small></div>`; }
       if (o.type === 'relic') { const r = CG.RELICS[o.id]; return `<div class="shop-tarot-face relic-card" title="${r.desc}"><span class="shop-tarot-icon">${r.icon}</span><b>${r.name}</b><small>${r.desc}</small></div>`; }
