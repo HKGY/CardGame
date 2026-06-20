@@ -109,6 +109,13 @@ window.CG = window.CG || {};
         if (st[k] <= 0) delete st[k];
       });
     },
+    // === 留置包 ===
+    clutch(game, eff) {                                                                         // 手滑：随机弃 N 张手牌（弃进弃牌堆）
+      for (let i = 0; i < eff.value && game.hand.length; i++) {
+        const j = Math.floor(Math.random() * game.hand.length);
+        game.discardPile.push(game.hand.splice(j, 1)[0]);
+      }
+    },
   };
 
   CG.Effects = {

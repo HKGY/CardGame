@@ -186,6 +186,15 @@ window.CG = window.CG || {};
       this._checkEnd();
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
       if (this.player.statuses.regen) this.heal(this.player.statuses.regen);   // 再生：回合开始回血
+      // === 留置包 ===：抽新牌「之前」，对上回合保留下来的在手牌养牌——
+      //   在手回合数 +1；再按各自词条蓄势(数值)/待发(降费)/滞涩(涨费)。drawCards 自带 HAND_LIMIT，保留的牌占位、超限会少抽。
+      for (const c of this.hand) {
+        c.heldTurns = (c.heldTurns || 0) + 1;
+        const s = CG.cardStats(c);
+        if (s.chargeUp)  c.heldBonus = (c.heldBonus || 0) + s.chargeUp;   // 蓄势：永久加成 += L
+        if (s.primed)    c.holdCost  = (c.holdCost  || 0) - s.primed;     // 待发：越攒越便宜
+        if (s.sluggish)  c.holdCost  = (c.holdCost  || 0) + s.sluggish;   // 滞涩：越攒越贵
+      }
       this.drawCards(CARDS_PER_TURN + drawBonus);
       // === 生产包 ===（每回合开始的被动产出引擎；prod* 状态常驻、不进 _tickStatuses 衰减）
       const st = this.player.statuses;
@@ -214,8 +223,10 @@ window.CG = window.CG || {};
         spoiled.push(b.spoiled);
         const i = this.hand.findIndex(x => x.uid === c.uid); if (i >= 0) this.exhaustPile.push(this.hand.splice(i, 1)[0]);
       }
-      this.discardPile.push(...this.hand);
-      this.hand = [];
+      // === 留置包 ===：保留(retain)的牌不进弃牌堆，留在手里跨回合（沉重 heavyhold 也算 retain）。
+      const kept = [];
+      for (const c of this.hand) { if (CG.cardStats(c).retain) kept.push(c); else this.discardPile.push(c); }
+      this.hand = kept;
       this._tickStatuses(this.player);
       spoiled.forEach(kind => {
         if (kind === 'selfdmg') { this.player.hp = Math.max(0, this.player.hp - 2); this.addLog('馊饭：失去 2 生命。'); }
@@ -312,6 +323,17 @@ window.CG = window.CG || {};
       if (s.lastStand > 0) {
         const bonus = Math.floor((1 - this.player.hp / this.player.maxHp) * 10 * s.lastStand);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // === 留置包 ===
+      // 蓄力一击：本牌伤害额外 +（在手回合数 × 2 × 等级）
+      if (s.heldStrike > 0) {
+        const bonus = s.heldStrike * 2 * (card.heldTurns || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // 屯牌：本牌数值额外 +（出牌后手牌数 × 等级）（此刻本牌仍在手，故出牌后手牌数 = hand.length - 1）
+      if (s.hoard > 0) {
+        const bonus = s.hoard * Math.max(0, this.hand.length - 1);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // 元素反应：本牌附元素时，按主目标当前元素与层数定反应（消耗 min(prev,new) 级、效果发生这么多次、余量留存）
       const elem = s.element, elemLv = s.elementLevel || 0;

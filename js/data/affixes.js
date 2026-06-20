@@ -73,6 +73,12 @@ window.CG = window.CG || {};
     compound:  { name: '复利', color: '#d0e078', score: 5, selfStatus: 'prodGrow',  desc: n => `蓄能逐回合 +${n}`, long: n => `获得 ${n} 层「复利」：此后每回合开始你的「蓄能」自增 ${n}（越拖越强）` },
     harvest:   { name: '丰收', color: '#cfe05a', score: 4, harvest: 1,  desc: n => `产出层 ×${n}→格挡`,  long: n => `打出后：把当前耕作/蓄能/复利的层数总和 ×${n} 化为格挡` },
     irrigate:  { name: '灌溉', color: '#a0d870', score: 4, irrigate: 1, desc: n => `立即产出 ${n} 次`,    long: n => `打出后：立即结算 ${n} 次「每回合产出」（按当前蓄能加格挡、按耕作抽牌）` },
+    // === 留置包 ===（留牌养牌：牌可保留在手、随停留回合数/手牌数成长）
+    keep:       { name: '保留', color: '#b0c0d8', score: 3, retain: true,             desc: () => `保留（不弃手）`, long: () => `回合结束不被弃掉，保留在手` },
+    chargeup:   { name: '蓄势', color: '#9fb6d8', score: 4, retain: true, chargeUp: 1, desc: n => `每留 1 回合数值 +${n}`, long: n => `保留在手；每经过 1 个回合数值 +${n}（永久蓄积）` },
+    heldstrike: { name: '蓄力一击', color: '#c8a0d8', score: 4, heldStrike: 1,         desc: n => `+在手回合 ×${2 * n}`, long: n => `本牌伤害额外 +（在手回合数 × ${2 * n}）` },
+    hoard:      { name: '屯牌', color: '#a0c8c0', score: 4, hoard: 1,                  desc: n => `+出牌后手牌数 ×${n}`, long: n => `本牌数值额外 +（打出后手牌数 × ${n}）` },
+    primed:     { name: '待发', color: '#a8c0d0', score: 4, retain: true, primed: 1,   desc: n => `每留 1 回合 -${n} 费`, long: n => `保留在手；每经过 1 个回合本牌耗能 -${n}（越攒越便宜）` },
   };
 
   const DEBUFFS = {
@@ -105,6 +111,10 @@ window.CG = window.CG || {};
     cropfail: { name: '歉收', color: '#8a8a4a', score: -3, debuff: true, selfStatus: 'prodSkip',   desc: n => `跳过 ${n} 次产出`, long: n => `攒下 ${n} 次「歉收」：之后每个回合开始跳过一次被动产出，直到耗尽` },
     upkeep:   { name: '养护', color: '#9a7a4a', score: -3, debuff: true, selfStatus: 'prodUpkeep', desc: n => `每回合能量 -${n}`, long: n => `获得 ${n} 层「养护」：此后每回合开始失去 ${n} 点能量（常驻）` },
     stagnate: { name: '滞产', color: '#7a8a5a', score: -3, debuff: true, stagnate: 1, desc: n => `蓄能/耕作各 -${n}`, long: n => `打出后：你的「蓄能」与「耕作」各 -${n}（夹 0）` },
+    // === 留置包·负面 ===
+    heavyhold: { name: '沉重', color: '#8a8f9e', score: -3, debuff: true, retain: true,    desc: () => `强制保留（堵手）`, long: () => `回合结束不被弃掉，强制留在手里却无任何收益` },
+    sluggish:  { name: '滞涩', color: '#9a8a6a', score: -3, debuff: true, sluggish: 1,     desc: n => `每留 1 回合 +${n} 费`, long: n => `保留在手时，每经过 1 个回合本牌耗能 +${n}（越攒越贵）` },
+    clutch:    { name: '手滑', color: '#a0763c', score: -3, debuff: true, clutch: 1,       desc: n => `随机弃 ${n} 张手牌`, long: n => `打出后随机弃掉 ${n} 张手牌` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -184,6 +194,10 @@ window.CG = window.CG || {};
     produce:  { name: '生产包', icon: '🌾', color: '#b6d36a', desc: '复利引擎：每回合被动产出，越拖越强。',
                 buffs: ['farming', 'stockpile', 'compound', 'harvest', 'irrigate'],
                 debuffs: ['cropfail', 'upkeep', 'stagnate'] },
+    // === 留置包 ===
+    retain:   { name: '留置包', icon: '🤲', color: '#b0c0d8', desc: '留牌养牌：握得越久越强。',
+                buffs: ['keep', 'chargeup', 'heldstrike', 'hoard', 'primed'],
+                debuffs: ['heavyhold', 'sluggish', 'clutch'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

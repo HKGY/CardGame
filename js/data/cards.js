@@ -115,6 +115,8 @@ window.CG = window.CG || {};
     // === 死守包 ===
     let shieldBashN = 0, lastStandN = 0, keepBlockN = 0, braceN = 0, loseEnergyN = 0, loseBlockN = 0;
     let harvestN = 0, irrigateN = 0, stagnateN = 0;   // === 生产包 ===（push 型词条；farming/stockpile/compound/cropfail/upkeep 走 selfStatus 自动结算）
+    // === 留置包 ===
+    let retain = false, heldStrikeN = 0, hoardN = 0, chargeUpN = 0, primedN = 0, sluggishN = 0, clutchN = 0;
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -157,6 +159,14 @@ window.CG = window.CG || {};
       if (d.harvest)   harvestN  += d.harvest * L;       // 丰收：产出层数总和 ×L → 格挡
       if (d.irrigate)  irrigateN += d.irrigate * L;      // 灌溉：立即结算 L 次产出
       if (d.stagnate)  stagnateN += d.stagnate * L;      // 滞产：蓄能/耕作各 -L
+      // === 留置包 ===
+      if (d.retain)     retain = true;                  // 保留：回合结束不弃手
+      if (d.heldStrike) heldStrikeN += d.heldStrike * L;  // 蓄力一击：伤害随在手回合数增长（playCard 结算）
+      if (d.hoard)      hoardN += d.hoard * L;          // 屯牌：数值随出牌后手牌数增长（playCard 结算）
+      if (d.chargeUp)   chargeUpN += d.chargeUp * L;    // 蓄势：每回合在手时 heldBonus += L（_startPlayerTurn）
+      if (d.primed)     primedN += d.primed * L;        // 待发：每回合在手时 holdCost -= L（_startPlayerTurn）
+      if (d.sluggish)   sluggishN += d.sluggish * L;    // 滞涩：每回合在手时 holdCost += L（_startPlayerTurn）
+      if (d.clutch)     clutchN += d.clutch * L;        // 手滑：打出后随机弃 N 张手牌
       if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
       if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
       if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
@@ -171,8 +181,9 @@ window.CG = window.CG || {};
     });
     if (statuses.frozen) statuses.frozen = 1;        // 冰封不随等级叠加：固定跳过 1 次行动
 
-    const cost = Math.max(0, b.cost + costD);
-    const value = Math.max(0, Math.floor((b.base + valFlat) * (1 + valPct / 100)) * valueMult);
+    // === 留置包 ===：holdCost（待发/滞涩攒出的净改费，可正可负）改费；heldBonus（蓄势攒出的永久加成）增值
+    const cost = Math.max(0, b.cost + costD + (inst.holdCost || 0));
+    const value = Math.max(0, Math.floor((b.base + valFlat + (inst.heldBonus || 0)) * (1 + valPct / 100)) * valueMult);
     const hits = 1 + hitsD;
     const limit = inst.limit == null ? sockets.length : inst.limit;
     const emptySockets = Math.max(0, limit - sockets.length);
@@ -211,6 +222,7 @@ window.CG = window.CG || {};
     if (harvestN)  effects.push({ type: 'harvest', value: harvestN });                        // 丰收：产出层总和 ×L → 格挡
     if (irrigateN) effects.push({ type: 'irrigate', value: irrigateN });                      // 灌溉：立即产出 L 次
     if (stagnateN) effects.push({ type: 'stagnate', value: stagnateN });                      // 滞产：蓄能/耕作各 -L
+    if (clutchN)   effects.push({ type: 'clutch', value: clutchN });                          // === 留置包 === 手滑：随机弃 N 张
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -232,6 +244,7 @@ window.CG = window.CG || {};
       ashes: ashesN, burnSelect: burnSelN, reborn: rebornN, nirvana, undying,   // 消耗包
       overclock: overclockN, arc: arcN,                                          // 电力包（playCard 用）
       shieldBash: shieldBashN, lastStand: lastStandN,                            // 死守包（playCard 用）
+      retain, heldStrike: heldStrikeN, hoard: hoardN, chargeUp: chargeUpN, primed: primedN, sluggish: sluggishN,   // === 留置包 ===
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -304,6 +317,7 @@ window.CG = window.CG || {};
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
       element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: false, undying: false,
       overclock: 0, arc: 0, shieldBash: 0, lastStand: 0,
+      retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置包 ===
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };
