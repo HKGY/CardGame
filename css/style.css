@@ -218,6 +218,14 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 @keyframes fly-left  { from { transform: translateX(-135%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes fly-right { from { transform: translateX(135%);  opacity: 0; } to { transform: none; opacity: 1; } }
 
+/* ===== 厨艺·做菜选料浮层 ===== */
+.craft-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: #0a0c14d0; padding: 16px; }
+.craft-overlay.hidden { display: none; }
+.craft-box { background: linear-gradient(160deg, #2a2230, #16131c); border: 1px solid #e0a45a66; border-radius: 18px; box-shadow: 0 12px 48px #000a; max-width: 92vw; max-height: 86vh; overflow: auto; padding: 18px 22px; text-align: center; }
+.craft-box h3 { margin: 0 0 12px; color: #e9b878; }
+.craft-cards { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 14px; }
+.craft-actions { display: flex; gap: 12px; justify-content: center; }
+
 /* ===== 通用面板（奖励/商店/休息/结算） ===== */
 .panel { --oct-fill: var(--panel); --oct-rim: #46506f; --radius: 20px; max-width: 760px; margin: 10px auto; padding: 24px; }
 .panel.center { text-align: center; }

@@ -26,7 +26,28 @@ window.CG = window.CG || {};
     shieldbash: { name: '盾击', cost: 1, type: 'attack', kind: 'damage',   base: 3, block: 2 },  // 盾兵专属：造成伤害并获得格挡
     heal:       { name: '治疗', cost: 1, type: 'skill',  kind: 'heal',     base: 2 },             // 牧师：回复生命
     pray:       { name: '祈祷', cost: 1, type: 'power',  kind: 'randbuff', base: 1 },             // 牧师：获得随机增益
+
+    // ===== 厨艺包·食材卡（不走宝石聚合，cardStats 转交 foodStats；仅本场战斗、进手牌）=====
+    tomato:  { name: '番茄',   cost: 0, type: 'skill',  food: 'veg',  level: 1, icon: '🍅' },
+    potato:  { name: '土豆',   cost: 0, type: 'skill',  food: 'veg',  level: 2, icon: '🥔' },
+    carrot:  { name: '胡萝卜', cost: 0, type: 'skill',  food: 'veg',  level: 3, icon: '🥕' },
+    fish:    { name: '鱼肉',   cost: 0, type: 'skill',  food: 'meat', level: 1, icon: '🐟' },
+    chicken: { name: '鸡肉',   cost: 0, type: 'skill',  food: 'meat', level: 2, icon: '🍗' },
+    beef:    { name: '牛肉',   cost: 0, type: 'skill',  food: 'meat', level: 3, icon: '🥩' },
+    salt:    { name: '盐',     cost: 0, type: 'skill',  food: 'season', season: 'salt',   icon: '🧂' },
+    soy:     { name: '酱油',   cost: 0, type: 'skill',  food: 'season', season: 'soy',    icon: '🍶' },
+    pepper:  { name: '胡椒',   cost: 0, type: 'skill',  food: 'season', season: 'pepper', icon: '🌶️' },
+    cleaver: { name: '菜刀',   cost: 1, type: 'attack', kind: 'cookware', cook: 'cleaver', icon: '🔪' },
+    wok:     { name: '铁锅',   cost: 1, type: 'skill',  kind: 'cookware', cook: 'wok',     icon: '🍳' },
+    stove:   { name: '火炉',   cost: 1, type: 'attack', kind: 'cookware', cook: 'stove',   icon: '🔥' },
+    spoiled_rice: { name: '馊饭', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'selfdmg', icon: '🍚' },
+    stinky_meat:  { name: '臭肉', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'weak',    icon: '🥓' },
+    rotten_veg:   { name: '烂菜', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'vuln',    icon: '🥬' },
+    meal:    { name: '餐点',   cost: 0, type: 'skill',  kind: 'meal', icon: '🍲' },               // 动态：effects 挂在实例 .meal 上
   };
+  // 食材分类（随机生成用）
+  CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'], cookware: ['cleaver', 'wok', 'stove'] };
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'cookware' || b.kind === 'spoiled' || b.kind === 'meal')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -66,6 +87,7 @@ window.CG = window.CG || {};
   CG.cardStats = function (inst, opts) {
     const valueMult = (opts && opts.valueMult) || 1;
     const b = CG.BASE_CARDS[inst.base];
+    if (CG.isFood(inst.base)) return CG.foodStats(inst);   // 厨艺食材：固定效果卡，不走宝石聚合
     const order = id => CG.AFFIX_ORDER.indexOf(id);
     const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, debuff: !!def.debuff, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base) }; };
     const bySort = (x, y) => order(x.id) - order(y.id);
@@ -85,7 +107,8 @@ window.CG = window.CG || {};
         costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false,
         blockFlat = 0, freeNextN = 0, comboN = 0;
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
-    const statuses = {}, selfStatuses = {};
+    const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」
+    all.forEach(({ def: d, level: L }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + L; });
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -138,6 +161,7 @@ window.CG = window.CG || {};
     const dexDelta = (inst.base === 'defend' ? prepare : 0) - sapDex;
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
+    for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给食材卡
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -159,6 +183,91 @@ window.CG = window.CG || {};
       nextEnergyPenalty: -nextE,
       name,
     };
+  };
+
+  // ===========================================================================
+  //  厨艺包：食材 / 餐点 / 菜谱
+  // ===========================================================================
+  const rnd = arr => arr[Math.floor(Math.random() * arr.length)];
+  CG.randomFood = cat => rnd(CG.FOODS_BY_CAT[cat] || ['tomato']);
+  // 食材卡实例（无孔位）；meal 把动态效果挂在 .meal 上
+  CG.makeFoodCard = (base, meal) => { const c = { uid: CG.nextUid(), base }; if (base === 'meal') c.meal = meal || { effects: [], name: '餐点', desc: '', repeatTimes: 1 }; return c; };
+
+  // 菜谱矩阵：荤菜 × 素菜 → 效果种类（数值 = 素菜等级 × 荤菜等级 × 2）
+  CG.RECIPE = {
+    fish:    { tomato: 'heal',     potato: 'regen',  carrot: 'thorns' },
+    chicken: { tomato: 'strength', potato: 'block',  carrot: 'dexterity' },
+    beef:    { tomato: 'draw',     potato: 'energy', carrot: 'echo' },
+  };
+  const RECIPE_LABEL = { heal: '回复', regen: '再生', thorns: '荆棘', strength: '力量', block: '壁垒', dexterity: '敏捷', draw: '抽取', energy: '明亮', echo: '回响' };
+  function recipeEffect(kind, value) {
+    switch (kind) {
+      case 'heal':      return { type: 'heal', value };
+      case 'regen':     return { type: 'selfStatus', status: 'regen', value };
+      case 'thorns':    return { type: 'selfStatus', status: 'thorns', value };
+      case 'strength':  return { type: 'strength', value };
+      case 'block':     return { type: 'block', value };
+      case 'dexterity': return { type: 'dexterity', value };
+      case 'draw':      return { type: 'draw', value };
+      case 'energy':    return { type: 'energy', value };
+      case 'echo':      return { type: 'freeNext', value };
+      default:          return { type: 'heal', value };
+    }
+  }
+  // 做菜：素菜(必填) + 荤菜(可选) + 调味料(可选) → 餐点 spec { effects, repeatTimes, name, desc, value }
+  CG.buildMeal = function (vegBase, meatBase, seasonBase) {
+    const veg = CG.BASE_CARDS[vegBase];
+    let kind, label, value, name;
+    if (meatBase) {
+      const meat = CG.BASE_CARDS[meatBase];
+      kind = (CG.RECIPE[meatBase] && CG.RECIPE[meatBase][vegBase]) || 'heal';
+      label = RECIPE_LABEL[kind];
+      value = veg.level * meat.level * 2;                 // 高级原料数值相乘 ×2
+      name = `${veg.name}炖${meat.name}`;
+    } else {
+      kind = 'heal'; label = '回复'; value = veg.level;   // 只放素菜 = 清炒，回复其等级
+      name = `清炒${veg.name}`;
+    }
+    let repeatTimes = 1, tag = '';
+    if (seasonBase) {
+      const s = CG.BASE_CARDS[seasonBase].season;
+      if (s === 'salt')   { value *= 2;                       tag = '·盐(过载)'; }       // 过载：数值 +100%
+      else if (s === 'soy' && kind === 'heal') { value = Math.floor(value * 1.5); tag = '·酱油(滋养)'; }  // 滋养：治疗 +50%
+      else if (s === 'soy') { tag = '·酱油(滋养)'; }          // 非治疗菜：滋养无数值变化（仅标注）
+      else if (s === 'pepper') { repeatTimes = 2;             tag = '·胡椒(重复)'; }     // 重复：结算 2 次
+    }
+    const effects = [recipeEffect(kind, value)];
+    const times = repeatTimes > 1 ? ` ×${repeatTimes}` : '';
+    return { effects, repeatTimes, value, name: name + tag, desc: `${label} ${value}${times}（餐点·0 费·打出即消耗）` };
+  };
+
+  // 食材卡的「固定」stats（替代 cardStats 的宝石聚合）。返回与 cardStats 同结构的对象。
+  CG.foodStats = function (inst) {
+    const b = CG.BASE_CARDS[inst.base];
+    const s = {
+      base: inst.base, baseName: b.name, cost: b.cost || 0, type: b.type, kind: b.kind || 'food',
+      value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
+      repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
+      element: null, elementLevel: 0, nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
+      name: b.name, baseText: '',
+    };
+    if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选荤菜/调料做成餐点（不选则＝回复 ${b.level}）`; }
+    else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（做菜时可当荤菜）`; }
+    else if (b.food === 'season') { s.kind = 'season'; s.noPlay = true; const m = { salt: '过载1', soy: '滋养1', pepper: '重复1' }; s.baseText = `调味料·不能单独吃；做菜时让餐点获得「${m[b.season]}」`; }
+    else if (b.kind === 'cookware') {
+      if (b.cook === 'cleaver') { s.type = 'attack'; s.value = 5; s.effects = [{ type: 'damage', value: 5 }]; s.baseText = '造成 5 点伤害（厨具·可当武器）'; }
+      else if (b.cook === 'wok') { s.value = 4; s.effects = [{ type: 'block', value: 4 }]; s.baseText = '获得 4 点格挡（厨具·可当武器）'; }
+      else if (b.cook === 'stove') { s.type = 'attack'; s.element = 'fire'; s.elementLevel = 2; s.baseText = '给敌人附火 2 层（厨具·可当武器）'; }
+    } else if (b.kind === 'spoiled') {
+      s.noPlay = true;
+      const m = { selfdmg: '回合结束失去 2 生命', weak: '回合结束自身虚弱 2', vuln: '回合结束自身易伤 2' };
+      s.baseText = `腐坏·不能打出；${m[b.spoiled]}`;
+    } else if (b.kind === 'meal') {
+      const meal = inst.meal || { effects: [], name: '餐点', desc: '', repeatTimes: 1 };
+      s.exhaust = true; s.effects = meal.effects || []; s.repeatTimes = meal.repeatTimes || 1;
+      s.value = meal.value || 0; s.name = s.baseName = meal.name || '餐点'; s.baseText = meal.desc || '';
+    }
+    return s;
   };
 
   // ---------- 随机词条 / 宝石生成 ----------

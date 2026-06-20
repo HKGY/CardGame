@@ -44,6 +44,11 @@ window.CG = window.CG || {};
     aqua:       { name: '附水', color: '#4aa8ff', score: 4, element: 'water',   desc: n => `附水 ${n} 层`, long: n => `命中给敌人附 ${n} 层💧（至多 3）；与火→蒸发，与雷→感电，与冰→冻结` },
     volt:       { name: '附雷', color: '#e8c84a', score: 4, element: 'thunder', desc: n => `附雷 ${n} 层`, long: n => `命中给敌人附 ${n} 层⚡（至多 3）；与火→超载，与水→感电，与冰→超导` },
     frost:      { name: '附冰', color: '#8fe0ec', score: 4, element: 'ice',     desc: n => `附冰 ${n} 层`, long: n => `命中给敌人附 ${n} 层❄️（至多 3）；与火→融化，与水→冻结，与雷→超导` },
+    // —— 厨艺包：打出后获得对应食材卡（仅本场战斗，进手牌）——
+    farm:    { name: '农场', color: '#8fbf5a', score: 3, give: 'veg',      desc: n => `获得 ${n} 个随机素菜`, long: n => `打出后获得 ${n} 张随机「素菜」卡（番茄/土豆/胡萝卜）` },
+    ranch:   { name: '牧场', color: '#d08a5a', score: 3, give: 'meat',     desc: n => `获得 ${n} 个随机荤菜`, long: n => `打出后获得 ${n} 张随机「荤菜」卡（鱼/鸡/牛肉）` },
+    market:  { name: '市场', color: '#c8b04a', score: 3, give: 'season',   desc: n => `获得 ${n} 个随机调味料`, long: n => `打出后获得 ${n} 张随机「调味料」卡（盐/酱油/胡椒）` },
+    kitchen: { name: '厨房', color: '#c87a8a', score: 3, give: 'cookware', desc: n => `获得 ${n} 个随机厨具`, long: n => `打出后获得 ${n} 张随机「厨具」卡（菜刀/铁锅/火炉，可当武器）` },
   };
 
   const DEBUFFS = {
@@ -57,6 +62,10 @@ window.CG = window.CG || {};
     cumbersome: { name: '笨重', color: '#9a8a6a', score: -3, debuff: true, cost: 1,        desc: n => `耗能 +${n}` },
     recoil:     { name: '反噬', color: '#b5616a', score: -3, debuff: true, hpLoss: 2,      desc: n => `失去 ${2 * n} HP` },
     destroy:    { name: '销毁', color: '#c75450', score: -4, debuff: true, exhaust: 1,     desc: () => `打出后销毁`, long: () => `打出后本场战斗移除（进入消耗堆）` },
+    // —— 厨艺包·腐坏：打出后获得一张腐坏卡（不能打出、回合结束自伤）——
+    rot:   { name: '腐败', color: '#7a7a4a', score: -3, debuff: true, give: 'spoiled_rice', desc: () => `获得馊饭`, long: () => `打出后获得「馊饭」（不能打出，回合结束失去 2 生命）` },
+    spoil: { name: '变质', color: '#8a6a4a', score: -3, debuff: true, give: 'stinky_meat', desc: () => `获得臭肉`, long: () => `打出后获得「臭肉」（不能打出，回合结束自身虚弱 2）` },
+    mold:  { name: '发霉', color: '#6a8a5a', score: -3, debuff: true, give: 'rotten_veg', desc: () => `获得烂菜`, long: () => `打出后获得「烂菜」（不能打出，回合结束自身易伤 2）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -119,6 +128,9 @@ window.CG = window.CG || {};
     elements: { name: '元素包', icon: '⚗️', color: '#cf6fd0', desc: '附火/水/雷/冰，叠加触发蒸发/融化/超载/感电/冻结/超导（连招型，建议在商店「五选二」凑齐两种）。',
                 buffs: ['flame', 'aqua', 'volt', 'frost'],
                 debuffs: ['blunt', 'recoil', 'cumbersome'] },
+    cook:     { name: '厨艺包', icon: '🍳', color: '#e0a45a', desc: '做菜流派：打出素菜→选荤菜/调料做成「餐点」(0费消耗)；大宝石附带腐坏减益。',
+                buffs: ['farm', 'ranch', 'market', 'kitchen'],
+                debuffs: ['rot', 'spoil', 'mold'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 })(window.CG);

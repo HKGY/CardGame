@@ -132,6 +132,8 @@ window.CG = window.CG || {};
     },
     onPlayCard(uid) { if (battle) battle.playCard(uid); },
     onUseTarot(i) { useTarot(i); },
+    onCraftPick(uid) { if (battle) battle.craftChoose(uid); },   // 厨艺做菜：选荤菜 / 调味料（null=跳过）
+    onCraftCancel() { if (battle) battle.craftCancel(); },
     onDebugWin() { if (battle) battle.debugWin(); },   // 调试按钮：直接赢得本场战斗
   };
 

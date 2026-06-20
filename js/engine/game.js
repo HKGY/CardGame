@@ -190,10 +190,27 @@ window.CG = window.CG || {};
     // 玩家点“结束回合”：先收尾，敌人行动由 runEnemyTurn 触发（界面可加延迟做演出）
     endTurn() {
       if (this.phase !== 'player') return;
+      if (this.craft) return;                                          // 做菜中不能结束回合
       if (this._tempStrength) { this.applyStatus(this.player, 'strength', -this._tempStrength); this._tempStrength = 0; } // 战车：回合末移除临时力量
+      // 腐坏卡：先从手牌取出并消耗（一次性，不再清在手里），其结算放到 _tickStatuses 之后，
+      // 使易伤/虚弱在接下来的敌方回合保持满层（否则会被本回合的状态衰减立刻 -1）。
+      const spoiled = [];
+      for (const c of this.hand.slice()) {
+        const b = CG.BASE_CARDS[c.base];
+        if (!b || b.kind !== 'spoiled') continue;
+        spoiled.push(b.spoiled);
+        const i = this.hand.findIndex(x => x.uid === c.uid); if (i >= 0) this.exhaustPile.push(this.hand.splice(i, 1)[0]);
+      }
       this.discardPile.push(...this.hand);
       this.hand = [];
       this._tickStatuses(this.player);
+      spoiled.forEach(kind => {
+        if (kind === 'selfdmg') { this.player.hp = Math.max(0, this.player.hp - 2); this.addLog('馊饭：失去 2 生命。'); }
+        else if (kind === 'weak') { this.applyStatus(this.player, 'weak', 2); this.addLog('臭肉：自身虚弱 2。'); }
+        else if (kind === 'vuln') { this.applyStatus(this.player, 'vulnerable', 2); this.addLog('烂菜：自身易伤 2。'); }
+      });
+      this._checkEnd();
+      if (this.phase === 'lost') { this._emit(); return; }             // 腐坏卡可能致死
       this.phase = 'enemy';
       this._emit();
     }
@@ -234,10 +251,13 @@ window.CG = window.CG || {};
     // ---------- 玩家操作 ----------
     playCard(uid) {
       if (this.phase !== 'player') return;
+      if (this.craft) return;                                          // 做菜中：先完成做菜
       const idx = this.hand.findIndex(c => c.uid === uid);
       if (idx === -1) return;
       const card = this.hand[idx];
       let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
+      if (s.noPlay) { this.addLog(`${s.name} 不能直接打出。`); this._emit(); return; }   // 调味料 / 腐坏卡
+      if (s.kind === 'veg') return this._startCraft(card);             // 素菜 → 进入做菜
       const free = (this.freeCards || 0) > 0;                          // 回响：本张免费打出
       const payCost = free ? 0 : s.cost;
       if (payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
@@ -323,6 +343,57 @@ window.CG = window.CG || {};
 
       this._checkEnd();
       this._emit();
+    }
+
+    // ---------- 厨艺：做菜 ----------
+    // 打出素菜 → 进入做菜：先选荤菜(可跳过)，再选调味料(可跳过)，做成「餐点」进手牌。
+    _startCraft(vegCard) {
+      this.craft = { vegUid: vegCard.uid, step: 'meat', meatUid: null, seasonUid: null };
+      this.addLog('开始做菜：选择荤菜（可跳过）。');
+      this._emit();
+    }
+    craftCandidates() {                          // 给 UI：当前步可选的手牌
+      if (!this.craft) return [];
+      const cat = this.craft.step === 'meat' ? 'meat' : 'season';
+      return this.hand.filter(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === cat; });
+    }
+    craftChoose(uid) {                           // uid=null 跳过本步；选中则记录并推进
+      if (!this.craft) return;
+      const cat = this.craft.step === 'meat' ? 'meat' : 'season';
+      if (uid != null) {
+        const c = this.hand.find(x => x.uid === uid);
+        if (!c || CG.BASE_CARDS[c.base].food !== cat) return;          // 非法选择：忽略
+        if (this.craft.step === 'meat') this.craft.meatUid = uid; else this.craft.seasonUid = uid;
+      }
+      if (this.craft.step === 'meat') { this.craft.step = 'season'; this.addLog('选择调味料（可跳过）。'); this._emit(); return; }
+      this._finishCraft();
+    }
+    craftCancel() { this.craft = null; this.addLog('取消了做菜。'); this._emit(); }   // 放回素菜，不消耗
+    _finishCraft() {
+      const cr = this.craft; this.craft = null;
+      const veg = this.hand.find(c => c.uid === cr.vegUid);
+      const meat = cr.meatUid != null ? this.hand.find(c => c.uid === cr.meatUid) : null;
+      const season = cr.seasonUid != null ? this.hand.find(c => c.uid === cr.seasonUid) : null;
+      const vegBase = veg ? veg.base : 'tomato';
+      [cr.vegUid, cr.meatUid, cr.seasonUid].forEach(u => {            // 消耗原料：移出手牌 → 消耗堆
+        if (u == null) return;
+        const i = this.hand.findIndex(c => c.uid === u);
+        if (i >= 0) this.exhaustPile.push(this.hand.splice(i, 1)[0]);
+      });
+      const spec = CG.buildMeal(vegBase, meat ? meat.base : null, season ? season.base : null);
+      const mealCard = CG.makeFoodCard('meal', spec);
+      if (this.hand.length < HAND_LIMIT) this.hand.push(mealCard); else this.discardPile.push(mealCard);
+      this.addLog(`做好了「${spec.name}」。`);
+      this._playedThisTurn = (this._playedThisTurn || 0) + 1;
+      this._emit();
+    }
+    giveFoodCard(what, count) {                   // 获得食材卡（进手牌；满则进弃牌堆）
+      count = count || 1;
+      for (let k = 0; k < count; k++) {
+        const base = (what === 'veg' || what === 'meat' || what === 'season' || what === 'cookware') ? CG.randomFood(what) : what;
+        const c = CG.makeFoodCard(base);
+        if (this.hand.length < HAND_LIMIT) this.hand.push(c); else this.discardPile.push(c);
+      }
     }
 
     // ---------- 战斗原语 ----------

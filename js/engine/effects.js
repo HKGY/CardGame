@@ -71,6 +71,8 @@ window.CG = window.CG || {};
       if (target.statuses.strength) delete target.statuses.strength;
       game.applyStatus(target, 'strength', -eff.value);
     },
+    give(game, eff)     { if (game.giveFoodCard) game.giveFoodCard(eff.what, eff.value); },   // 厨艺：打出后获得食材卡
+    freeNext(game, eff) { game.freeCards = (game.freeCards || 0) + eff.value; },              // 回响：接下来若干张牌免费
   };
 
   CG.Effects = {

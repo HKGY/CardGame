@@ -72,7 +72,12 @@ window.CG = window.CG || {};
   const CARD_ART_FALLBACK = `<svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" class="art">
     <path d="M50 12 l7 18 19 1 -15 12 6 19 -17 -11 -17 11 6 -19 -15 -12 19 -1z" fill="#7a83a8" opacity=".85"/></svg>`;
   // 整卡贴图（AI 重绘的「外框 + 中央图案」一体图），按基底取
-  function getArt(base) { return CARD_ART[base] || (base === 'shieldbash' ? CARD_ART.defend : CARD_ART_FALLBACK); }
+  function getArt(base) {
+    if (CARD_ART[base]) return CARD_ART[base];
+    const bd = CG.BASE_CARDS[base];                 // 厨艺食材：用 emoji 作卡图
+    if (bd && bd.icon) return `<svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" class="art"><text x="50" y="49" font-size="44" text-anchor="middle">${bd.icon}</text></svg>`;
+    return base === 'shieldbash' ? CARD_ART.defend : CARD_ART_FALLBACK;
+  }
   CG.CardArt = { get: getArt };
 
   // ---------- 卡牌飞行动画（抽牌 / 弃牌 / 消耗 / 洗牌） ----------
@@ -321,7 +326,7 @@ window.CG = window.CG || {};
     let s = CG.cardStats(inst, { valueMult: game.cardValueMult });
     const free = (game.freeCards || 0) > 0;                     // 回响：本张可免费打出
     const payCost = free ? 0 : s.cost;
-    const ok = game.phase === 'player' && payCost <= game.player.energy;
+    const ok = game.phase === 'player' && payCost <= game.player.energy && !s.noPlay && !game.craft;
     if (free) s = Object.assign({}, s, { cost: 0, _free: true });
     return `<div class="card type-${s.type} ${ok ? '' : 'disabled'}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
   }
@@ -441,6 +446,40 @@ window.CG = window.CG || {};
     }
     prevPhase = game.phase;
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
+    renderCraft(game);
+  }
+
+  // ---------- 厨艺：做菜选料浮层（打出素菜后弹出，选荤菜→选调味料，可跳过/取消）----------
+  function renderCraft(game) {
+    let ov = $('craft-overlay');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'craft-overlay'; ov.className = 'craft-overlay hidden';
+      ov.addEventListener('click', ev => {
+        const el = ev.target.closest('[data-craft]');
+        if (!el || !current) return;
+        const v = el.dataset.craft;
+        if (v === 'cancel') return handlers.onCraftCancel && handlers.onCraftCancel();
+        if (v === 'skip')   return handlers.onCraftPick && handlers.onCraftPick(null);
+        CG.Audio.play('card'); handlers.onCraftPick && handlers.onCraftPick(Number(v));
+      });
+      $('screen-battle').appendChild(ov);
+    }
+    if (!game.craft) { ov.classList.add('hidden'); ov.innerHTML = ''; return; }
+    const step = game.craft.step;
+    const title = step === 'meat' ? '🍳 做菜 · 选择荤菜（与素菜同炖）' : '🍳 做菜 · 选择调味料';
+    const cands = game.craftCandidates();
+    const cards = cands.length
+      ? cands.map(c => cardFace(c, { clickable: true, data: { craft: c.uid } })).join('')
+      : '<p class="empty-note">手牌里没有可选的，点「跳过」。</p>';
+    ov.innerHTML = `<div class="craft-box">
+      <h3>${title}</h3>
+      <div class="craft-cards">${cards}</div>
+      <div class="craft-actions">
+        <button class="big-btn" data-craft="skip">跳过</button>
+        <button class="big-btn leave" data-craft="cancel">取消做菜</button>
+      </div></div>`;
+    ov.classList.remove('hidden');
   }
 
   CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace, gemFace, tarotBarHTML, relicIcons });
