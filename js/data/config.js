@@ -9,8 +9,9 @@ CG.CONFIG = {
   startGold: 99,
   acts: 3,                       // 总层数
 
-  // 数值膨胀放缓：后层改以「更多敌人」提升难度（见 encounter）
-  actScale: { 1: { hp: 1, dmg: 1 }, 2: { hp: 1.2, dmg: 1.12 }, 3: { hp: 1.4, dmg: 1.25 } },
+  // 敌人数值膨胀（大幅加强：20 卡包后玩家很强，敌人血量/伤害随层数大幅放大）。
+  // actScale 同时乘敌人 maxHp 与招式的 damage/block（见 _makeEnemy / _scaleEff）。
+  actScale: { 1: { hp: 1.6, dmg: 1.5 }, 2: { hp: 2.6, dmg: 2.2 }, 3: { hp: 4.0, dmg: 3.0 } },
   goldMult: { 1: 1, 2: 1.4, 3: 1.8 },   // 后层金币也更多
   // 每场战斗的敌人数量权重 [数量, 权重]：普通最多 4 / 精英最多 2 / 首领恒 1；越高层越可能成群
   encounter: {
