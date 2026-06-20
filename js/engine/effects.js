@@ -249,6 +249,11 @@ window.CG = window.CG || {};
     // === 律动包 ===（活力滚到下一张、灵感本回合抽牌给盾；innate/allin/surplus 在 cardStats/playCard/_startBattle 处理）
     vigor(game, eff) { game._vigor = (game._vigor || 0) + 3 * eff.value; },
     inspire(game, eff) { game._inspire = (game._inspire || 0) + eff.value; },
+    // === 放大包 ===（potent 是 playCard 加成；boon 复用 addTempStrength；倍损/倍益设本回合翻倍标志）
+    amppain(game, eff) { game._ampDebuff = (game._ampDebuff || 0) + eff.value; },
+    ampgain(game, eff) { game._ampBuff = (game._ampBuff || 0) + eff.value; },
+    boon(game, eff) { game.addTempStrength(2 * eff.value); },
+    polarize(game) { const s = game.player.statuses.strength || 0; if (s > 0) game.applyStatus(game.player, 'strength', s); },
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 

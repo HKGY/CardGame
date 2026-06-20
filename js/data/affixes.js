@@ -151,6 +151,12 @@ window.CG = window.CG || {};
     inspire: { name: '灵感', color: '#c0d0a0', score: 4, inspire: 1, desc: n => `本回合抽牌各+${n}格挡`, long: n => `本回合你每抽到一张牌就获得 ${n} 点格挡` },
     allin:   { name: '全力', color: '#e0a070', score: 4, allin: 1, desc: n => `能量清零时×${1 + n}`, long: n => `若打出本牌后能量恰好归零，本牌数值 ×${1 + n}` },
     surplus: { name: '余裕', color: '#a0c0d0', score: 4, surplus: 1, desc: () => `能量充裕则免费`, long: n => `若当前能量 ≥ ${Math.max(2, 5 - n)}，本牌不消耗能量` },
+    // === 放大包：翻倍（区别于过载的加法 valuePct、重复的再结算）===
+    potent:   { name: '强效', color: '#ff9fc0', score: 5, potent: 1, desc: n => `本牌数值 ×${1 + n}`, long: n => `本牌的伤害/格挡/治疗 ×${1 + n}` },
+    amppain:  { name: '倍损', color: '#ff7090', score: 4, amppain: 1, desc: () => `本回合敌减益翻倍`, long: () => `本回合内，你施加给敌人的减益（易伤/虚弱/脆弱/中毒/灼伤）层数翻倍` },
+    ampgain:  { name: '倍益', color: '#ffb0a0', score: 4, ampgain: 1, desc: () => `本回合自身增益翻倍`, long: () => `本回合内，你获得的增益（力量/敏捷/再生/荆棘/滋养）层数翻倍` },
+    boon:     { name: '激赏', color: '#ffc090', score: 4, boon: 1, desc: n => `临时力量 +${2 * n}`, long: n => `获得 ${2 * n} 点力量，仅持续到本回合结束` },
+    polarize: { name: '极化', color: '#ff90b0', score: 4, polarize: 1, desc: () => `当前力量翻倍`, long: () => `立即将你当前的力量翻倍` },
   };
 
   const DEBUFFS = {
@@ -345,6 +351,9 @@ window.CG = window.CG || {};
     flow:     { name: '律动包', icon: '💫', color: '#d0c090', desc: '条件触发与能量博弈：活力滚到下一张、固有开局在手、灵感抽牌给盾、全力清空能量、余裕充裕免费。',
                 buffs: ['vigor', 'innate', 'inspire', 'allin', 'surplus'],
                 debuffs: ['cumbersome', 'leak', 'recoil'] },
+    amplify:  { name: '放大包', icon: '✦', color: '#ff9fc0', desc: '翻倍流：本牌数值×、本回合增益/减益翻倍、临时力量、当前力量翻倍。',
+                buffs: ['potent', 'amppain', 'ampgain', 'boon', 'polarize'],
+                debuffs: ['blunt', 'recoil', 'cumbersome'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
@@ -354,7 +363,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'discard', 'conjure', 'hunter', 'flow', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'discard', 'conjure', 'hunter', 'flow', 'amplify', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;

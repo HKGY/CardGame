@@ -108,6 +108,7 @@ window.CG = window.CG || {};
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._vigor = 0; this._inspire = 0;        // 律动：活力(下一张加成,跨回合保留)/灵感(本回合抽牌给格挡)
+      this._ampDebuff = 0; this._ampBuff = 0;    // 放大：本回合 倍损/倍益（applyStatus 翻倍）
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -145,6 +146,7 @@ window.CG = window.CG || {};
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._vigor = 0; this._inspire = 0;       // 律动包：活力(下一张牌加成)/灵感(本回合抽牌给格挡)
+      this._ampDebuff = 0; this._ampBuff = 0;   // 放大包：本回合 倍损/倍益
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -188,6 +190,7 @@ window.CG = window.CG || {};
       this._paralyze = 0;                          // 麻痹：本回合锁住最左侧 N 张手牌（电力不在此列，跨回合保留）
       this._discardedThisTurn = 0;                 // 弃牌包·倾倒：本回合已丢弃牌数
       this._inspire = 0;                           // 律动·灵感：每回合重置（活力 _vigor 不在此重置＝跨回合保留）
+      this._ampDebuff = 0; this._ampBuff = 0;      // 放大·倍损/倍益：每回合重置（「本回合」效果）
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -344,6 +347,11 @@ window.CG = window.CG || {};
       // 律动·全力：若打出本牌后能量恰好归零，数值 ×(1+等级)
       if (s.allin > 0 && !oc && this.player.energy - payCost === 0) {
         const m = 1 + s.allin;
+        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value * m }) : e) });
+      }
+      // 放大·强效：本牌伤害/格挡/治疗 ×(1+等级)
+      if (s.potent > 0) {
+        const m = 1 + s.potent;
         s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value * m }) : e) });
       }
       // === 市场/矿工/锻造：随资源动态加成（仿电弧，读打出前的资源）===
@@ -742,6 +750,10 @@ window.CG = window.CG || {};
     }
 
     applyStatus(target, key, amount) {
+      if (amount > 0) {   // 放大包：本回合翻倍施加的减益(给敌)/增益(给己)
+        if (this._ampDebuff > 0 && target !== this.player && ['vulnerable', 'weak', 'frail', 'poison', 'burn'].includes(key)) amount *= 2;
+        if (this._ampBuff > 0 && target === this.player && ['strength', 'dexterity', 'regen', 'thorns', 'nourish'].includes(key)) amount *= 2;
+      }
       target.statuses[key] = (target.statuses[key] || 0) + amount;
       if (key === 'frozen' && target.statuses[key] > 1) target.statuses[key] = 1;   // 冰封最多 1 层
       if (target.statuses[key] === 0) delete target.statuses[key];
