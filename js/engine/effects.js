@@ -88,6 +88,27 @@ window.CG = window.CG || {};
     keepBlock(game)      { game._keepBlock = true; },                                          // 重甲：本场格挡回合末不清空
     loseEnergy(game, eff){ game.player.energy = Math.max(0, game.player.energy - eff.value); }, // 龟缩：失去能量
     loseBlock(game, eff) { game.player.block = Math.max(0, game.player.block - eff.value); },   // 负重：失去格挡
+    // === 生产包 ===
+    harvest(game, eff) {                                                                       // 丰收：当前产出层数总和 ×value → 格挡
+      const st = game.player.statuses;
+      const total = (st.prodDraw || 0) + (st.prodBlock || 0) + (st.prodGrow || 0);
+      game.gainBlock(game.player, total * eff.value);
+    },
+    irrigate(game, eff) {                                                                      // 灌溉：立即结算 value 次「每回合产出」
+      const st = game.player.statuses;
+      for (let i = 0; i < eff.value; i++) {
+        if (st.prodBlock) game.gainBlock(game.player, st.prodBlock);
+        if (st.prodDraw) game.drawCards(st.prodDraw);
+      }
+    },
+    stagnate(game, eff) {                                                                      // 滞产：蓄能/耕作各 -value（夹 0、为 0 删）
+      const st = game.player.statuses;
+      ['prodBlock', 'prodDraw'].forEach(k => {
+        if (!st[k]) return;
+        st[k] = Math.max(0, st[k] - eff.value);
+        if (st[k] <= 0) delete st[k];
+      });
+    },
   };
 
   CG.Effects = {

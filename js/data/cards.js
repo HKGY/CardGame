@@ -114,6 +114,7 @@ window.CG = window.CG || {};
     let gainPowerN = 0, overclockN = 0, arcN = 0, chargeN = 0, losePowerN = 0, selfThunderN = 0, paralyzeN = 0;   // 电力包
     // === 死守包 ===
     let shieldBashN = 0, lastStandN = 0, keepBlockN = 0, braceN = 0, loseEnergyN = 0, loseBlockN = 0;
+    let harvestN = 0, irrigateN = 0, stagnateN = 0;   // === 生产包 ===（push 型词条；farming/stockpile/compound/cropfail/upkeep 走 selfStatus 自动结算）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -152,6 +153,10 @@ window.CG = window.CG || {};
       if (d.brace)      braceN     += d.brace * L;         // 严阵：格挡 4×L + 力量 L
       if (d.loseEnergy) loseEnergyN += d.loseEnergy * L;   // 龟缩：失去能量
       if (d.loseBlock)  loseBlockN  += d.loseBlock * L;    // 负重：失去格挡
+      // === 生产包 ===
+      if (d.harvest)   harvestN  += d.harvest * L;       // 丰收：产出层数总和 ×L → 格挡
+      if (d.irrigate)  irrigateN += d.irrigate * L;      // 灌溉：立即结算 L 次产出
+      if (d.stagnate)  stagnateN += d.stagnate * L;      // 滞产：蓄能/耕作各 -L
       if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
       if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
       if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
@@ -202,6 +207,10 @@ window.CG = window.CG || {};
     if (braceN)    { effects.push({ type: 'block', value: 4 * braceN }); effects.push({ type: 'strength', value: braceN }); }   // 严阵：格挡 + 力量
     if (loseEnergyN) effects.push({ type: 'loseEnergy', value: loseEnergyN });                // 龟缩：失去能量
     if (loseBlockN)  effects.push({ type: 'loseBlock', value: loseBlockN });                  // 负重：失去格挡
+    // === 生产包 ===
+    if (harvestN)  effects.push({ type: 'harvest', value: harvestN });                        // 丰收：产出层总和 ×L → 格挡
+    if (irrigateN) effects.push({ type: 'irrigate', value: irrigateN });                      // 灌溉：立即产出 L 次
+    if (stagnateN) effects.push({ type: 'stagnate', value: stagnateN });                      // 滞产：蓄能/耕作各 -L
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,

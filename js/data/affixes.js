@@ -67,6 +67,12 @@ window.CG = window.CG || {};
     shieldbash:{ name: '盾击', color: '#c8a060', score: 4, shieldBash: 1, damageOnly: true, desc: n => `伤害+当前格挡×${n}`, long: n => `本牌伤害额外 +（当前格挡 × ${n}）` },
     brace:     { name: '严阵', color: '#7fb0a8', score: 4, brace: 1, desc: n => `格挡 ${4 * n} + 力量 ${n}`, long: n => `打出后获得 ${4 * n} 点格挡，并永久 +${n} 力量` },
     laststand: { name: '死战', color: '#d08070', score: 4, lastStand: 1, damageOnly: true, desc: n => `残血加伤×${n}`, long: n => `本牌伤害额外 +（已损失生命比例 × 10 × ${n}）` },
+    // === 生产包 ===（复利引擎：每回合开始被动产出；产出层数常驻不衰减）
+    farming:   { name: '耕作', color: '#9ad05a', score: 4, selfStatus: 'prodDraw',  desc: n => `每回合多抽 ${n}`,   long: n => `获得 ${n} 层「耕作」：此后每回合开始额外抽 ${n} 张（常驻、可叠加）` },
+    stockpile: { name: '蓄能', color: '#b6d36a', score: 4, selfStatus: 'prodBlock', desc: n => `每回合格挡 +${n}`, long: n => `获得 ${n} 层「蓄能」：此后每回合开始获得 ${n} 点格挡（常驻、可叠加）` },
+    compound:  { name: '复利', color: '#d0e078', score: 5, selfStatus: 'prodGrow',  desc: n => `蓄能逐回合 +${n}`, long: n => `获得 ${n} 层「复利」：此后每回合开始你的「蓄能」自增 ${n}（越拖越强）` },
+    harvest:   { name: '丰收', color: '#cfe05a', score: 4, harvest: 1,  desc: n => `产出层 ×${n}→格挡`,  long: n => `打出后：把当前耕作/蓄能/复利的层数总和 ×${n} 化为格挡` },
+    irrigate:  { name: '灌溉', color: '#a0d870', score: 4, irrigate: 1, desc: n => `立即产出 ${n} 次`,    long: n => `打出后：立即结算 ${n} 次「每回合产出」（按当前蓄能加格挡、按耕作抽牌）` },
   };
 
   const DEBUFFS = {
@@ -95,6 +101,10 @@ window.CG = window.CG || {};
     // === 死守包·负面 ===（cumbersome 笨重复用现有词条）
     cower:  { name: '龟缩', color: '#7a8a9a', score: -3, debuff: true, loseEnergy: 1, desc: n => `能量 -${n}`,        long: n => `打出后立即失去 ${n} 点能量` },
     burden: { name: '负重', color: '#8a8a7a', score: -3, debuff: true, loseBlock: 2,  desc: n => `失去 ${2 * n} 格挡`, long: n => `打出后失去 ${2 * n} 点格挡` },
+    // === 生产包·负面 ===
+    cropfail: { name: '歉收', color: '#8a8a4a', score: -3, debuff: true, selfStatus: 'prodSkip',   desc: n => `跳过 ${n} 次产出`, long: n => `攒下 ${n} 次「歉收」：之后每个回合开始跳过一次被动产出，直到耗尽` },
+    upkeep:   { name: '养护', color: '#9a7a4a', score: -3, debuff: true, selfStatus: 'prodUpkeep', desc: n => `每回合能量 -${n}`, long: n => `获得 ${n} 层「养护」：此后每回合开始失去 ${n} 点能量（常驻）` },
+    stagnate: { name: '滞产', color: '#7a8a5a', score: -3, debuff: true, stagnate: 1, desc: n => `蓄能/耕作各 -${n}`, long: n => `打出后：你的「蓄能」与「耕作」各 -${n}（夹 0）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -170,6 +180,10 @@ window.CG = window.CG || {};
     bastion:  { name: '死守包', icon: '🛡️', color: '#7fa8c8', desc: '格挡即进攻：保留格挡、以盾为矛、残血爆发。',
                 buffs: ['bulwark', 'barricade', 'shieldbash', 'brace', 'laststand'],
                 debuffs: ['cower', 'burden', 'cumbersome'] },
+    // === 生产包 ===
+    produce:  { name: '生产包', icon: '🌾', color: '#b6d36a', desc: '复利引擎：每回合被动产出，越拖越强。',
+                buffs: ['farming', 'stockpile', 'compound', 'harvest', 'irrigate'],
+                debuffs: ['cropfail', 'upkeep', 'stagnate'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

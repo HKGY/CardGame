@@ -187,6 +187,15 @@ window.CG = window.CG || {};
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
       if (this.player.statuses.regen) this.heal(this.player.statuses.regen);   // 再生：回合开始回血
       this.drawCards(CARDS_PER_TURN + drawBonus);
+      // === 生产包 ===（每回合开始的被动产出引擎；prod* 状态常驻、不进 _tickStatuses 衰减）
+      const st = this.player.statuses;
+      if (st.prodSkip > 0) { st.prodSkip -= 1; if (st.prodSkip <= 0) delete st.prodSkip; }  // 歉收：跳过本次产出
+      else {
+        if (st.prodGrow) st.prodBlock = (st.prodBlock || 0) + st.prodGrow;   // 复利：蓄能逐回合增长
+        if (st.prodBlock) this.gainBlock(this.player, st.prodBlock);
+        if (st.prodUpkeep) this.player.energy = Math.max(0, this.player.energy - st.prodUpkeep);
+        if (st.prodDraw) this.drawCards(st.prodDraw);
+      }
       this._emit();
     }
 

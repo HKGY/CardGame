@@ -33,6 +33,12 @@ window.CG = window.CG || {};
     water:      { label: '💧水', cls: 'badge-water' },
     thunder:    { label: '⚡雷', cls: 'badge-thunder' },
     ice:        { label: '❄️冰', cls: 'badge-ice' },
+    // === 生产包 ===（每回合开始被动产出；常驻不衰减）
+    prodDraw:   { label: '耕作', cls: 'badge-buff' },
+    prodBlock:  { label: '蓄能', cls: 'badge-buff' },
+    prodGrow:   { label: '复利', cls: 'badge-buff' },
+    prodSkip:   { label: '歉收', cls: 'badge-weak' },
+    prodUpkeep: { label: '养护', cls: 'badge-weak' },
   };
 
   // ---------- 卡牌贴图（占据卡牌上半张） ----------
