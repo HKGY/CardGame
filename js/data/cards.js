@@ -121,6 +121,7 @@ window.CG = window.CG || {};
     let temperN = 0, awakenN = 0, resonanceN = 0, overforge = false, whetN = 0, quenchN = 0, annealN = 0;
     let emptyMindN = 0, voidEchoN = 0, hollowN = 0;   // === 虚无包 ===（playCard 结算）
     let devoteN = 0, annihilateN = 0, offerN = 0, erodeN = 0, banishN = 0;   // === 虚无包 ===（effects 处理器结算）
+    let randbuffN = 0, diceN = 0, coinN = 0, jackpotN = 0, slotsN = 0, misfireN = 0, fickleN = 0, backfireN = 0;   // 奇巧包（随机/赌博）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -195,7 +196,16 @@ window.CG = window.CG || {};
       if (d.undying)   undying = true;                  // 不坏：被消耗时生成副本
       if (d.burnAll)   burnAll = true;                  // 爆燃：消耗其余手牌
       if (d.nightmare) nightmare = true;                // 噩梦：渣滓塞满手牌
-      if (d.exhaust)   exhaust = true;                  // 销毁：打出后移除
+      // —— 奇巧包（随机/赌博）——
+      if (d.randbuff) randbuffN += d.randbuff * L;     // 百宝箱：随机增益
+      if (d.dice)     diceN    += d.dice * L;          // 掷骰：随机伤害
+      if (d.coin)     coinN    += d.coin * L;          // 抛硬币：50% 伤害
+      if (d.jackpot)  jackpotN += d.jackpot * L;       // 头奖：三选一
+      if (d.slots)    slotsN   += d.slots * L;         // 老虎机：每 3 次爆出
+      if (d.misfire)  misfireN += d.misfire * L;       // 哑火：25% 自伤
+      if (d.fickle)   fickleN  += d.fickle * L;        // 无常：随机自身减益
+      if (d.backfire) backfireN += d.backfire * L;     // 走火：50% 误伤
+      if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
     });
@@ -254,6 +264,15 @@ window.CG = window.CG || {};
     if (offerN)      effects.push({ type: 'offer', value: offerN });                          // 献祭
     if (erodeN)      effects.push({ type: 'erode', value: erodeN });                          // 蚀骨
     if (banishN)     effects.push({ type: 'banish', value: banishN });                        // 放逐代价
+    // === 奇巧包 ===（每个词条 push 一个自包含的随机效果，结算时用 CG.RNG → 固定种子可断言）
+    if (randbuffN) effects.push({ type: 'randbuff', value: randbuffN });   // 百宝箱：复用祈祷的随机增益
+    if (diceN)     effects.push({ type: 'dice', value: diceN });
+    if (coinN)     effects.push({ type: 'coinflip', value: coinN });
+    if (jackpotN)  effects.push({ type: 'jackpot', value: jackpotN });
+    if (slotsN)    effects.push({ type: 'slots', value: slotsN });
+    if (misfireN)  effects.push({ type: 'misfire', value: misfireN });
+    if (fickleN)   effects.push({ type: 'fickle', value: fickleN });
+    if (backfireN) effects.push({ type: 'backfire', value: backfireN });
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,

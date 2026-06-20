@@ -91,6 +91,12 @@ window.CG = window.CG || {};
     annihilate:{ name: '湮灭', color: '#6a5a8a', score: 4, annihilate: 1, desc: n => `放逐牌堆 ${2 * n} 张·造伤`, long: n => `从抽牌堆顶放逐 ${2 * n} 张牌，对当前敌人造成（实际放逐数 × 3）点伤害` },
     voidecho:  { name: '虚空回响', color: '#7a6fb0', score: 5, voidEcho: 1, desc: () => `空手时数值翻倍`, long: () => `若出牌后手牌为空，本牌伤害与格挡 ×2` },
     offer:     { name: '献祭', color: '#a05fb0', score: 5, offer: 1,     desc: n => `减最大生命 ${3 * n}·力量 +${2 * n}`, long: n => `本场最大生命 −${3 * n}（下限 1），并获得 ${2 * n} 点力量` },
+    // === 奇巧包 ===（随机/赌博：高方差的骰子/硬币/抽奖；效果自包含、用固定随机种子可断言）
+    dice:     { name: '掷骰', color: '#c8a0e0', score: 4, dice: 1,     desc: n => `随机 ${n}~${6 * n} 伤害`, long: n => `掷 ${n} 颗骰子：对当前目标造成 ${n}~${6 * n} 点伤害（每颗 1~6）` },
+    coinflip: { name: '抛硬币', color: '#d0b0e8', score: 3, coin: 1,    desc: n => `50% 造成 ${8 * n} 伤害`, long: n => `抛硬币：50% 概率造成 ${8 * n} 点伤害，否则毫无效果` },
+    grabbag:  { name: '百宝箱', color: '#b890d8', score: 3, randbuff: 1, desc: n => `获得 ${n} 层随机增益`, long: n => `打出后随机获得 ${n} 层力量或敏捷` },
+    jackpot:  { name: '头奖', color: '#d8b0f0', score: 5, jackpot: 1,   desc: n => `三选一：${12 * n} 伤害/格挡/抽3`, long: n => `等概率三选一：造成 ${12 * n} 点伤害 / 获得 ${12 * n} 点格挡 / 抽 3 张` },
+    slots:    { name: '老虎机', color: '#c0a0e0', score: 5, slots: 1,   desc: n => `每 3 次打出爆出 ${20 * n} 伤害`, long: n => `本场战斗中，每打出第 3 张含「老虎机」的牌，造成 ${20 * n} 点伤害（计数器随后归零）` },
   };
 
   const DEBUFFS = {
@@ -135,6 +141,10 @@ window.CG = window.CG || {};
     erode:  { name: '蚀骨', color: '#7a6a8a', score: -3, debuff: true, erode: 1,  desc: n => `减最大生命 ${2 * n}`, long: n => `打出后本场最大生命 −${2 * n}（下限 1）` },
     banish: { name: '放逐代价', color: '#6a5a7a', score: -4, debuff: true, banish: 1, desc: n => `随机放逐 ${n} 张手牌`, long: n => `打出后随机放逐 ${n} 张手牌（进入消耗堆）` },
     hollow: { name: '空虚', color: '#8a7a9a', score: -3, debuff: true, hollow: 1,  desc: () => `非空手时数值减半`, long: () => `若出牌后手牌非空，本牌伤害与格挡减半（向下取整）` },
+    // === 奇巧包 ===（赌博的代价：自伤 / 随机减益 / 走火）
+    misfire:  { name: '哑火', color: '#b5616a', score: -3, debuff: true, misfire: 1,  desc: n => `25% 失去 ${3 * n} HP`, long: n => `打出后 25% 概率炸膛：失去 ${3 * n} 点生命` },
+    fickle:   { name: '无常', color: '#9a6ab0', score: -3, debuff: true, fickle: 1,   desc: n => `随机自身减益 ${n}`, long: n => `打出后随机获得 ${n} 层易伤 / 虚弱 / 脆弱之一` },
+    backfire: { name: '走火', color: '#c08a4a', score: -3, debuff: true, backfire: 1, desc: n => `50% 误伤自己 ${5 * n}`, long: n => `打出后 50% 对敌人、否则对自己造成 ${5 * n} 点伤害` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -225,6 +235,10 @@ window.CG = window.CG || {};
     void:     { name: '虚无包', icon: '🕳️', color: '#6a6f8a', desc: '牺牲与空：手牌越空、献祭越多越强。',
                 buffs: ['emptymind', 'devote', 'annihilate', 'voidecho', 'offer'],
                 debuffs: ['erode', 'banish', 'hollow'] },
+    // === 奇巧包 ===
+    gadget:   { name: '奇巧包', icon: '🎲', color: '#c8a0e0', desc: '随机/赌博：高方差的骰子、硬币、抽奖。',
+                buffs: ['dice', 'coinflip', 'grabbag', 'jackpot', 'slots'],
+                debuffs: ['misfire', 'fickle', 'backfire'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

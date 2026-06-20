@@ -147,6 +147,44 @@ window.CG = window.CG || {};
         game.exhaustPile.push(game.hand.splice(idx, 1)[0]);
       }
     },
+    // === 奇巧包 ===（随机/赌博：随机源一律走 Math.random()→被 CG.RNG 接管，固定种子可断言）
+    dice(game, eff, source, target) {                                    // 掷骰：每级掷 1 颗 1~6，合计伤害
+      const roll = Math.floor(Math.random() * 6) + 1;                    // 1~6
+      game.dealAttackDamage(source, target, roll * eff.value);
+    },
+    coinflip(game, eff, source, target) {                                // 抛硬币：50% 造成 8×等级 伤害，否则无效
+      if (Math.random() < 0.5) game.dealAttackDamage(source, target, 8 * eff.value);
+    },
+    jackpot(game, eff, source, target) {                                 // 头奖：等概率三选一（伤害 / 格挡 / 抽牌）
+      const r = Math.floor(Math.random() * 3);
+      if (r === 0) game.dealAttackDamage(source, target, 12 * eff.value);
+      else if (r === 1) game.gainBlock(source, 12 * eff.value);
+      else game.drawCards(3);
+    },
+    slots(game, eff, source, target) {                                   // 老虎机：每打出第 3 张爆出 20×等级 伤害（伪随机保底）
+      game._slots = (game._slots || 0) + 1;
+      if (game._slots >= 3) { game._slots = 0; game.dealAttackDamage(source, target, 20 * eff.value); }
+    },
+    misfire(game, eff) {                                                  // 哑火：25% 炸膛，玩家直接失去 3×等级 生命（过格挡）
+      if (Math.random() < 0.25) {
+        game.player.hp = Math.max(0, game.player.hp - 3 * eff.value);
+        game._checkEnd();
+      }
+    },
+    fickle(game, eff) {                                                   // 无常：随机给玩家一种减益 eff.value 层
+      const pool = ['vulnerable', 'weak', 'frail'];
+      game.applyStatus(game.player, pool[Math.floor(Math.random() * pool.length)], eff.value);
+    },
+    backfire(game, eff, source, target) {                                // 走火：50% 对敌人、否则对自己造成 5×等级 伤害
+      const n = 5 * eff.value;
+      if (Math.random() < 0.5) game.dealAttackDamage(source, target, n);
+      else {
+        const eh = game.player.hp, eb = game.player.block;
+        game._dealRaw(game.player, n);
+        game._fire('damage', { side: 'player', ei: game._idxOf(game.player), hpLoss: eh - game.player.hp, blocked: Math.min(eb, n) });
+        game._checkEnd();
+      }
+    },
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 
