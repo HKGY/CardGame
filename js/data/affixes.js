@@ -127,6 +127,12 @@ window.CG = window.CG || {};
     furnace:    { name: '熔炉', color: '#d08850', score: 4, build: 'furnace', desc: n => `建造·每回合 +${n} 力量`, long: n => `建造熔炉：每回合开始 +${n} 力量（受工坊增幅）` },
     workshop:   { name: '工坊', color: '#b0a878', score: 5, build: 'workshop', desc: n => `建造·增幅其它建筑 +${n}`, long: n => `建造工坊：每座工坊使你其它建筑每次触发效果 +${n}` },
     demolish:   { name: '拆解', color: '#c8b060', score: 4, demolish: 1, desc: n => `拆 1 建筑·结算 ${3 * n} 次`, long: n => `拆掉你最早的一座建筑，立即结算它 ${3 * n} 次效果` },
+    // === 弃牌包：主动丢弃换收益 + 从弃牌堆回收（弃牌进弃牌堆、会洗回，区别于消耗的永久移除）===
+    toss:     { name: '抛掷', color: '#a89878', score: 4, toss: 1, damageOnly: true, desc: n => `弃1张·造 ${6 * n}`, long: n => `打出后随机丢弃 1 张手牌，对当前敌人造成 ${6 * n} 点伤害` },
+    sift:     { name: '整理', color: '#9aa890', score: 3, sift: 1, desc: () => `弃 2 抽 2`, long: () => `打出后随机丢弃 2 张手牌，再抽 2 张` },
+    reclaim:  { name: '拾遗', color: '#a0b0a8', score: 4, reclaim: 1, desc: () => `从弃牌堆取回 1 张`, long: () => `打出后：把弃牌堆里指定的 1 张牌加入手牌` },
+    dumpster: { name: '倾倒', color: '#b0a070', score: 4, dumpster: 1, desc: n => `+本回合弃牌数×${n}`, long: n => `本牌数值额外 +（本回合已丢弃的牌数 × ${n}）` },
+    madness:  { name: '疯狂', color: '#c89060', score: 4, madness: 1, desc: () => `弃光手牌·每张+1力量`, long: () => `打出后丢弃其余所有手牌，每丢 1 张永久 +1 力量` },
   };
 
   const DEBUFFS = {
@@ -195,6 +201,9 @@ window.CG = window.CG || {};
     hazard:   { name: '工伤', color: '#9a6a5a', score: -3, debuff: true, hpLoss: 3, desc: n => `自伤 ${3 * n}`, long: n => `打出后失去 ${3 * n} 点生命（施工事故；复用反噬式自伤）` },
     collapse: { name: '坍塌', color: '#7a6a5a', score: -4, debuff: true, collapse: 1, desc: n => `摧毁你 ${n} 座建筑`, long: n => `打出后随机摧毁你 ${n} 座建筑` },
     subside:  { name: '沉降', color: '#8a7a6a', score: -2, debuff: true, subside: 1, desc: n => `建筑效果各 -${n}`, long: n => `打出后你所有建筑的每次触发效果 -${n}（夹 0）` },
+    // === 弃牌包·负面（复用 clutch / loseEnergy / leak 机制）===
+    forget:  { name: '健忘', color: '#7a7a6a', score: -3, debuff: true, clutch: 1,     desc: n => `随机弃 ${n} 张手牌`, long: n => `打出后随机丢弃 ${n} 张手牌` },
+    waste:   { name: '浪费', color: '#8a7a5a', score: -2, debuff: true, loseEnergy: 1, desc: n => `能量 -${n}`, long: n => `打出后失去 ${n} 点能量` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -304,6 +313,9 @@ window.CG = window.CG || {};
     build:    { name: '建造包', icon: '🏗️', color: '#c0a060', desc: '在有限槽位摆放建筑，每回合开始自动触发；工坊增幅、拆解一次兑现。',
                 buffs: ['arrowtower', 'rampart', 'furnace', 'workshop', 'demolish'],
                 debuffs: ['hazard', 'collapse', 'subside'] },
+    discard:  { name: '弃牌包', icon: '♻️', color: '#a89878', desc: '主动丢弃换即时收益、按弃牌数爆发、从弃牌堆回收（弃牌会洗回，区别于消耗）。',
+                buffs: ['toss', 'sift', 'reclaim', 'dumpster', 'madness'],
+                debuffs: ['forget', 'waste', 'leak'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
@@ -313,7 +325,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'discard', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;

@@ -231,6 +231,10 @@ window.CG = window.CG || {};
     demolish(game, eff) { const B = game.buildings || []; if (!B.length) return; const b = B.shift(); for (let i = 0; i < 3 * eff.value; i++) game._fireBuilding(b); },   // 拆解：拆最早的一座、立即结算 3×L 次
     collapse(game, eff) { const B = game.buildings || []; for (let i = 0; i < eff.value && B.length; i++) B.splice(Math.floor(Math.random() * B.length), 1); },   // 坍塌
     subside(game, eff)  { (game.buildings || []).forEach(b => { b.power = Math.max(0, b.power - eff.value); }); },   // 沉降
+    // === 弃牌包 ===（reclaim 走选牌队列；forget→clutch、waste→loseEnergy 复用）
+    toss(game, eff, source, target) { game._discardRandom(1); if (target && target.hp > 0) game.dealAttackDamage(source, target, 6 * eff.value); },   // 抛掷
+    sift(game) { game._discardRandom(2); game.drawCards(2); },                                       // 整理：弃 2 抽 2
+    madness(game) { const n = game.hand.length; game._discardRandom(n); if (n > 0) game.applyStatus(game.player, 'strength', n); },   // 疯狂：弃光手牌·每张+1力量
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 

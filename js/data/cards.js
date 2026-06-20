@@ -127,6 +127,7 @@ window.CG = window.CG || {};
     let bellowsN = 0, emberN = 0, smeltN = 0, coolantN = 0, whitehotN = 0, overheatN = 0, crackN = 0, rustN = 0;   // 锻造包（热度）
     const summonList = []; let commandN = 0, cullingN = 0, discordN = 0;   // 召唤包（toll 复用 hpLoss）
     const buildList = []; let demolishN = 0, collapseN = 0, subsideN = 0;  // 建造包（hazard 复用 hpLoss）
+    let tossN = 0, siftN = 0, madnessN = 0, reclaimN = 0, dumpsterN = 0;   // 弃牌包（forget→clutch、waste→loseEnergy 复用）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -225,6 +226,8 @@ window.CG = window.CG || {};
       // —— 建造包 ——
       if (d.build) buildList.push({ what: d.build, level: L });
       if (d.demolish) demolishN += d.demolish * L; if (d.collapse) collapseN += d.collapse * L; if (d.subside) subsideN += d.subside * L;
+      // —— 弃牌包 ——
+      if (d.toss) tossN += d.toss * L; if (d.sift) siftN += d.sift * L; if (d.madness) madnessN += d.madness * L; if (d.reclaim) reclaimN += d.reclaim * L; if (d.dumpster) dumpsterN += d.dumpster * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -326,6 +329,10 @@ window.CG = window.CG || {};
     if (demolishN) effects.push({ type: 'demolish', value: demolishN });
     if (collapseN) effects.push({ type: 'collapse', value: collapseN });
     if (subsideN)  effects.push({ type: 'subside', value: subsideN });
+    // === 弃牌包 ===（reclaim 走选牌队列、dumpster 是 playCard 加成、forget→clutch、waste→loseEnergy）
+    if (tossN)    effects.push({ type: 'toss', value: tossN });
+    if (siftN)    effects.push({ type: 'sift', value: siftN });
+    if (madnessN) effects.push({ type: 'madness', value: madnessN });
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -351,6 +358,7 @@ window.CG = window.CG || {};
       temper: temperN, awaken: awakenN,                                          // 强化包（playCard 用）
       emptyMind: emptyMindN, voidEcho: voidEchoN, hollow: hollowN,               // === 虚无包 ===（playCard 用）
       windfall: windfallN, prospect: prospectN, quarry: quarryN, ember: emberN,  // 市场/矿工/锻造（playCard 用）
+      reclaim: reclaimN, dumpster: dumpsterN,                                     // 弃牌包（reclaim 选牌队列、dumpster playCard 加成）
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -426,6 +434,7 @@ window.CG = window.CG || {};
       retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置/强化包 ===
       emptyMind: 0, voidEcho: 0, hollow: 0,   // === 虚无包 ===
       windfall: 0, prospect: 0, quarry: 0, ember: 0,   // 市场/矿工/锻造（playCard 加成默认）
+      reclaim: 0, dumpster: 0,                          // 弃牌包默认
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };

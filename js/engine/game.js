@@ -181,6 +181,7 @@ window.CG = window.CG || {};
       this.freeCards = 0;                          // 回响：本回合可免费打出的张数
       this._playedThisTurn = 0;                    // 连击：本回合已打出牌数
       this._paralyze = 0;                          // 麻痹：本回合锁住最左侧 N 张手牌（电力不在此列，跨回合保留）
+      this._discardedThisTurn = 0;                 // 弃牌包·倾倒：本回合已丢弃牌数
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -345,6 +346,10 @@ window.CG = window.CG || {};
         const bonus = s.ember * (this._heat || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
+      if (s.dumpster > 0) {   // 弃牌包·倾倒：数值 +（本回合已弃牌数 × 等级）
+        const bonus = s.dumpster * (this._discardedThisTurn || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
       // === 死守包 ===
       // 盾击：本牌伤害额外 +（当前格挡 × 等级）——读取打出前的格挡（仿电弧/连击）
       if (s.shieldBash > 0) {
@@ -464,6 +469,7 @@ window.CG = window.CG || {};
       this._pickQueue = [];
       for (let i = 0; i < (s.burnSelect || 0); i++) this._pickQueue.push('burn');
       for (let i = 0; i < (s.reborn || 0); i++) this._pickQueue.push('reborn');
+      for (let i = 0; i < (s.reclaim || 0); i++) this._pickQueue.push('reclaim');   // 弃牌包·拾遗
       this._nextPick();
     }
 
@@ -541,9 +547,10 @@ window.CG = window.CG || {};
     _nextPick() {                                 // 处理 _pickQueue 的下一个交互选牌；无候选则跳过；队列空则收尾
       while (this._pickQueue && this._pickQueue.length) {
         const t = this._pickQueue.shift();
-        const cands = t === 'burn' ? this.hand : this.exhaustPile;
+        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : this.exhaustPile;
         if (!cands.length) continue;
-        this.pick = { type: t, title: t === 'burn' ? '燃烧：选择并消耗 1 张手牌' : '重生：从消耗堆取回 1 张' };
+        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张' };
+        this.pick = { type: t, title: titles[t] };
         this._emit();
         return;
       }
@@ -556,6 +563,7 @@ window.CG = window.CG || {};
       const t = this.pick.type;
       if (uid != null) {
         if (t === 'burn') { const i = this.hand.findIndex(c => c.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this.addLog(`燃烧：消耗了 ${CG.cardStats(c).name}。`); this._exhaustCard(c); } }
+        else if (t === 'reclaim') { const i = this.discardPile.findIndex(c => c.uid === uid); if (i >= 0 && this.hand.length < HAND_LIMIT) { this.hand.push(this.discardPile.splice(i, 1)[0]); this.addLog('拾遗：从弃牌堆取回 1 张。'); } }
         else { const i = this.exhaustPile.findIndex(c => c.uid === uid); if (i >= 0 && this.hand.length < HAND_LIMIT) { this.hand.push(this.exhaustPile.splice(i, 1)[0]); this.addLog('重生：从消耗堆取回 1 张。'); } }
       }
       this.pick = null;
@@ -619,6 +627,8 @@ window.CG = window.CG || {};
         this.hand.push(this.drawPile.pop());
       }
     }
+    _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数
+    _discardRandom(n) { for (let i = 0; i < n && this.hand.length; i++) this._discard(this.hand.splice(Math.floor(Math.random() * this.hand.length), 1)[0]); }
 
     // 遗物字段可为数字或 (game, ctx)=>数字 的条件函数（用于区分相似遗物的触发前提）
     _relicSum(field, ctx) { return this.relics.reduce((s, id) => { const v = CG.RELICS[id][field]; return s + (typeof v === 'function' ? (v(this, ctx) || 0) : (v || 0)); }, 0); }
