@@ -137,7 +137,7 @@ window.CG = window.CG || {};
     power:    { name: '强攻包', icon: '⚔️', color: '#e89030', desc: '提升伤害与打击次数。',
                 buffs: ['multi', 'overload', 'repeat', 'pierce', 'prepare', 'combo'],
                 debuffs: ['blunt', 'recoil', 'coward', 'cumbersome', 'destroy'] },
-    curse:    { name: '弱化包', icon: '☠️', color: '#8ab84a', desc: '削弱与控制敌人。',
+    weaken:   { name: '弱化包', icon: '☠️', color: '#8ab84a', desc: '削弱与控制敌人。',
                 buffs: ['suppress', 'neutralize', 'shatter', 'poison', 'freeze', 'silence'],
                 debuffs: ['expose', 'feeble', 'decay', 'clumsy'] },
     tempo:    { name: '节奏包', icon: '🌀', color: '#4fb8ee', desc: '抽牌 / 能量 / 费用。',
