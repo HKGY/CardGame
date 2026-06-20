@@ -109,6 +109,7 @@ window.CG = window.CG || {};
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._vigor = 0; this._inspire = 0;        // 律动：活力(下一张加成,跨回合保留)/灵感(本回合抽牌给格挡)
       this._ampDebuff = 0; this._ampBuff = 0;    // 放大：本回合 倍损/倍益（applyStatus 翻倍）
+      this._rewindSnap = null;                   // 律动·回溯：待恢复的战斗快照
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -147,6 +148,7 @@ window.CG = window.CG || {};
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._vigor = 0; this._inspire = 0;       // 律动包：活力(下一张牌加成)/灵感(本回合抽牌给格挡)
       this._ampDebuff = 0; this._ampBuff = 0;   // 放大包：本回合 倍损/倍益
+      this._rewindSnap = null;                  // 律动·回溯：待恢复的战斗快照
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -179,6 +181,7 @@ window.CG = window.CG || {};
     _startPlayerTurn() {
       this.turn += 1;
       this.phase = 'player';
+      if (this._rewindSnap) { this._restore(this._rewindSnap); this._rewindSnap = null; this.addLog('回溯：时间倒流，敌人这一回合被抹去。'); }   // 律动·回溯：回滚到打出回溯时的双方状态
       if (!this._keepBlock) this.player.block = 0;        // 死守包·重甲：打出后本场格挡回合末不清空
       let energyBonus = 0, drawBonus = 0;          // 癌症/无神论者：每回合额外能量/抽牌
       this.relics.forEach(id => { const r = CG.RELICS[id]; energyBonus += r.turnEnergy || 0; drawBonus += r.turnDraw || 0; });
@@ -665,6 +668,20 @@ window.CG = window.CG || {};
     _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数
     _addToHand(card) { if (this.hand.length < HAND_LIMIT) this.hand.push(card); else this.discardPile.push(card); }   // 术士包等：造牌进手（满则进弃牌堆）
     _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和
+    // 律动·回溯：拍下/恢复一份「完整战斗快照」（双方生命/格挡/电力/状态，元素光环亦在 statuses 内）
+    _snapshot() {
+      return {
+        hp: this.player.hp, block: this.player.block, power: this.player.power || 0,
+        statuses: Object.assign({}, this.player.statuses),
+        enemies: this.enemies.map(e => ({ hp: e.hp, block: e.block, alive: e.alive, statuses: Object.assign({}, e.statuses) })),
+      };
+    }
+    _restore(s) {
+      this.player.hp = s.hp; this.player.block = s.block; this.player.power = s.power;
+      this.player.statuses = Object.assign({}, s.statuses);
+      s.enemies.forEach((es, i) => { const e = this.enemies[i]; if (!e) return; e.hp = es.hp; e.block = es.block; e.alive = es.alive; e.statuses = Object.assign({}, es.statuses); });
+      this._refreshTarget();
+    }
     _discardRandom(n) { for (let i = 0; i < n && this.hand.length; i++) this._discard(this.hand.splice(Math.floor(Math.random() * this.hand.length), 1)[0]); }
 
     // 遗物字段可为数字或 (game, ctx)=>数字 的条件函数（用于区分相似遗物的触发前提）

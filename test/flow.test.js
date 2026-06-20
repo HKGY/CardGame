@@ -45,3 +45,18 @@ test('全力：能量恰好归零时 ×2；余裕：能量充裕则免费', () =
   b.hand = [gemCard('strike', ['surplus'])]; b.playCard(b.hand[0].uid);
   assert.equal(b.player.energy, 4);                  // 充裕→免费
 });
+
+test('回溯：下个回合开始时回滚双方生命/状态（敌方回合被抹去）', () => {
+  const b = CG.makeBattle();
+  const e = b.enemies[0];
+  e.intent = { name: '撞', intent: 'attack', effects: [{ type: 'damage', value: 15 }] };
+  b.player.block = 0;
+  b.hand = [gemCard('strike', ['rewind'])];
+  b.playCard(b.hand[0].uid);                          // 打击 6 → 敌 28-6=22；拍快照{我60, 敌22}
+  assert.ok(b._rewindSnap);
+  assert.equal(e.hp, 22);
+  b.endTurn(); b.runEnemyTurn();                      // 敌人打我 15，然后我的回合开始 → 回滚
+  assert.equal(b.player.hp, 60);                     // 敌人的 15 伤害被抹去
+  assert.equal(b.enemies[0].hp, 22);                 // 回到快照
+  assert.equal(b._rewindSnap, null);                 // 快照已消费
+});

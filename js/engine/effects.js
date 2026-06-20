@@ -249,6 +249,8 @@ window.CG = window.CG || {};
     // === 律动包 ===（活力滚到下一张、灵感本回合抽牌给盾；innate/allin/surplus 在 cardStats/playCard/_startBattle 处理）
     vigor(game, eff) { game._vigor = (game._vigor || 0) + 3 * eff.value; },
     inspire(game, eff) { game._inspire = (game._inspire || 0) + eff.value; },
+    rewind(game) { game._rewindSnap = game._snapshot(); },   // 回溯：拍下完整战斗快照，下回合开始时回滚
+
     // === 放大包 ===（potent 是 playCard 加成；boon 复用 addTempStrength；倍损/倍益设本回合翻倍标志）
     amppain(game, eff) { game._ampDebuff = (game._ampDebuff || 0) + eff.value; },
     ampgain(game, eff) { game._ampBuff = (game._ampBuff || 0) + eff.value; },

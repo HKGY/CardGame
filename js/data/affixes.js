@@ -151,6 +151,7 @@ window.CG = window.CG || {};
     inspire: { name: '灵感', color: '#c0d0a0', score: 4, inspire: 1, desc: n => `本回合抽牌各+${n}格挡`, long: n => `本回合你每抽到一张牌就获得 ${n} 点格挡` },
     allin:   { name: '全力', color: '#e0a070', score: 4, allin: 1, desc: n => `能量清零时×${1 + n}`, long: n => `若打出本牌后能量恰好归零，本牌数值 ×${1 + n}` },
     surplus: { name: '余裕', color: '#a0c0d0', score: 4, surplus: 1, desc: () => `能量充裕则免费`, long: n => `若当前能量 ≥ ${Math.max(2, 5 - n)}，本牌不消耗能量` },
+    rewind:  { name: '回溯', color: '#b0e0e0', score: 5, rewind: 1, desc: () => `回滚敌方回合`, long: () => `打出后拍下完整战斗快照；到你下个回合开始时，你与所有敌人的生命/格挡/状态回滚到此刻（仿佛敌人这个回合从未发生）` },
     // === 放大包：翻倍（区别于过载的加法 valuePct、重复的再结算）===
     potent:   { name: '强效', color: '#ff9fc0', score: 5, potent: 1, desc: n => `本牌数值 ×${1 + n}`, long: n => `本牌的伤害/格挡/治疗 ×${1 + n}` },
     amppain:  { name: '倍损', color: '#ff7090', score: 4, amppain: 1, desc: () => `本回合敌减益翻倍`, long: () => `本回合内，你施加给敌人的减益（易伤/虚弱/脆弱/中毒/灼伤）层数翻倍` },
@@ -348,8 +349,8 @@ window.CG = window.CG || {};
     hunter:   { name: '猎杀包', icon: '🗡️', color: '#c06050', desc: '借敌人虚弱爆发：处决残血、引爆减益、洞察意图、击杀给永久回报。',
                 buffs: ['execute', 'prey', 'exploit', 'insight', 'reaping'],
                 debuffs: ['recoil', 'expose', 'coward'] },
-    flow:     { name: '律动包', icon: '💫', color: '#d0c090', desc: '条件触发与能量博弈：活力滚到下一张、固有开局在手、灵感抽牌给盾、全力清空能量、余裕充裕免费。',
-                buffs: ['vigor', 'innate', 'inspire', 'allin', 'surplus'],
+    flow:     { name: '律动包', icon: '💫', color: '#d0c090', desc: '条件触发与能量博弈：活力滚到下一张、固有开局在手、灵感抽牌给盾、全力清空能量、余裕充裕免费、回溯倒带敌方回合。',
+                buffs: ['vigor', 'innate', 'inspire', 'allin', 'surplus', 'rewind'],
                 debuffs: ['cumbersome', 'leak', 'recoil'] },
     amplify:  { name: '放大包', icon: '✦', color: '#ff9fc0', desc: '翻倍流：本牌数值×、本回合增益/减益翻倍、临时力量、当前力量翻倍。',
                 buffs: ['potent', 'amppain', 'ampgain', 'boon', 'polarize'],

@@ -12,7 +12,7 @@
 
 ## 提交前必须全部测试通过（硬性要求）
 
-- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 222 例）才允许提交。** 红 / 跳过都不许提交。
+- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 223 例）才允许提交。** 红 / 跳过都不许提交。
 - 改了 `js/data/` 或 `js/engine/`（纯逻辑）→ **同步增改 `test/` 用例** 再跑测试，不要让覆盖率退化。
 - 改了 UI（`js/ui/*`、`css/`、`index.html`）→ 单测覆盖不到：**在浏览器打开 `index.html` 人工自测**，并在回复里说明已人工验证了什么。
 - 如实报告：测试失败就贴输出；某部分没验证就明说。**不得谎报“通过”。**
@@ -64,7 +64,12 @@
 - **召唤包（summon）**：引入**己方召唤物** `game.allies`（`_startBattle`/`restart` 初始化为 `[]`、跨回合保留）。每个 ally `{name,icon,hp,maxHp,atk,taunt,giveBlock}`，上限 6。**回合末** `endTurn` 调 `_allyAttack()`：图腾给格挡、其余 `_dealRaw(currentTarget, atk)` 攻击当前敌人。**嘲讽**：`runEnemyTurn` 里敌人**伤害类**效果若存在 `_tauntAlly()` 则 `_hitAlly()` 重定向到它（其它效果仍打玩家）。增益 唤骷髅(`summon:'skeleton'`)/群召(swarm,3 个)/立图腾(totem,只给格挡)/督战(`command`:全体+攻并立即 `_allyAttack`)/守护灵(guardian,taunt)；减益 索命(`toll`＝复用 `hpLoss`)/折损(`culling` 随机消灭)/内讧(`discord` 全体扣血)。召唤物死亡走 `_reapAllies()` 过滤。UI：`render.js` 的 `renderAllies` 动态生成 `#allies-bar`（只读）。
 - **建造包（build）**：场上**建筑** `game.buildings`（`_startBattle`/`restart`=[]、跨回合保留、槽位上限 5）。每个 `{kind,name,icon,power}`。**回合开始** `_startPlayerTurn` 末调 `_buildingsTick()`：箭塔(`arrowtower`)对随机敌人造伤、路障(`rampart`)给格挡、熔炉(`furnace`)+力量；**工坊(`workshop`)** 经 `_workshopBonus()` 给其它建筑每次 `_fireBuilding` 加成。**拆解(`demolish`)** 拆最早一座、立即 `_fireBuilding` 它 `3×L` 次。减益 工伤(`hazard`＝复用 `hpLoss`)/坍塌(`collapse` 随机摧毁)/沉降(`subside` 全体 power-L)。`_fireBuilding(b,wb)` 既供回合开始也供拆解复用。UI：`render.js` 的 `renderBuildings` 动态生成 `#buildings-bar`（`.allies-bar.right`，只读）。**至此 20 包路线图全部完成。**
 - **弃牌包（discard）**：主动丢弃换收益。`game._discard(card)`/`_discardRandom(n)` 把手牌进弃牌堆并累加 `_discardedThisTurn`（`_startPlayerTurn` 清零）。抛掷(toss 弃1造伤)/整理(sift 弃2抽2)/疯狂(madness 弃光手牌+力量) 走 effects；**倾倒(dumpster)** 是 playCard 加成；**拾遗(reclaim)** 复用选牌队列——`pick.type` 新增 `'reclaim'`(从 `discardPile` 取回；`_nextPick`/`pickResolve`/`renderPrompt` 三处已支持)。负面 健忘(复用`clutch`)/浪费(复用`loseEnergy`)/漏能(复用`leak`)。
-- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=76`）。
+- **术士包（conjure）**：凭空造牌/操纵牌库。`game._addToHand(card)`(满则进弃牌堆) 给 演卡(印打击/防御)/飞刀(印 3 张 `shiv` 基底=0费造4消耗)/复制(复制随机手牌)/谵妄(塞渣滓) 用；灵视(foresight)复用 `_applyCardEffects` 免费打出 `drawPile` 顶；**心灵震慑(mindblast)** 复用 `inst.growth`——给牌库里所有 `type==='attack'` 的牌实例 `growth += 等级`。新基底 `shiv` 走 `isFood`/`foodStats`(同 `dross`)。
+- **猎杀包（hunter）**：借敌人状态爆发。处决(execute 残血斩杀)/弱点爆破(exploit 引爆 `_enemyDebuffLayers` 按层造伤)/收割(reaping→`_reaping` 累加) 走 effects；**收割的击杀钩子在 `_checkEnd`**：敌 alive→dead 时若 `_reaping>0` 给玩家 +力量。猎物(prey 伤害+目标减益层数)/洞察(insight 敌意图 `intent` 含 attack 则×) 是 playCard 加成。`_reaping` restart/_startBattle 清零（本场累加、不每回合清）。
+- **律动包（flow）**：条件触发&能量博弈。活力(vigor→`_vigor` 跨回合、playCard 消耗给下一张+数值)/灵感(inspire→`_inspire` 本回合、`drawCards` 每抽一张给格挡) 走 effects；**固有(innate)** 由 `_startBattle` 把 `cardStats(c).innate` 的牌 sort 到 `drawPile` 末尾＝开局首抽；全力(allin 打出后能量=0则×)/余裕(surplus 能量≥阈值则 `payCost=0`) 在 playCard 资源处。`_vigor` 跨回合保留、`_inspire`/`_ampX` 每回合 `_startPlayerTurn` 清零。
+- **回溯（rewind，律动第 6 个增益）**：`game._snapshot()`/`_restore(s)` 存取「完整战斗快照」(双方 hp/block/电力/statuses，元素光环在 statuses 内)。打出存 `_rewindSnap`；`_startPlayerTurn` 顶部若有快照则 `_restore` 并清空＝把敌人这一回合整体抹去。
+- **放大包（amplify）**：翻倍。强效(potent 本牌伤害/格挡/治疗×(1+等级)) 是 playCard 加成；**倍损(amppain)/倍益(ampgain)** 设本回合标志 `_ampDebuff`/`_ampBuff`，在 `applyStatus` 里把给敌减益/给己增益的 `amount` ×2（每回合清）；激赏(boon)复用 `addTempStrength`(回合末清)、极化(polarize)把当前力量翻倍。
+- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=77`）。
 
 ## 改内容 / 调平衡的位置
 
