@@ -471,7 +471,9 @@ window.CG = window.CG || {};
       // 通用受击钩子
       this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.onPlayerDamaged) r.onPlayerDamaged(this); });
     }
-    heal(n) {                                   // 战斗内治疗（人寿保险可过量储存）
+    heal(n) {                                   // 战斗内治疗（滋养：每层 +50% 治疗效率；人寿保险可过量储存）
+      const nour = this.player.statuses.nourish || 0;
+      if (nour > 0 && n > 0) n = Math.floor(n * (1 + 0.5 * nour));
       const before = this.player.hp;
       if (this.run && this.relics.includes('insurance')) {
         this.player.hp += n;

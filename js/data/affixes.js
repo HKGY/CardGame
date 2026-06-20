@@ -44,11 +44,12 @@ window.CG = window.CG || {};
     aqua:       { name: '附水', color: '#4aa8ff', score: 4, element: 'water',   desc: n => `附水 ${n} 层`, long: n => `命中给敌人附 ${n} 层💧（至多 3）；与火→蒸发，与雷→感电，与冰→冻结` },
     volt:       { name: '附雷', color: '#e8c84a', score: 4, element: 'thunder', desc: n => `附雷 ${n} 层`, long: n => `命中给敌人附 ${n} 层⚡（至多 3）；与火→超载，与水→感电，与冰→超导` },
     frost:      { name: '附冰', color: '#8fe0ec', score: 4, element: 'ice',     desc: n => `附冰 ${n} 层`, long: n => `命中给敌人附 ${n} 层❄️（至多 3）；与火→融化，与水→冻结，与雷→超导` },
-    // —— 厨艺包：打出后获得对应食材卡（仅本场战斗，进手牌）——
-    farm:    { name: '农场', color: '#8fbf5a', score: 3, give: 'veg',      desc: n => `获得 ${n} 个随机素菜`, long: n => `打出后获得 ${n} 张随机「素菜」卡（番茄/土豆/胡萝卜）` },
-    ranch:   { name: '牧场', color: '#d08a5a', score: 3, give: 'meat',     desc: n => `获得 ${n} 个随机荤菜`, long: n => `打出后获得 ${n} 张随机「荤菜」卡（鱼/鸡/牛肉）` },
-    market:  { name: '市场', color: '#c8b04a', score: 3, give: 'season',   desc: n => `获得 ${n} 个随机调味料`, long: n => `打出后获得 ${n} 张随机「调味料」卡（盐/酱油/胡椒）` },
-    kitchen: { name: '厨房', color: '#c87a8a', score: 3, give: 'cookware', desc: n => `获得 ${n} 个随机厨具`, long: n => `打出后获得 ${n} 张随机「厨具」卡（菜刀/铁锅/火炉，可当武器）` },
+    nourish: { name: '滋养', color: '#e8b0c0', score: 3, selfStatus: 'nourish', desc: n => `滋养 ${n}`, long: n => `本场战斗治疗效率 +${50 * n}%（每层 +50%，不衰减）` },
+    // —— 厨艺包：打出后获得 1 张对应食材卡（食材本身已分 1~3 级，故不按词条等级翻倍；仅本场进手牌）——
+    farm:    { name: '农场', color: '#8fbf5a', score: 3, give: 'veg',      desc: () => `获得随机素菜`, long: () => `打出后获得 1 张随机「素菜」卡（番茄/土豆/胡萝卜）` },
+    ranch:   { name: '牧场', color: '#d08a5a', score: 3, give: 'meat',     desc: () => `获得随机荤菜`, long: () => `打出后获得 1 张随机「荤菜」卡（鱼/鸡/牛肉）` },
+    market:  { name: '市场', color: '#c8b04a', score: 3, give: 'season',   desc: () => `获得随机调味料`, long: () => `打出后获得 1 张随机「调味料」卡（盐/酱油/胡椒）` },
+    kitchen: { name: '厨房', color: '#c87a8a', score: 3, give: 'cookware', desc: () => `获得随机厨具`, long: () => `打出后获得 1 张随机「厨具」卡（菜刀/铁锅/火炉，0 费武器）` },
   };
 
   const DEBUFFS = {
@@ -123,7 +124,7 @@ window.CG = window.CG || {};
                 buffs: ['draw', 'bright', 'thrift', 'windfury', 'echo'],
                 debuffs: ['leak', 'cumbersome'] },
     vitality: { name: '生机包', icon: '🌿', color: '#7fd6a0', desc: '治疗 / 续航 / 反伤。',
-                buffs: ['lifesteal', 'recover', 'regen', 'barbs', 'bulwark'],
+                buffs: ['lifesteal', 'recover', 'regen', 'barbs', 'bulwark', 'nourish'],
                 debuffs: ['recoil', 'expose', 'feeble'] },
     elements: { name: '元素包', icon: '⚗️', color: '#cf6fd0', desc: '附火/水/雷/冰，叠加触发蒸发/融化/超载/感电/冻结/超导（连招型，建议在商店「五选二」凑齐两种）。',
                 buffs: ['flame', 'aqua', 'volt', 'frost'],

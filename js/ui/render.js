@@ -27,6 +27,7 @@ window.CG = window.CG || {};
     leech:      { label: '寄生', cls: 'badge-poison' },
     regen:      { label: '再生', cls: 'badge-buff' },
     thorns:     { label: '荆棘', cls: 'badge-buff' },
+    nourish:    { label: '滋养', cls: 'badge-buff' },
     fire:       { label: '🔥火', cls: 'badge-fire' },
     water:      { label: '💧水', cls: 'badge-water' },
     thunder:    { label: '⚡雷', cls: 'badge-thunder' },

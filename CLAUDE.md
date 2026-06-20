@@ -12,7 +12,7 @@
 
 ## 提交前必须全部测试通过（硬性要求）
 
-- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 83 例）才允许提交。** 红 / 跳过都不许提交。
+- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 84 例）才允许提交。** 红 / 跳过都不许提交。
 - 改了 `js/data/` 或 `js/engine/`（纯逻辑）→ **同步增改 `test/` 用例** 再跑测试，不要让覆盖率退化。
 - 改了 UI（`js/ui/*`、`css/`、`index.html`）→ 单测覆盖不到：**在浏览器打开 `index.html` 人工自测**，并在回复里说明已人工验证了什么。
 - 如实报告：测试失败就贴输出；某部分没验证就明说。**不得谎报“通过”。**
@@ -55,8 +55,8 @@
 - **商店出售 booster pack**：货架含三种包（`config.js` 的 `shop.packs` 定 `count/pick/tier/price`）：三选一、五选一、**五选二**（`pick:2`，凑元素连招用）。`run.buyPack(i)` 扣钱并 roll 出 `count` 颗同主题宝石存 `pending.packs[i].rolled`；`run.takePackGem(i,uid)` 挑宝石进背包，最多 `pick` 颗（记 `takenUids`，挑满置 `taken`）；`leaveShop` 安全网：买了没挑满的包自动按 `gemPrice` 补走剩余名额。UI 复用既有 picker（`openPackPicker`，挑一颗后若有名额自动续开），无新增 DOM。
 - **元素 / 元素反应（元素包）**：4 元素 `CG.ELEMENTS`（火/水/雷/冰）+ 反应矩阵 `CG.REACTIONS`/`CG.reactionFor`（`affixes.js`）。元素＝敌人身上的一种状态，**至多 1 种、层数 1~3（值即层数）、不进 `_tickStatuses` 故不衰减**；附着词条 `flame/aqua/volt/frost`（`element` 字段，附着层数=词条等级）→ `cardStats().element` / `.elementLevel`。结算在 `game.js` 的 `playCard`：异元素消耗 `min(prev,new)` 级、反应「发生这么多次」、余量留在层数多的一方，同元素叠加封顶 3。放大型(蒸发/融化)按 `×amplify^消耗层数` 重建伤害、需本牌有伤害；转化型(超载/感电/冻结/超导)把 `apply` 调用「消耗层数」次（复用 `_reactionBurst`/中毒/冰冻/易伤）。`_auraOf/_setAura(el,level)/_clearAura` 管理唯一光环；徽标在 `render.js` 的 `STATUS_META`。
 - **每局限定 4 个卡包**：开局 `Run` 调 `CG.rollRunPacks()`（`basic` 恒含 + 从增强包随机 3 个，其余本局不出）存入 `run.packs`，并 `CG.setActivePacks(run.packs)`；`pickPack` 之后只在这 4 个里选（含 `rollGem` 不传 pack 的自动选包），故本局所有产宝石处都受限。`setActivePacks(null)` 恢复全开。百科「卡包」页标注本局启用/未启用。（注：现共 6 包 = basic + 5 增强：power/curse/tempo/vitality/elements。）
-- **厨艺包（cook）**：玩法迥异于其它「词条包」——它的增益 `farm/ranch/market/kitchen` 与减益 `rot/spoil/mold` 都带 `give` 字段：打出带该宝石的卡时，`cardStats` 产出 `{type:'give',what,value}` 效果，`effects.give` 调 `game.giveFoodCard` 把**食材卡**加进手牌（仅本场）。食材卡是 `BASE_CARDS` 里的特殊卡（`food`/`kind:cookware|spoiled|meal`），**不走宝石聚合**——`cardStats` 命中 `CG.isFood` 即转交 `CG.foodStats`。**做菜**：打出素菜→`game._startCraft`→`craftChoose(meatUid|null)`→`craftChoose(seasonUid|null)`→`CG.buildMeal`（菜谱矩阵 `CG.RECIPE`，值=素菜级×荤菜级×2；盐过载×2 / 酱油滋养治疗×1.5 / 胡椒重复2 次）做成 0 费消耗「餐点」卡进手牌。调味料/腐坏卡 `noPlay`；腐坏卡在 `endTurn` 的 `_tickStatuses` 之后结算自伤/虚弱/易伤再消耗。厨具（菜刀/铁锅/火炉）是可直接打出的 1 费武器。UI：`render.js` 的 `renderCraft` 浮层 + `main.js` 的 `onCraftPick/onCraftCancel`。
-- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=59`）。
+- **厨艺包（cook）**：玩法迥异于其它「词条包」——它的增益 `farm/ranch/market/kitchen` 与减益 `rot/spoil/mold` 都带 `give` 字段：打出带该宝石的卡时，`cardStats` 产出 `{type:'give',what,value}` 效果，`effects.give` 调 `game.giveFoodCard` 把**食材卡**加进手牌（仅本场）。食材卡是 `BASE_CARDS` 里的特殊卡（`food`/`kind:cookware|spoiled|meal`），**不走宝石聚合**——`cardStats` 命中 `CG.isFood` 即转交 `CG.foodStats`。**做菜**：打出素菜→`game._startCraft`→`craftChoose(meatUid|null)`→`craftChoose(seasonUid|null)`→`CG.buildMeal`（菜谱矩阵 `CG.RECIPE`，值=素菜级×荤菜级×2；盐过载×2 / 酱油＝给餐点加 `滋养`(nourish) 状态(放主效果前，故本餐治疗也 +50%) / 胡椒重复2 次）做成 0 费消耗「餐点」卡进手牌。每个 give 词条只给 **1 张** 食材（食材本身已分 1~3 级，不按词条等级翻倍）。厨具（菜刀/铁锅/火炉）＝**0 费**武器。调味料/腐坏卡 `noPlay`；腐坏卡在 `endTurn` 的 `_tickStatuses` 之后结算自伤/虚弱/易伤再消耗。`滋养`：真词条（生机包 `nourish`，`selfStatus:'nourish'`），`game.heal` 按 `1+0.5×层` 放大、本场不衰减。UI：`render.js` 的 `renderCraft` 浮层 + `main.js` 的 `onCraftPick/onCraftCancel`。
+- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=60`）。
 
 ## 改内容 / 调平衡的位置
 

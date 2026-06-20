@@ -22,6 +22,8 @@ test('foodStats：素菜/荤菜/调味料/厨具/腐坏 的固定效果', () => 
   assert.equal(CG.cardStats(CG.makeFoodCard('salt')).noPlay, true);                    // 调味料不能单独吃
   const cleaver = CG.cardStats(CG.makeFoodCard('cleaver'));
   assert.equal(eff(cleaver, 'damage').value, 5);                                       // 菜刀攻击5
+  assert.equal(cleaver.cost, 0);                                                       // 厨具 0 费
+  assert.equal(CG.cardStats(CG.makeFoodCard('stove')).cost, 0);
   assert.equal(eff(CG.cardStats(CG.makeFoodCard('wok')), 'block').value, 4);           // 铁锅防御4
   const stove = CG.cardStats(CG.makeFoodCard('stove'));
   assert.equal(stove.element, 'fire'); assert.equal(stove.elementLevel, 2);            // 火炉附火2
@@ -37,8 +39,10 @@ test('菜谱 buildMeal：素菜单做=回复其等级；素菜炖荤菜=等级�
   assert.equal(m.effects[0].type, 'block'); assert.equal(m.effects[0].value, 8);
   m = CG.buildMeal('tomato', 'fish', 'salt');                             // 鱼肉×番茄→回复 1×1×2=2，盐(过载)×2=4
   assert.equal(eff(m, 'heal').value, 4);
-  m = CG.buildMeal('carrot', 'fish', 'soy');                              // 鱼肉×胡萝卜→荆棘 1×3×2=6（滋养只加治疗，这里不变）
-  assert.equal(m.effects[0].type, 'selfStatus'); assert.equal(m.effects[0].status, 'thorns'); assert.equal(m.effects[0].value, 6);
+  m = CG.buildMeal('carrot', 'fish', 'soy');                              // 鱼肉×胡萝卜→荆棘 1×3×2=6；酱油→餐点附带滋养1
+  const th = m.effects.find(e => e.status === 'thorns');
+  assert.ok(th && th.value === 6);
+  assert.ok(m.effects.find(e => e.status === 'nourish'), '酱油 → 餐点含滋养效果');
   m = CG.buildMeal('potato', 'beef', 'pepper');                           // 牛肉×土豆→明亮 2×3×2=12，胡椒=重复2次
   assert.equal(m.effects[0].type, 'energy'); assert.equal(m.effects[0].value, 12); assert.equal(m.repeatTimes, 2);
 });
@@ -79,15 +83,37 @@ test('做菜可跳过荤菜与调味料：只放素菜=清炒回复', () => {
   assert.equal(eff(CG.cardStats(meal), 'heal').value, 2);   // 清炒土豆 = 回复2
 });
 
-test('give 词条：打出带「农场」的卡获得随机素菜（数量=等级）', () => {
+test('give 词条：打出带「农场」的卡获得 1 张随机素菜（不按词条等级翻倍）', () => {
   const b = CG.makeBattle();
-  const card = CG.makeCard('strike', 1, [CG.makeGem([{ id: 'farm', level: 2 }])]);
+  const card = CG.makeCard('strike', 1, [CG.makeGem([{ id: 'farm', level: 3 }])]);   // 即便 3 级也只给 1 张
   b.hand = [card];
   const s = CG.cardStats(card);
-  assert.ok(eff(s, 'give') && eff(s, 'give').what === 'veg' && eff(s, 'give').value === 2);
+  assert.ok(eff(s, 'give') && eff(s, 'give').what === 'veg' && eff(s, 'give').value === 1);
   b.playCard(card.uid);
   const vegs = b.hand.filter(c => { const bd = CG.BASE_CARDS[c.base]; return bd && bd.food === 'veg'; });
-  assert.equal(vegs.length, 2, '农场2 → 2 张随机素菜');
+  assert.equal(vegs.length, 1, '农场 → 1 张随机素菜');
+});
+
+test('滋养：生机包含「滋养」词条；治疗 +50%/层；酱油餐点附带滋养且本餐治疗也加成', () => {
+  assert.ok(CG.PACKS.vitality.buffs.includes('nourish'), '生机包含滋养');
+  assert.equal(CG.AFFIXES.nourish.selfStatus, 'nourish');
+  // 打出带滋养的卡 → 玩家获得滋养，之后治疗 ×1.5
+  const b = CG.makeBattle();
+  b.hand = [CG.makeCard('defend', 1, [CG.makeGem([{ id: 'nourish', level: 1 }])])];
+  b.playCard(b.hand[0].uid);
+  assert.equal(b.player.statuses.nourish, 1);
+  b.player.maxHp = 50; b.player.hp = 10;
+  b.heal(4);
+  assert.equal(b.player.hp, 16);                       // 4 ×1.5 = 6
+  // 酱油餐点：先附滋养1，再回复 → 本餐治疗也 +50%
+  const b2 = CG.makeBattle();
+  b2.player.maxHp = 50; b2.player.hp = 10;
+  b2.hand = [CG.makeFoodCard('tomato'), CG.makeFoodCard('fish'), CG.makeFoodCard('soy')];
+  const [veg, fish, soy] = b2.hand;
+  b2.playCard(veg.uid); b2.craftChoose(fish.uid); b2.craftChoose(soy.uid);
+  b2.playCard(b2.hand.find(c => c.base === 'meal').uid);
+  assert.equal(b2.player.statuses.nourish, 1);
+  assert.equal(b2.player.hp, 13);                      // 番茄×鱼肉=回复2 → 滋养先生效 → floor(2×1.5)=3
 });
 
 test('腐坏卡：回合结束自伤/减益后消耗', () => {
