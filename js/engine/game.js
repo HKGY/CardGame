@@ -190,8 +190,9 @@ window.CG = window.CG || {};
     // 玩家点“结束回合”：先收尾，敌人行动由 runEnemyTurn 触发（界面可加延迟做演出）
     endTurn() {
       if (this.phase !== 'player') return;
-      if (this.craft) return;                                          // 做菜中不能结束回合
+      if (this.craft || this.pick) return;                             // 做菜 / 选牌中不能结束回合
       if (this._tempStrength) { this.applyStatus(this.player, 'strength', -this._tempStrength); this._tempStrength = 0; } // 战车：回合末移除临时力量
+      if (this.player.statuses.burn) this._dealBurn(this.player, this.player.statuses.burn);   // 灼伤：回合结束受伤（可被本回合格挡吸收）
       // 腐坏卡：先从手牌取出并消耗（一次性，不再清在手里），其结算放到 _tickStatuses 之后，
       // 使易伤/虚弱在接下来的敌方回合保持满层（否则会被本回合的状态衰减立刻 -1）。
       const spoiled = [];
@@ -221,6 +222,7 @@ window.CG = window.CG || {};
         if (!e.alive || e.hp <= 0) continue;
         e.block = 0;
         if (e.statuses.poison) this._dotDamage(e, e.statuses.poison, false);   // 中毒：持续伤害
+        if (e.statuses.burn) this._dealBurn(e, e.statuses.burn);                // 灼伤：可被格挡（敌人此时无格挡）
         if (e.statuses.leech) this._dotDamage(e, e.statuses.leech, true);      // 寄生：持续伤害 + 回血
         this._checkEnd();
         if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
@@ -251,7 +253,7 @@ window.CG = window.CG || {};
     // ---------- 玩家操作 ----------
     playCard(uid) {
       if (this.phase !== 'player') return;
-      if (this.craft) return;                                          // 做菜中：先完成做菜
+      if (this.craft || this.pick) return;                             // 做菜 / 选牌中：先完成
       const idx = this.hand.findIndex(c => c.uid === uid);
       if (idx === -1) return;
       const card = this.hand[idx];
@@ -271,6 +273,11 @@ window.CG = window.CG || {};
       if (s.combo > 0) {
         const bonus = s.combo * (this._playedThisTurn || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // 灰烬：本牌数值额外 +（消耗堆牌数 × 等级）
+      if (s.ashes > 0) {
+        const bonus = s.ashes * this.exhaustPile.length;
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // 元素反应：本牌附元素时，按主目标当前元素与层数定反应（消耗 min(prev,new) 级、效果发生这么多次、余量留存）
       const elem = s.element, elemLv = s.elementLevel || 0;
@@ -339,10 +346,15 @@ window.CG = window.CG || {};
         this._turnPlays[card.uid] = cnt;
         if (cnt <= s.windfury) { this.hand.push(card); returned = true; }
       }
-      if (!returned) { if (s.exhaust) this.exhaustPile.push(card); else this.discardPile.push(card); }  // 销毁→消耗堆
+      if (!returned) { if (s.exhaust) this._exhaustCard(card); else this.discardPile.push(card); }  // 销毁→消耗堆（触发涅槃/不坏）
 
       this._checkEnd();
-      this._emit();
+      if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
+      // 消耗包·交互：燃烧（消耗 N 张手牌）/ 重生（从消耗堆取回 N 张）→ 排队逐个选
+      this._pickQueue = [];
+      for (let i = 0; i < (s.burnSelect || 0); i++) this._pickQueue.push('burn');
+      for (let i = 0; i < (s.reborn || 0); i++) this._pickQueue.push('reborn');
+      this._nextPick();
     }
 
     // ---------- 厨艺：做菜 ----------
@@ -394,6 +406,55 @@ window.CG = window.CG || {};
         const c = CG.makeFoodCard(base);
         if (this.hand.length < HAND_LIMIT) this.hand.push(c); else this.discardPile.push(c);
       }
+    }
+
+    // ---------- 消耗包：被消耗钩子 / 爆燃·噩梦 / 交互选牌 ----------
+    _exhaustCard(card) {                          // 把卡送进消耗堆，先触发涅槃/不坏（_inExhaust 防递归）
+      if (!this._inExhaust) {
+        const s = CG.cardStats(card);
+        if (s.nirvana) { this._inExhaust = true; this._applyCardEffects(card, s); this._inExhaust = false; this.addLog(`涅槃：${s.name} 被消耗时再次发动。`); }
+        if (s.undying && this.hand.length < HAND_LIMIT) { this.hand.push(CG.makeCard(card.base, card.limit, card.sockets || [])); this.addLog(`不坏：${s.name} 留下一张副本。`); }
+      }
+      this.exhaustPile.push(card);
+    }
+    _applyCardEffects(card, s) {                  // 仅结算一张牌的效果（不计费/不消耗/不触发交互）——涅槃用
+      s = s || CG.cardStats(card, { valueMult: this.cardValueMult });
+      const target = this.currentTarget();
+      for (let r = 0; r < (s.repeatTimes || 1); r++) (s.effects || []).forEach(eff => CG.Effects.apply(this, eff, this.player, target));
+      this._checkEnd();
+    }
+    exhaustAllHand() {                            // 爆燃：消耗其余所有手牌（不坏/涅槃产物保留在新手牌）
+      const snap = this.hand.slice(); this.hand = [];
+      snap.forEach(c => this._exhaustCard(c));
+    }
+    fillNightmare() { while (this.hand.length < HAND_LIMIT) this.hand.push(CG.makeFoodCard('dross')); }   // 噩梦：渣滓塞满手牌
+    _nextPick() {                                 // 处理 _pickQueue 的下一个交互选牌；无候选则跳过；队列空则收尾
+      while (this._pickQueue && this._pickQueue.length) {
+        const t = this._pickQueue.shift();
+        const cands = t === 'burn' ? this.hand : this.exhaustPile;
+        if (!cands.length) continue;
+        this.pick = { type: t, title: t === 'burn' ? '燃烧：选择并消耗 1 张手牌' : '重生：从消耗堆取回 1 张' };
+        this._emit();
+        return;
+      }
+      this.pick = null;
+      this._checkEnd();
+      this._emit();
+    }
+    pickResolve(uid) {                            // UI 回调：uid=null 跳过本次
+      if (!this.pick) return;
+      const t = this.pick.type;
+      if (uid != null) {
+        if (t === 'burn') { const i = this.hand.findIndex(c => c.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this.addLog(`燃烧：消耗了 ${CG.cardStats(c).name}。`); this._exhaustCard(c); } }
+        else { const i = this.exhaustPile.findIndex(c => c.uid === uid); if (i >= 0 && this.hand.length < HAND_LIMIT) { this.hand.push(this.exhaustPile.splice(i, 1)[0]); this.addLog('重生：从消耗堆取回 1 张。'); } }
+      }
+      this.pick = null;
+      this._nextPick();
+    }
+    _dealBurn(target, n) {                        // 灼伤：每回合受 n 点伤害，但可被格挡
+      const eh = target.hp, eb = target.block;
+      this._dealRaw(target, n);
+      this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: eh - target.hp, blocked: Math.min(eb, n) });
     }
 
     // ---------- 战斗原语 ----------
@@ -509,8 +570,8 @@ window.CG = window.CG || {};
     }
 
     // 计时类减益每回合结束 -1（力量 / 敏捷是永久的，不在此列）
-    _tickStatuses(entity) {     // 非负数状态每回合 -1（力量/敏捷可为负，不衰减）
-      ['vulnerable', 'weak', 'frail', 'poison', 'leech', 'regen'].forEach(s => {
+    _tickStatuses(entity) {     // 非负数状态每回合 -1（力量/敏捷可为负，不衰减；滋养/荆棘本场常驻，不在此列）
+      ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'leech', 'regen'].forEach(s => {
         if (entity.statuses[s] > 0) {
           entity.statuses[s] -= 1;
           if (entity.statuses[s] <= 0) delete entity.statuses[s];

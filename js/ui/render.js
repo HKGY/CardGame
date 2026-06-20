@@ -28,6 +28,7 @@ window.CG = window.CG || {};
     regen:      { label: '再生', cls: 'badge-buff' },
     thorns:     { label: '荆棘', cls: 'badge-buff' },
     nourish:    { label: '滋养', cls: 'badge-buff' },
+    burn:       { label: '灼伤', cls: 'badge-poison' },
     fire:       { label: '🔥火', cls: 'badge-fire' },
     water:      { label: '💧水', cls: 'badge-water' },
     thunder:    { label: '⚡雷', cls: 'badge-thunder' },
@@ -447,40 +448,50 @@ window.CG = window.CG || {};
     }
     prevPhase = game.phase;
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
-    renderCraft(game);
+    renderPrompt(game);
   }
 
-  // ---------- 厨艺：做菜选料浮层（打出素菜后弹出，选荤菜→选调味料，可跳过/取消）----------
-  function renderCraft(game) {
+  // ---------- 战斗内浮层：做菜选料（craft）/ 消耗包选牌（pick：燃烧 / 重生）----------
+  function renderPrompt(game) {
     let ov = $('craft-overlay');
     if (!ov) {
       ov = document.createElement('div');
       ov.id = 'craft-overlay'; ov.className = 'craft-overlay hidden';
       ov.addEventListener('click', ev => {
-        const el = ev.target.closest('[data-craft]');
-        if (!el || !current) return;
-        const v = el.dataset.craft;
-        if (v === 'cancel') return handlers.onCraftCancel && handlers.onCraftCancel();
-        if (v === 'skip')   return handlers.onCraftPick && handlers.onCraftPick(null);
-        CG.Audio.play('card'); handlers.onCraftPick && handlers.onCraftPick(Number(v));
+        const el = ev.target.closest('[data-craft],[data-pick]'); if (!el || !current) return;
+        if (el.dataset.craft != null) {       // 做菜
+          const v = el.dataset.craft;
+          if (v === 'cancel') return handlers.onCraftCancel && handlers.onCraftCancel();
+          if (v === 'skip')   return handlers.onCraftPick && handlers.onCraftPick(null);
+          CG.Audio.play('card'); return handlers.onCraftPick && handlers.onCraftPick(Number(v));
+        }
+        const v = el.dataset.pick;            // 消耗包选牌
+        if (v === 'skip') return handlers.onPickCard && handlers.onPickCard(null);
+        CG.Audio.play('card'); handlers.onPickCard && handlers.onPickCard(Number(v));
       });
       $('screen-battle').appendChild(ov);
     }
-    if (!game.craft) { ov.classList.add('hidden'); ov.innerHTML = ''; return; }
-    const step = game.craft.step;
-    const title = step === 'meat' ? '🍳 做菜 · 选择荤菜（与素菜同炖）' : '🍳 做菜 · 选择调味料';
-    const cands = game.craftCandidates();
-    const cards = cands.length
-      ? cands.map(c => cardFace(c, { clickable: true, data: { craft: c.uid } })).join('')
-      : '<p class="empty-note">手牌里没有可选的，点「跳过」。</p>';
-    ov.innerHTML = `<div class="craft-box">
-      <h3>${title}</h3>
-      <div class="craft-cards">${cards}</div>
-      <div class="craft-actions">
-        <button class="big-btn" data-craft="skip">跳过</button>
-        <button class="big-btn leave" data-craft="cancel">取消做菜</button>
-      </div></div>`;
-    ov.classList.remove('hidden');
+    if (game.craft) {
+      const step = game.craft.step;
+      const title = step === 'meat' ? '🍳 做菜 · 选择荤菜（与素菜同炖）' : '🍳 做菜 · 选择调味料';
+      const cands = game.craftCandidates();
+      const cards = cands.length
+        ? cands.map(c => cardFace(c, { clickable: true, data: { craft: c.uid } })).join('')
+        : '<p class="empty-note">手牌里没有可选的，点「跳过」。</p>';
+      ov.innerHTML = `<div class="craft-box"><h3>${title}</h3><div class="craft-cards">${cards}</div>
+        <div class="craft-actions"><button class="big-btn" data-craft="skip">跳过</button><button class="big-btn leave" data-craft="cancel">取消做菜</button></div></div>`;
+      ov.classList.remove('hidden'); return;
+    }
+    if (game.pick) {
+      const pool = game.pick.type === 'burn' ? game.hand : game.exhaustPile;
+      const cards = pool.length
+        ? pool.map(c => cardFace(c, { clickable: true, data: { pick: c.uid } })).join('')
+        : '<p class="empty-note">没有可选的，点「跳过」。</p>';
+      ov.innerHTML = `<div class="craft-box"><h3>🔥 ${game.pick.title}</h3><div class="craft-cards">${cards}</div>
+        <div class="craft-actions"><button class="big-btn leave" data-pick="skip">跳过</button></div></div>`;
+      ov.classList.remove('hidden'); return;
+    }
+    ov.classList.add('hidden'); ov.innerHTML = '';
   }
 
   CG.UI = Object.assign(CG.UI || {}, { init, render, onEvent, cardFace, gemFace, tarotBarHTML, relicIcons });

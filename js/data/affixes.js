@@ -50,6 +50,12 @@ window.CG = window.CG || {};
     ranch:   { name: '牧场', color: '#d08a5a', score: 3, give: 'meat',     desc: () => `获得随机荤菜`, long: () => `打出后获得 1 张随机「荤菜」卡（鱼/鸡/牛肉）` },
     market:  { name: '市场', color: '#c8b04a', score: 3, give: 'season',   desc: () => `获得随机调味料`, long: () => `打出后获得 1 张随机「调味料」卡（盐/酱油/胡椒）` },
     kitchen: { name: '厨房', color: '#c87a8a', score: 3, give: 'cookware', desc: () => `获得随机厨具`, long: () => `打出后获得 1 张随机「厨具」卡（菜刀/铁锅/火炉，0 费武器）` },
+    // —— 消耗包：围绕「消耗(exhaust)」做文章 ——
+    ashes:   { name: '灰烬', color: '#9aa0a8', score: 4, ashes: 1,      desc: n => `+已消耗数 ×${n}`, long: n => `本牌数值额外 +（消耗堆牌数 × ${n}）` },
+    burning: { name: '燃烧', color: '#e87838', score: 3, burnSelect: 1, desc: () => `消耗 1 张手牌`,   long: () => `打出后：选择并消耗 1 张手牌` },
+    nirvana: { name: '涅槃', color: '#c79ae0', score: 5, nirvana: 1,    desc: () => `被消耗时打出 1 次`, long: () => `这张牌被消耗时，自动打出 1 次（再结算一遍其效果）` },
+    undying: { name: '不坏', color: '#c2c6d6', score: 5, undying: 1,    desc: () => `被消耗时生成副本`, long: () => `这张牌被消耗时，生成 1 张相同副本进手牌` },
+    reborn:  { name: '重生', color: '#7fd0a0', score: 4, reborn: 1,     desc: () => `从消耗堆取回 1 张`, long: () => `打出后：把消耗堆里指定的 1 张牌加入手牌` },
   };
 
   const DEBUFFS = {
@@ -67,6 +73,10 @@ window.CG = window.CG || {};
     rot:   { name: '腐败', color: '#7a7a4a', score: -3, debuff: true, give: 'spoiled_rice', desc: () => `获得馊饭`, long: () => `打出后获得「馊饭」（不能打出，回合结束失去 2 生命）` },
     spoil: { name: '变质', color: '#8a6a4a', score: -3, debuff: true, give: 'stinky_meat', desc: () => `获得臭肉`, long: () => `打出后获得「臭肉」（不能打出，回合结束自身虚弱 2）` },
     mold:  { name: '发霉', color: '#6a8a5a', score: -3, debuff: true, give: 'rotten_veg', desc: () => `获得烂菜`, long: () => `打出后获得「烂菜」（不能打出，回合结束自身易伤 2）` },
+    // —— 消耗包·负面 ——
+    detonate: { name: '爆燃', color: '#c75450', score: -4, debuff: true, burnAll: 1,   desc: () => `消耗其余手牌`, long: () => `打出后消耗你其余所有手牌` },
+    onfire:   { name: '着火', color: '#e0703a', score: -3, debuff: true, selfBurn: 2,  desc: n => `自身灼伤 ${2 * n}`, long: n => `打出后给自己上 ${2 * n} 层「灼伤」（每回合受等量伤害、逐回合 -1，但可被格挡）` },
+    nightmare:{ name: '噩梦', color: '#6a5a8a', score: -4, debuff: true, nightmare: 1, desc: () => `渣滓塞满手牌`, long: () => `打出后用「渣滓」(1 费·打出即消耗) 塞满你的手牌（上限 10 张）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -132,6 +142,9 @@ window.CG = window.CG || {};
     cook:     { name: '厨艺包', icon: '🍳', color: '#e0a45a', desc: '做菜流派：打出素菜→选荤菜/调料做成「餐点」(0费消耗)；大宝石附带腐坏减益。',
                 buffs: ['farm', 'ranch', 'market', 'kitchen'],
                 debuffs: ['rot', 'spoil', 'mold'] },
+    exhaust:  { name: '消耗包', icon: '🔥', color: '#d2603a', desc: '玩「消耗」：灰烬随消耗堆变强、燃烧/重生操纵牌堆、涅槃/不坏让被消耗的牌再生；大宝石附带爆燃/着火/噩梦。',
+                buffs: ['ashes', 'burning', 'nirvana', 'undying', 'reborn'],
+                debuffs: ['detonate', 'onfire', 'nightmare'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 })(window.CG);

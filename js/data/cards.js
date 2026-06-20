@@ -44,10 +44,11 @@ window.CG = window.CG || {};
     stinky_meat:  { name: '臭肉', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'weak',    icon: '🥓' },
     rotten_veg:   { name: '烂菜', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'vuln',    icon: '🥬' },
     meal:    { name: '餐点',   cost: 0, type: 'skill',  kind: 'meal', icon: '🍲' },               // 动态：effects 挂在实例 .meal 上
+    dross:   { name: '渣滓',   cost: 1, type: 'skill',  kind: 'dross', icon: '🗑️' },              // 消耗包·噩梦塞入：1 费、打出无效果、打出即消耗
   };
   // 食材分类（随机生成用）
   CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'], cookware: ['cleaver', 'wok', 'stove'] };
-  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'cookware' || b.kind === 'spoiled' || b.kind === 'meal')); };
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'cookware' || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -109,6 +110,7 @@ window.CG = window.CG || {};
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
+    let ashesN = 0, burnSelN = 0, rebornN = 0, selfBurnN = 0, nirvana = false, undying = false, burnAll = false, nightmare = false;  // 消耗包
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -133,7 +135,15 @@ window.CG = window.CG || {};
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.element) { elementId = d.element; elementLevel = L; }   // 元素附着：命中时给敌人附 L 层该元素
-      if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
+      if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
+      if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
+      if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
+      if (d.selfBurn)  selfBurnN += d.selfBurn * L;     // 着火：给自己上灼伤
+      if (d.nirvana)   nirvana = true;                  // 涅槃：被消耗时打出 1 次
+      if (d.undying)   undying = true;                  // 不坏：被消耗时生成副本
+      if (d.burnAll)   burnAll = true;                  // 爆燃：消耗其余手牌
+      if (d.nightmare) nightmare = true;                // 噩梦：渣滓塞满手牌
+      if (d.exhaust)   exhaust = true;                  // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
     });
@@ -162,6 +172,9 @@ window.CG = window.CG || {};
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
     for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给食材卡
+    if (selfBurnN) effects.push({ type: 'selfStatus', status: 'burn', value: selfBurnN });   // 着火：自身灼伤
+    if (burnAll)   effects.push({ type: 'exhaustHand' });                                     // 爆燃：消耗其余手牌
+    if (nightmare) effects.push({ type: 'nightmare' });                                       // 噩梦：渣滓塞满手牌
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -180,6 +193,7 @@ window.CG = window.CG || {};
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
       freeNext: freeNextN, combo: comboN, element: elementId, elementLevel,
+      ashes: ashesN, burnSelect: burnSelN, reborn: rebornN, nirvana, undying,   // 消耗包
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -250,7 +264,8 @@ window.CG = window.CG || {};
       base: inst.base, baseName: b.name, cost: b.cost || 0, type: b.type, kind: b.kind || 'food',
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
-      element: null, elementLevel: 0, nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
+      element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: false, undying: false,
+      nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };
     if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选荤菜/调料做成餐点（不选则＝回复 ${b.level}）`; }
@@ -268,6 +283,8 @@ window.CG = window.CG || {};
       const meal = inst.meal || { effects: [], name: '餐点', desc: '', repeatTimes: 1 };
       s.exhaust = true; s.effects = meal.effects || []; s.repeatTimes = meal.repeatTimes || 1;
       s.value = meal.value || 0; s.name = s.baseName = meal.name || '餐点'; s.baseText = meal.desc || '';
+    } else if (b.kind === 'dross') {
+      s.exhaust = true; s.baseText = '渣滓：打出无任何效果，打出即消耗（噩梦塞入）';
     }
     return s;
   };
