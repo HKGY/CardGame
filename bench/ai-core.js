@@ -35,6 +35,8 @@ function cloneGame(CG, g) {
   c.drawPile = g.drawPile.map(cloneCard);
   c.discardPile = g.discardPile.map(cloneCard);
   c.exhaustPile = g.exhaustPile.map(cloneCard);
+  if (g.allies) c.allies = g.allies.map(a => Object.assign({}, a));         // 召唤包：召唤物（可变）必须深拷，否则搜索克隆会污染真实战斗
+  if (g.buildings) c.buildings = g.buildings.map(b => Object.assign({}, b)); // 建造包：建筑同理
   c._turnPlays = Object.assign({}, g._turnPlays);
   c._pickQueue = (g._pickQueue || []).slice();
   c.pick = g.pick ? Object.assign({}, g.pick) : null;

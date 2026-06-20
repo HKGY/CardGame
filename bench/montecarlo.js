@@ -17,7 +17,7 @@ const { CG } = build();
   const M = +process.argv[3] || +process.env.M || 1;
   const W = +process.argv[4] || 16;
   const SEARCH = process.env.SEARCH || 'rollout';
-  console.log(`蒙特卡洛：${N} 局 · 真实随机 4 包（基础包 + 3 随机增强）· 敌人倍率 M=${M} · ${W} 线程 · AI=${SEARCH}`);
+  console.log(`蒙特卡洛：${N} 局 · 真实随机 5 包（基础包 + 4 随机增强）· 敌人倍率 M=${M} · ${W} 线程 · AI=${SEARCH}`);
   const t0 = Date.now();
   const { agg, totRuns, totWins, actSum } = await runParallel({ N, M, packs: null, workers: W, search: SEARCH });
   const overall = totWins / totRuns;
