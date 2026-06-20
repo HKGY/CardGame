@@ -106,6 +106,7 @@ window.CG = window.CG || {};
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.allies = [];                         // 召唤：愚者重开时清空召唤物
       this.buildings = [];                      // 建造：愚者重开时清空建筑
+      this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -141,6 +142,7 @@ window.CG = window.CG || {};
       this._heat = 0;                          // 锻造包：本场热度
       this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
+      this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -349,6 +351,15 @@ window.CG = window.CG || {};
       if (s.dumpster > 0) {   // 弃牌包·倾倒：数值 +（本回合已弃牌数 × 等级）
         const bonus = s.dumpster * (this._discardedThisTurn || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      if (s.prey > 0) {       // 猎杀包·猎物：伤害 +（目标减益层数总和 × 等级）
+        const t = this.currentTarget();
+        const bonus = t ? s.prey * this._enemyDebuffLayers(t) : 0;
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      if (s.insight > 0) {    // 猎杀包·洞察：敌意图攻击时本牌伤害 ×(1+等级)
+        const t = this.currentTarget();
+        if (t && t.intent && String(t.intent.intent || '').includes('attack')) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value * (1 + s.insight) }) : e) });
       }
       // === 死守包 ===
       // 盾击：本牌伤害额外 +（当前格挡 × 等级）——读取打出前的格挡（仿电弧/连击）
@@ -629,6 +640,7 @@ window.CG = window.CG || {};
     }
     _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数
     _addToHand(card) { if (this.hand.length < HAND_LIMIT) this.hand.push(card); else this.discardPile.push(card); }   // 术士包等：造牌进手（满则进弃牌堆）
+    _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和
     _discardRandom(n) { for (let i = 0; i < n && this.hand.length; i++) this._discard(this.hand.splice(Math.floor(Math.random() * this.hand.length), 1)[0]); }
 
     // 遗物字段可为数字或 (game, ctx)=>数字 的条件函数（用于区分相似遗物的触发前提）
@@ -740,7 +752,7 @@ window.CG = window.CG || {};
     }
 
     _checkEnd() {
-      this.enemies.forEach(e => { if (e.alive && e.hp <= 0) { e.alive = false; e.block = 0; this.addLog(`${e.name} 被击败了。`); } });
+      this.enemies.forEach(e => { if (e.alive && e.hp <= 0) { e.alive = false; e.block = 0; this.addLog(`${e.name} 被击败了。`); if (this._reaping) this.applyStatus(this.player, 'strength', this._reaping); } });   // 猎杀·收割：击杀给永久力量
       this._refreshTarget();
       if (this.aliveEnemies().length === 0) { this.phase = 'won'; this.addLog('胜利！'); return; }
       if (this.player.hp <= 0) {

@@ -242,6 +242,10 @@ window.CG = window.CG || {};
     foresight(game) { if (game.drawPile.length) { const c = game.drawPile.pop(); game._applyCardEffects(c); game.discardPile.push(c); } },   // 灵视：免费打出牌堆顶
     mindblast(game, eff) { [...game.drawPile, ...game.discardPile, ...game.hand].forEach(c => { const b = CG.BASE_CARDS[c.base]; if (b && b.type === 'attack') c.growth = (c.growth || 0) + eff.value; }); },   // 心灵震慑：牌库攻击牌永久+伤害（复用 growth）
     clutter(game, eff) { for (let i = 0; i < eff.value; i++) game._addToHand(CG.makeFoodCard('dross')); },                          // 谵妄：塞渣滓
+    // === 猎杀包 ===（处决/引爆减益/收割；prey/insight 是 playCard 加成）
+    execute(game, eff, source, target) { if (target && target.hp > 0 && target.hp <= target.maxHp * 0.1 * eff.value) { target.hp = 0; game.addLog(`处决：${target.name} 被斩杀！`); game._checkEnd(); } },
+    exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 4 * eff.value); },
+    reaping(game, eff) { game._reaping = (game._reaping || 0) + eff.value; },
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 

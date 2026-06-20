@@ -139,6 +139,12 @@ window.CG = window.CG || {};
     duplicate: { name: '复制', color: '#a0a0e0', score: 4, duplicate: 1, desc: () => `复制一张手牌`, long: () => `复制手牌中随机 1 张（副本进手牌·本场）` },
     foresight: { name: '灵视', color: '#9ac0e0', score: 4, foresight: 1, desc: () => `免费打出牌堆顶`, long: () => `立即免费打出抽牌堆顶的 1 张牌` },
     mindblast: { name: '心灵震慑', color: '#c79ae0', score: 5, mindblast: 1, desc: n => `牌库攻击牌 +${n}`, long: n => `本场永久：牌库(抽/弃/手)里所有攻击牌伤害 +${n}` },
+    // === 猎杀包：借敌人虚弱爆发/处决/击杀回报（区别于强攻裸数值、弱化上 debuff）===
+    execute: { name: '处决', color: '#b04050', score: 5, execute: 1, desc: n => `敌≤${10 * n}% 斩杀`, long: n => `若当前敌人生命 ≤ 最大生命的 ${10 * n}%，直接斩杀` },
+    prey:    { name: '猎物', color: '#c06050', score: 4, prey: 1, damageOnly: true, desc: n => `伤害+敌减益×${n}`, long: n => `本牌伤害额外 +（目标减益层数总和 × ${n}）` },
+    exploit: { name: '弱点爆破', color: '#d05040', score: 4, exploit: 1, desc: n => `引爆敌减益·每层 ${4 * n}`, long: n => `消耗目标全部减益，每消耗 1 层对其造成 ${4 * n} 伤害` },
+    insight: { name: '洞察', color: '#a07060', score: 4, insight: 1, damageOnly: true, desc: n => `敌意图攻击时×${1 + n}`, long: n => `若敌人本回合意图为攻击，本牌伤害 ×${1 + n}` },
+    reaping: { name: '收割', color: '#c08040', score: 5, reaping: 1, desc: n => `每击杀+${n}力量`, long: n => `本场战斗每击杀 1 个敌人，永久 +${n} 力量` },
   };
 
   const DEBUFFS = {
@@ -327,6 +333,9 @@ window.CG = window.CG || {};
     conjure:  { name: '术士包', icon: '🎩', color: '#b59ad8', desc: '凭空造牌/复制/灵视，心灵震慑强化牌库（区别于节奏的抽既有牌）。',
                 buffs: ['conjure', 'daggers', 'duplicate', 'foresight', 'mindblast'],
                 debuffs: ['clutter', 'recoil', 'cumbersome'] },
+    hunter:   { name: '猎杀包', icon: '🗡️', color: '#c06050', desc: '借敌人虚弱爆发：处决残血、引爆减益、洞察意图、击杀给永久回报。',
+                buffs: ['execute', 'prey', 'exploit', 'insight', 'reaping'],
+                debuffs: ['recoil', 'expose', 'coward'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
@@ -336,7 +345,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'discard', 'conjure', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'discard', 'conjure', 'hunter', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;
