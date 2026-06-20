@@ -248,7 +248,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;
