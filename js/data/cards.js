@@ -126,6 +126,7 @@ window.CG = window.CG || {};
     let mineN = 0, blastN = 0, prospectN = 0, quarryN = 0, richveinN = 0, caveinN = 0, barrenN = 0, disasterN = 0;  // 矿工包（深度）
     let bellowsN = 0, emberN = 0, smeltN = 0, coolantN = 0, whitehotN = 0, overheatN = 0, crackN = 0, rustN = 0;   // 锻造包（热度）
     const summonList = []; let commandN = 0, cullingN = 0, discordN = 0;   // 召唤包（toll 复用 hpLoss）
+    const buildList = []; let demolishN = 0, collapseN = 0, subsideN = 0;  // 建造包（hazard 复用 hpLoss）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -221,6 +222,9 @@ window.CG = window.CG || {};
       // —— 召唤包 ——
       if (d.summon) summonList.push({ what: d.summon, level: L });
       if (d.command) commandN += d.command * L; if (d.culling) cullingN += d.culling * L; if (d.discord) discordN += d.discord * L;
+      // —— 建造包 ——
+      if (d.build) buildList.push({ what: d.build, level: L });
+      if (d.demolish) demolishN += d.demolish * L; if (d.collapse) collapseN += d.collapse * L; if (d.subside) subsideN += d.subside * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -317,6 +321,11 @@ window.CG = window.CG || {};
     if (commandN) effects.push({ type: 'command', value: commandN });
     if (cullingN) effects.push({ type: 'culling', value: cullingN });
     if (discordN) effects.push({ type: 'discord', value: discordN });
+    // === 建造包 ===
+    buildList.forEach(s => effects.push({ type: 'build', what: s.what, value: s.level }));
+    if (demolishN) effects.push({ type: 'demolish', value: demolishN });
+    if (collapseN) effects.push({ type: 'collapse', value: collapseN });
+    if (subsideN)  effects.push({ type: 'subside', value: subsideN });
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,

@@ -472,6 +472,17 @@ window.CG = window.CG || {};
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
     renderPrompt(game);
     renderAllies(game);
+    renderBuildings(game);
+  }
+
+  // ---------- 建造包：场上建筑栏（动态创建，只读展示）----------
+  function renderBuildings(game) {
+    let bar = $('buildings-bar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'buildings-bar'; bar.className = 'allies-bar right hidden'; const sb = $('screen-battle'); if (sb) sb.appendChild(bar); }
+    const bs = game.buildings || [];
+    if (!bs.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    bar.innerHTML = bs.map(b => `<div class="ally" title="${b.name}">${b.icon} ${b.name} <b>${b.power}</b></div>`).join('');
+    bar.classList.remove('hidden');
   }
 
   // ---------- 召唤包：己方召唤物栏（动态创建，只读展示）----------

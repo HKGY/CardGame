@@ -121,6 +121,12 @@ window.CG = window.CG || {};
     totem:    { name: '立图腾', color: '#9ac0a0', score: 4, summon: 'totem', desc: n => `召唤图腾·每回合+${3 * n}格挡`, long: n => `召唤一个 ${8 * n} 血的图腾：不攻击，每回合末给你 ${3 * n} 点格挡` },
     command:  { name: '督战', color: '#e0a060', score: 4, command: 1, desc: n => `召唤物 +${n}攻并立即攻击`, long: n => `你所有召唤物攻击力 +${n}，并立即发动一次攻击` },
     guardian: { name: '守护灵', color: '#8ab0d0', score: 5, summon: 'guardian', desc: n => `召唤 ${15 * n}血 嘲讽`, long: n => `召唤一个 ${15 * n} 血、${2 * n} 攻、带「嘲讽」的守护灵（敌人优先攻击它）` },
+    // === 建造包：在有限槽位摆放「建筑」(game.buildings)，每回合开始自动触发；工坊增幅、拆解一次兑现 ===
+    arrowtower: { name: '箭塔', color: '#c0a060', score: 4, build: 'arrowtower', desc: n => `建造·每回合打 ${4 * n}`, long: n => `建造箭塔：每回合开始对随机敌人造成 ${4 * n}（受工坊增幅）` },
+    rampart:    { name: '路障', color: '#8aa0b8', score: 4, build: 'rampart', desc: n => `建造·每回合 +${4 * n} 格挡`, long: n => `建造路障：每回合开始获得 ${4 * n} 点格挡（受工坊增幅）` },
+    furnace:    { name: '熔炉', color: '#d08850', score: 4, build: 'furnace', desc: n => `建造·每回合 +${n} 力量`, long: n => `建造熔炉：每回合开始 +${n} 力量（受工坊增幅）` },
+    workshop:   { name: '工坊', color: '#b0a878', score: 5, build: 'workshop', desc: n => `建造·增幅其它建筑 +${n}`, long: n => `建造工坊：每座工坊使你其它建筑每次触发效果 +${n}` },
+    demolish:   { name: '拆解', color: '#c8b060', score: 4, demolish: 1, desc: n => `拆 1 建筑·结算 ${3 * n} 次`, long: n => `拆掉你最早的一座建筑，立即结算它 ${3 * n} 次效果` },
   };
 
   const DEBUFFS = {
@@ -185,6 +191,10 @@ window.CG = window.CG || {};
     toll:    { name: '索命', color: '#9a5a6a', score: -3, debuff: true, hpLoss: 3, desc: n => `召唤代价：自伤 ${3 * n}`, long: n => `打出后失去 ${3 * n} 点生命（召唤的代价；复用反噬式自伤）` },
     culling: { name: '折损', color: '#7a6a7a', score: -3, debuff: true, culling: 1, desc: n => `消灭你 ${n} 个召唤物`, long: n => `打出后随机消灭你 ${n} 个召唤物` },
     discord: { name: '内讧', color: '#8a6a5a', score: -3, debuff: true, discord: 2, desc: n => `召唤物各 -${2 * n} 血`, long: n => `打出后你所有召唤物各失去 ${2 * n} 点生命` },
+    // === 建造包·负面 ===
+    hazard:   { name: '工伤', color: '#9a6a5a', score: -3, debuff: true, hpLoss: 3, desc: n => `自伤 ${3 * n}`, long: n => `打出后失去 ${3 * n} 点生命（施工事故；复用反噬式自伤）` },
+    collapse: { name: '坍塌', color: '#7a6a5a', score: -3, debuff: true, collapse: 1, desc: n => `摧毁你 ${n} 座建筑`, long: n => `打出后随机摧毁你 ${n} 座建筑` },
+    subside:  { name: '沉降', color: '#8a7a6a', score: -3, debuff: true, subside: 1, desc: n => `建筑效果各 -${n}`, long: n => `打出后你所有建筑的每次触发效果 -${n}（夹 0）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -291,6 +301,9 @@ window.CG = window.CG || {};
     summon:   { name: '召唤包', icon: '👻', color: '#b0b0e0', desc: '召唤有血量的随从替你作战：骷髅/群召/图腾/守护灵（嘲讽），督战增援。',
                 buffs: ['skeleton', 'swarm', 'totem', 'command', 'guardian'],
                 debuffs: ['toll', 'culling', 'discord'] },
+    build:    { name: '建造包', icon: '🏗️', color: '#c0a060', desc: '在有限槽位摆放建筑，每回合开始自动触发；工坊增幅、拆解一次兑现。',
+                buffs: ['arrowtower', 'rampart', 'furnace', 'workshop', 'demolish'],
+                debuffs: ['hazard', 'collapse', 'subside'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
@@ -300,7 +313,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;

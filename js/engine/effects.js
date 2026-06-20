@@ -221,6 +221,16 @@ window.CG = window.CG || {};
     command(game, eff) { (game.allies || []).forEach(a => { a.atk += eff.value; }); if (game._allyAttack) game._allyAttack(); },   // 督战：全体 +攻并立即攻击
     culling(game, eff) { const A = game.allies || []; for (let i = 0; i < eff.value && A.length; i++) A.splice(Math.floor(Math.random() * A.length), 1); },  // 折损
     discord(game, eff) { (game.allies || []).forEach(a => { a.hp -= eff.value; }); if (game._reapAllies) game._reapAllies(); },   // 内讧
+    // === 建造包 ===（建筑 game.buildings；每回合开始由 _buildingsTick 触发）
+    build(game, eff) {
+      const L = eff.value, B = (game.buildings = game.buildings || []);
+      const pow = ({ arrowtower: 4 * L, rampart: 4 * L, furnace: 1 * L, workshop: 1 * L })[eff.what] || L;
+      const meta = ({ arrowtower: ['箭塔', '🏹'], rampart: ['路障', '🧱'], furnace: ['熔炉', '🔥'], workshop: ['工坊', '🏭'] })[eff.what] || ['建筑', '🏗️'];
+      if (B.length < 5) B.push({ kind: eff.what, name: meta[0], icon: meta[1], power: pow });   // 槽位上限 5
+    },
+    demolish(game, eff) { const B = game.buildings || []; if (!B.length) return; const b = B.shift(); for (let i = 0; i < 3 * eff.value; i++) game._fireBuilding(b); },   // 拆解：拆最早的一座、立即结算 3×L 次
+    collapse(game, eff) { const B = game.buildings || []; for (let i = 0; i < eff.value && B.length; i++) B.splice(Math.floor(Math.random() * B.length), 1); },   // 坍塌
+    subside(game, eff)  { (game.buildings || []).forEach(b => { b.power = Math.max(0, b.power - eff.value); }); },   // 沉降
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 

@@ -105,6 +105,7 @@ window.CG = window.CG || {};
       this._keepBlock = false;                  // 死守包·重甲：愚者重开时重置
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.allies = [];                         // 召唤：愚者重开时清空召唤物
+      this.buildings = [];                      // 建造：愚者重开时清空建筑
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -139,6 +140,7 @@ window.CG = window.CG || {};
       this._depth = 0;                         // 矿工包：本场挖矿深度
       this._heat = 0;                          // 锻造包：本场热度
       this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
+      this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -210,6 +212,8 @@ window.CG = window.CG || {};
         if (st.prodUpkeep) this.player.energy = Math.max(0, this.player.energy - st.prodUpkeep);
         if (st.prodDraw) this.drawCards(st.prodDraw);
       }
+      this._buildingsTick();                     // 建造包：回合开始触发所有建筑
+      this._checkEnd();                          // 箭塔等可能终结战斗
       this._emit();
     }
 
@@ -583,6 +587,23 @@ window.CG = window.CG || {};
         }
       });
       this.addLog('你的召唤物发起了攻击。');
+    }
+    // ---------- 建造包：场上建筑 ----------
+    _workshopBonus() { return (this.buildings || []).filter(b => b.kind === 'workshop').reduce((s, b) => s + (b.power || 0), 0); }
+    _fireBuilding(b, wb) {                                                                // 触发一座建筑（回合开始 / 拆解）
+      if (wb == null) wb = this._workshopBonus();
+      const p = (b.power || 0) + (b.kind === 'workshop' ? 0 : wb);                        // 工坊增幅其它建筑
+      if (b.kind === 'arrowtower') {
+        const t = this.currentTarget();
+        if (t && t.hp > 0 && p > 0) { const before = t.hp, bb = t.block; this._dealRaw(t, p); this._fire('damage', { side: 'enemy', ei: this._idxOf(t), hpLoss: before - t.hp, blocked: Math.min(bb, p) }); }
+      } else if (b.kind === 'rampart') { if (p > 0) this.gainBlock(this.player, p); }
+      else if (b.kind === 'furnace') { if (p > 0) this.applyStatus(this.player, 'strength', p); }
+    }
+    _buildingsTick() {                                                                   // 回合开始：所有建筑各触发一次
+      if (!this.buildings || !this.buildings.length) return;
+      const wb = this._workshopBonus();
+      this.buildings.forEach(b => this._fireBuilding(b, wb));
+      this.addLog('你的建筑运转起来。');
     }
 
     // ---------- 战斗原语 ----------
