@@ -205,14 +205,14 @@ test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）',
   assert.equal(run.shopMult(), 0.5);
 });
 
-test('开局随机卡包：基础包 + 3 个随机增强包；本局只在这几个里出包', () => {
+test('开局随机卡包：基础包 + 4 个随机增强包；本局只在这几个里出包', () => {
   const run = newRun('packs-run');
-  assert.equal(run.packs.length, 4);
-  assert.equal(new Set(run.packs).size, 4, '不重复');
+  assert.equal(run.packs.length, 5);
+  assert.equal(new Set(run.packs).size, 5, '不重复');
   assert.ok(run.packs.includes('basic'), '必含基础包');
   run.packs.forEach(id => assert.ok(CG.PACKS[id], '都是合法包 id'));
   const themed = CG.PACK_IDS.filter(id => id !== 'basic');
-  assert.equal(run.packs.filter(id => id !== 'basic').length, 3, '3 个增强包');
+  assert.equal(run.packs.filter(id => id !== 'basic').length, 4, '4 个增强包');
   assert.ok(themed.some(id => !run.packs.includes(id)), '应排除掉增强包');
   // 本局所有扩充包＝一个融合包：pickPack 恒返回 'fusion'，其词条池全部来自选定主题
   assert.equal(CG.pickPack('elite'), 'fusion');
@@ -390,7 +390,7 @@ test('调试：debugAddGem 把自定义词条宝石加入背包（夹等级 1~3�
   assert.equal(run.gems.length, n0 + 1);
 });
 
-test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则回退随机 4 包）', () => {
+test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则回退随机 5 包）', () => {
   CG.RNG.seed('debug-packs');
   const run = new CG.Run('warrior', { packs: ['cook', 'elements', 'bogus'] });
   assert.equal(run.packs.length, 2, '过滤掉非法 id');
@@ -398,8 +398,8 @@ test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则
   assert.equal(CG.pickPack('elite'), 'fusion');
   const allowed = new Set(run.packs.flatMap(id => CG.PACKS[id].buffs.concat(CG.PACKS[id].debuffs)));
   CG.fusionPack().buffs.concat(CG.fusionPack().debuffs).forEach(id => assert.ok(allowed.has(id), '融合池只应来自指定主题'));
-  // 空 / 全非法 → 回退随机（基础包 + 3）
+  // 空 / 全非法 → 回退随机（基础包 + 4）
   const run2 = new CG.Run('warrior', { packs: ['bogus'] });
-  assert.equal(run2.packs.length, 4);
+  assert.equal(run2.packs.length, 5);
   assert.ok(run2.packs.includes('basic'));
 });

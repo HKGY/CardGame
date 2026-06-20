@@ -28,29 +28,29 @@ test('耕作：施加 prodDraw，常驻；每回合开始额外抽牌', () => {
   const b = CG.makeBattle();
   b.hand = [gemCard('strike', [{ id: 'farming', level: 2 }])];
   b.playCard(b.hand[0].uid);
-  assert.equal(b.player.statuses.prodDraw, 2);                 // selfStatus 施加（等级 2）
-  // 推进到下一回合：抽 5（CARDS_PER_TURN）+ 2（耕作）
+  assert.equal(b.player.statuses.prodDraw, 1);                 // 无视等级固定 1
+  // 推进到下一回合：抽 5（CARDS_PER_TURN）+ 1（耕作）
   refillDraw(b, 9); b.discardPile = []; b.exhaustPile = [];    // 备足抽牌堆（覆写 hand 会丢掉首回合抽到的牌）
   nextTurn(b);
-  assert.equal(b.player.statuses.prodDraw, 2);                 // 常驻不衰减
-  assert.equal(b.hand.length, 7);                             // 5 + 2
+  assert.equal(b.player.statuses.prodDraw, 1);                 // 常驻不衰减
+  assert.equal(b.hand.length, 6);                             // 5 + 1
   // 再过一回合仍然多抽（验证常驻）
   refillDraw(b, 9); b.discardPile = [];
   nextTurn(b);
-  assert.equal(b.player.statuses.prodDraw, 2);
-  assert.equal(b.hand.length, 7);
+  assert.equal(b.player.statuses.prodDraw, 1);
+  assert.equal(b.hand.length, 6);
 });
 
 test('蓄能：施加 prodBlock；每回合开始 +格挡（先清零再产出）', () => {
   const b = CG.makeBattle();
   b.hand = [gemCard('defend', [{ id: 'stockpile', level: 2 }])];
-  b.playCard(b.hand[0].uid);                                   // 打防御(5格挡) + 施加 prodBlock 2
-  assert.equal(b.player.statuses.prodBlock, 2);
+  b.playCard(b.hand[0].uid);                                   // 打防御(5格挡) + 施加 prodBlock 1
+  assert.equal(b.player.statuses.prodBlock, 1);
   nextTurn(b);
-  assert.equal(b.player.block, 2);                            // 回合开始格挡清零 → 仅产出 2
-  assert.equal(b.player.statuses.prodBlock, 2);              // 常驻
+  assert.equal(b.player.block, 1);                            // 回合开始格挡清零 → 仅产出 1
+  assert.equal(b.player.statuses.prodBlock, 1);              // 常驻
   nextTurn(b);
-  assert.equal(b.player.block, 2);                            // 每回合稳定 +2（无复利）
+  assert.equal(b.player.block, 1);                            // 每回合稳定 +1（无复利）
 });
 
 test('复利：prodGrow 让蓄能逐回合自增', () => {
@@ -67,7 +67,7 @@ test('复利：prodGrow 让蓄能逐回合自增', () => {
   assert.equal(b.player.block, 4);
 });
 
-test('丰收：当前产出层数总和 ×等级 → 立即格挡', () => {
+test('丰收：当前产出层数总和 → 立即格挡（无视等级）', () => {
   const b = CG.makeBattle();
   b.player.statuses.prodDraw = 1;
   b.player.statuses.prodBlock = 2;
@@ -75,14 +75,14 @@ test('丰收：当前产出层数总和 ×等级 → 立即格挡', () => {
   b.player.block = 0;
   b.hand = [gemCard('strike', [{ id: 'harvest', level: 2 }])];
   b.playCard(b.hand[0].uid);
-  assert.equal(b.player.block, 12);                          // 6 × 2
+  assert.equal(b.player.block, 6);                           // 6 × 1（无视等级）
   // 产出层数本身不被丰收消耗
   assert.equal(b.player.statuses.prodDraw, 1);
   assert.equal(b.player.statuses.prodBlock, 2);
   assert.equal(b.player.statuses.prodGrow, 3);
 });
 
-test('灌溉：立即结算等级次「每回合产出」（按蓄能加格挡、按耕作抽牌）', () => {
+test('灌溉：立即结算 1 次「每回合产出」（无视等级；按蓄能加格挡、按耕作抽牌）', () => {
   const b = CG.makeBattle();
   b.player.statuses.prodBlock = 3;
   b.player.statuses.prodDraw = 1;
@@ -91,8 +91,8 @@ test('灌溉：立即结算等级次「每回合产出」（按蓄能加格挡�
   b.hand = [gemCard('strike', [{ id: 'irrigate', level: 2 }])];
   const before = b.hand.length;                               // 1（仅灌溉牌）
   b.playCard(b.hand[0].uid);                                  // 打出后手牌移除灌溉牌，再抽 2×1=2 张
-  assert.equal(b.player.block, 6);                           // 2 次 × 蓄能3
-  assert.equal(b.hand.length, before - 1 + 2);               // 移除1张 + 灌溉抽 2 张
+  assert.equal(b.player.block, 3);                           // 1 次 × 蓄能3
+  assert.equal(b.hand.length, before - 1 + 1);               // 移除1张 + 灌溉抽 1 张（耕作1）
 });
 
 test('歉收：prodSkip 攒下来，每回合开始跳过一次产出', () => {

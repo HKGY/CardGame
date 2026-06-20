@@ -14,7 +14,7 @@ test('PACKS 结构：buffs 全是增益、debuffs 全是减益，字段齐全', 
   for (const id of CG.PACK_IDS) {
     const p = CG.PACKS[id];
     assert.ok(p.name && p.icon && p.color, `${id} 缺少展示字段`);
-    assert.ok(p.buffs.length >= 4, `${id} 增益太少`);
+    assert.ok(id === 'basic' ? p.buffs.length === 0 : p.buffs.length >= 4, `${id} 增益数量异常（基础包应为 0、其余 ≥4）`);
     assert.ok(p.debuffs.length >= 2, `${id} 减益太少（首领可能抽 2 个减益）`);
     p.buffs.forEach(a => { assert.ok(CG.AFFIXES[a], `${id} 含未知词条 ${a}`); assert.equal(CG.isDebuff(a), false, `${id}.buffs 含减益 ${a}`); });
     p.debuffs.forEach(a => { assert.ok(CG.AFFIXES[a], `${id} 含未知词条 ${a}`); assert.equal(CG.isDebuff(a), true, `${id}.debuffs 含增益 ${a}`); });
@@ -70,15 +70,15 @@ test('回响：cardStats.freeNext == 等级', () => {
   assert.equal(CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'echo', level: 3 }])])).freeNext, 3);
 });
 
-test('壁垒：任意基底都附加 4×等级 点格挡', () => {
+test('壁垒：任意基底都附加 2×等级 点格挡', () => {
   // 攻击牌：基底不带格挡 → 仅壁垒的格挡
   const onStrike = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'bulwark', level: 2 }])]));
-  assert.equal(eff(onStrike, 'block').value, 8);     // 4×2
+  assert.equal(eff(onStrike, 'block').value, 4);     // 2×2
   assert.equal(onStrike.value, 6);                    // 伤害不受影响
-  // 防御牌：基底 5 格挡 + 壁垒 4 → 首个效果(基底)5、再附加一个 block 4
+  // 防御牌：基底 5 格挡 + 壁垒 2 → 首个效果(基底)5、再附加一个 block 2
   const onDefend = CG.cardStats(CG.makeCard('defend', 1, [CG.makeGem([{ id: 'bulwark', level: 1 }])]));
   const blocks = onDefend.effects.filter(e => e.type === 'block');
-  assert.equal(blocks.reduce((s, e) => s + e.value, 0), 9);   // 5 + 4
+  assert.equal(blocks.reduce((s, e) => s + e.value, 0), 7);   // 5 + 2
 });
 
 test('连击：cardStats.combo == 等级（实际加成在打出时按已出牌数结算）', () => {

@@ -187,7 +187,7 @@ test('壁垒：攻击牌打出后也获得格挡', () => {
   const b = CG.makeBattle({ deck: deckOf(8, { id: 'bulwark', level: 1 }) });
   assert.equal(b.player.block, 0);
   b.playCard(b.hand[0].uid);
-  assert.equal(b.player.block, 4);         // 壁垒 4×1，攻击牌也生效
+  assert.equal(b.player.block, 2);         // 壁垒 2×1，攻击牌也生效
 });
 
 // 元素反应：用受控手牌（直接赋 b.hand）打出指定元素牌

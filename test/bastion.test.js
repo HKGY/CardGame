@@ -29,7 +29,7 @@ test('重甲：打出后 _keepBlock=true，_startPlayerTurn 不清空格挡', ()
   const b2 = CG.makeBattle();
   b2.hand = [gemCard('strike', ['barricade'])];
   b2.playCard(b2.hand[0].uid);
-  assert.equal(b2._keepBlock, true, '打出重甲后置 _keepBlock');
+  assert.equal(b2._keepBlock, 1, '打出重甲(1级)后 _keepBlock=1（剩余保留回合数）');
   b2.player.block = 12;                       // 手动设格挡再触发下一个玩家回合
   b2._startPlayerTurn();
   assert.equal(b2.player.block, 12, '重甲后回合开始保留格挡');
@@ -53,14 +53,14 @@ test('盾击：伤害 = 基础 +（当前格挡 × 等级）', () => {
   assert.equal(b2.enemies[0].hp, h0 - 16);                    // 6 + 5×2
 });
 
-test('死战：残血时本牌伤害 +floor(已损失比例 × 10 × 等级)', () => {
+test('死战：残血时本牌伤害 +floor(已损失比例 × 5 × 等级)', () => {
   const b = CG.makeBattle();
   b.player.maxHp = 60; b.player.hp = 6;                       // 损失 90%
   const card = gemCard('strike', ['laststand']);
   const hp0 = b.enemies[0].hp;
   b.hand = [card];
   b.playCard(card.uid);
-  assert.equal(b.enemies[0].hp, hp0 - 15);                    // 6 + floor(0.9×10×1)=9
+  assert.equal(b.enemies[0].hp, hp0 - 10);                    // 6 + floor(0.9×5×1)=4
 
   const b2 = CG.makeBattle();                                 // 满血 → 无加成
   b2.player.maxHp = 60; b2.player.hp = 60;
@@ -71,15 +71,15 @@ test('死战：残血时本牌伤害 +floor(已损失比例 × 10 × 等级)', (
   assert.equal(b2.enemies[0].hp, h0 - 6);                     // 满血只有基础 6
 });
 
-test('严阵：获得格挡 4×等级 + 力量 等级', () => {
+test('严阵：获得格挡 2×等级 + 本回合力量 等级', () => {
   const b = CG.makeBattle();
   b.player.block = 0;
   const card = gemCard('strike', [{ id: 'brace', level: 2 }]);
   const hp0 = b.enemies[0].hp;
   b.hand = [card];
   b.playCard(card.uid);
-  assert.equal(b.player.block, 8, '格挡 4×2');
-  assert.equal(b.player.statuses.strength, 2, '力量 +2');
+  assert.equal(b.player.block, 4, '格挡 2×2');
+  assert.equal(b.player.statuses.strength, 2, '本回合力量 +2');
   assert.equal(b.enemies[0].hp, hp0 - 6, '基础伤害先于严阵力量结算，仍为 6');
 });
 
@@ -115,4 +115,26 @@ test('cardStats / foodStats 透出 shieldBash / lastStand（食材默认 0）', 
   const food = CG.foodStats(CG.makeFoodCard('tomato'));       // 食材：默认 0，避免 playCard 读 undefined
   assert.equal(food.shieldBash, 0);
   assert.equal(food.lastStand, 0);
+});
+
+test('重甲随等级 N：接下来 N 回合不清空格挡，到期恢复清空', () => {
+  const b = CG.makeBattle();
+  b.hand = [gemCard('strike', [{ id: 'barricade', level: 2 }])];
+  b.playCard(b.hand[0].uid);
+  assert.equal(b._keepBlock, 2);
+  b.player.block = 10; b._startPlayerTurn();                  // 回合1：保留，计数 2→1
+  assert.equal(b.player.block, 10); assert.equal(b._keepBlock, 1);
+  b.player.block = 8; b._startPlayerTurn();                   // 回合2：保留，计数 1→0
+  assert.equal(b.player.block, 8); assert.equal(b._keepBlock, 0);
+  b.player.block = 7; b._startPlayerTurn();                   // 回合3：到期 → 清空
+  assert.equal(b.player.block, 0);
+});
+
+test('严阵/准备的力量为「本回合」：回合结束移除', () => {
+  const b = CG.makeBattle();
+  b.hand = [gemCard('strike', [{ id: 'brace', level: 2 }])];
+  b.playCard(b.hand[0].uid);
+  assert.equal(b.player.statuses.strength, 2, '本回合 +2 力量');
+  b.endTurn();
+  assert.ok(!b.player.statuses.strength, '回合末移除临时力量');
 });

@@ -12,26 +12,26 @@ test('召唤包存在且词条齐全', () => {
   ['toll', 'culling', 'discord'].forEach(id => { assert.ok(CG.PACKS.summon.debuffs.includes(id)); assert.ok(CG.AFFIXES[id].debuff); });
 });
 
-test('唤骷髅：召出 6血/4攻 随从，回合末攻击敌人', () => {
+test('唤骷髅：召出 3血/1攻 随从，回合末攻击敌人', () => {
   const b = CG.makeBattle();
   b.hand = [gemCard('strike', ['skeleton'])];
   b.playCard(b.hand[0].uid);
   assert.equal(b.allies.length, 1);
-  assert.equal(b.allies[0].hp, 6); assert.equal(b.allies[0].atk, 4);
+  assert.equal(b.allies[0].hp, 3); assert.equal(b.allies[0].atk, 1);
   const hp = b.enemies[0].hp;                 // 已含打击的 6 点
   b.endTurn();
-  assert.equal(b.enemies[0].hp, hp - 4);      // 回合末召唤物 +4 伤害
+  assert.equal(b.enemies[0].hp, hp - 1);      // 回合末召唤物 +1 伤害
 });
 
-test('群召召 3 个小灵；图腾每回合给格挡', () => {
+test('群召召 等级 个小灵；图腾每回合给格挡', () => {
   let b = CG.makeBattle();
   b.hand = [gemCard('strike', [{ id: 'swarm', level: 2 }])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.allies.length, 3); assert.equal(b.allies[0].atk, 4);   // 2×等级
+  assert.equal(b.allies.length, 2); assert.equal(b.allies[0].atk, 1);   // n 个、各 1 攻
   b = CG.makeBattle();
   b.hand = [gemCard('strike', ['totem'])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.allies[0].giveBlock, 3); assert.equal(b.allies[0].atk, 0);
+  assert.equal(b.allies[0].giveBlock, 1); assert.equal(b.allies[0].atk, 0);
   b.player.block = 0; b.endTurn();
-  assert.equal(b.player.block, 3);            // 图腾回合末给 3 格挡
+  assert.equal(b.player.block, 1);            // 图腾回合末给 1 格挡（1级）
 });
 
 test('守护灵嘲讽：敌人伤害重定向到它，玩家不受伤', () => {

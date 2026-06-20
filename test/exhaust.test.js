@@ -105,3 +105,17 @@ test('噩梦：用渣滓塞满手牌（上限 10）；渣滓 1 费、打出即�
   const ds = CG.cardStats(b.hand[0]);
   assert.equal(ds.cost, 1); assert.equal(ds.exhaust, true); assert.equal(ds.effects.length, 0);
 });
+
+test('涅槃/不坏随等级：被消耗时打出 N 次 / 生成 N 副本', () => {
+  const b = CG.makeBattle();
+  const card = CG.makeCard('strike', 2, [CG.makeGem([{ id: 'nirvana', level: 2 }, { id: 'destroy', level: 1 }])]);
+  b.hand = [card];
+  const hp0 = b.enemies[0].hp;
+  b.playCard(card.uid);
+  assert.equal(b.enemies[0].hp, hp0 - 18);                     // 打出 6 + 涅槃 2 次各 6
+  const b2 = CG.makeBattle();
+  const c2 = CG.makeCard('defend', 2, [CG.makeGem([{ id: 'undying', level: 2 }, { id: 'destroy', level: 1 }])]);
+  b2.hand = [c2];
+  b2.playCard(c2.uid);
+  assert.equal(b2.hand.length, 2, '不坏 2 级生成 2 张副本');
+});

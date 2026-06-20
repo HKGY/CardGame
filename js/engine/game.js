@@ -102,7 +102,7 @@ window.CG = window.CG || {};
       this.enemies.forEach(e => { e.hp = e.maxHp; e.block = 0; e.statuses = {}; e.history = []; e.intent = null; e.alive = true; });
       this.target = 0; this.enemy = this.enemies[0];
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
-      this._keepBlock = false;                  // 死守包·重甲：愚者重开时重置
+      this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.allies = [];                         // 召唤：愚者重开时清空召唤物
       this.buildings = [];                      // 建造：愚者重开时清空建筑
@@ -140,7 +140,7 @@ window.CG = window.CG || {};
       this._tempStrength = 0;                  // 战车（本回合力量）
       this.freeCards = 0;                      // 回响：可免费打出的张数
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
-      this._keepBlock = false;                 // 死守包·重甲：本场格挡回合末是否保留（打出重甲后置 true）
+      this._keepBlock = 0;                      // 死守包·重甲：剩余「格挡不清空」回合数（打出重甲后 = 等级 N）
       this._depth = 0;                         // 矿工包：本场挖矿深度
       this._heat = 0;                          // 锻造包：本场热度
       this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
@@ -182,7 +182,7 @@ window.CG = window.CG || {};
       this.turn += 1;
       this.phase = 'player';
       if (this._rewindSnap) { this._restore(this._rewindSnap); this._rewindSnap = null; this.addLog('回溯：时间倒流，敌人这一回合被抹去。'); }   // 律动·回溯：回滚到打出回溯时的双方状态
-      if (!this._keepBlock) this.player.block = 0;        // 死守包·重甲：打出后本场格挡回合末不清空
+      if (this._keepBlock > 0) this._keepBlock--; else this.player.block = 0;   // 死守包·重甲：接下来 N 回合不清空格挡（计数器）
       let energyBonus = 0, drawBonus = 0;          // 癌症/无神论者：每回合额外能量/抽牌
       this.relics.forEach(id => { const r = CG.RELICS[id]; energyBonus += r.turnEnergy || 0; drawBonus += r.turnDraw || 0; });
       this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)) + energyBonus;
@@ -380,7 +380,7 @@ window.CG = window.CG || {};
       }
       if (s.prey > 0) {       // 猎杀包·猎物：伤害 +（目标减益层数总和 × 等级）
         const t = this.currentTarget();
-        const bonus = t ? s.prey * this._enemyDebuffLayers(t) : 0;
+        const bonus = t ? s.prey * 4 * this._enemyDebuffLayers(t) : 0;
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       if (s.insight > 0) {    // 猎杀包·洞察：敌意图攻击时本牌伤害 ×(1+等级)
@@ -395,7 +395,7 @@ window.CG = window.CG || {};
       }
       // 死战：本牌伤害额外 +（已损失生命比例 × 10 × 等级）
       if (s.lastStand > 0) {
-        const bonus = Math.floor((1 - this.player.hp / this.player.maxHp) * 10 * s.lastStand);
+        const bonus = Math.floor((1 - this.player.hp / this.player.maxHp) * 5 * s.lastStand);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // === 留置包 ===
@@ -413,12 +413,12 @@ window.CG = window.CG || {};
       const handAfter = this.hand.length - 1;
       // 空明：damage&block += max(0, 5 - 出牌后手牌数) × 等级
       if (s.emptyMind > 0) {
-        const bonus = Math.max(0, 5 - handAfter) * s.emptyMind;
+        const bonus = Math.max(0, 5 - handAfter) * 2 * s.emptyMind;
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // 虚空回响：出牌后空手 → 本牌 damage&block ×2
       if (s.voidEcho > 0 && handAfter === 0) {
-        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value * 2 }) : e) });
+        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value * (s.voidEcho + 1) }) : e) });
       }
       // 空虚：出牌后手牌非空 → 本牌 damage&block 减半（向下取整）
       if (s.hollow > 0 && handAfter > 0) {
@@ -565,8 +565,8 @@ window.CG = window.CG || {};
     _exhaustCard(card) {                          // 把卡送进消耗堆，先触发涅槃/不坏（_inExhaust 防递归）
       if (!this._inExhaust) {
         const s = CG.cardStats(card);
-        if (s.nirvana) { this._inExhaust = true; this._applyCardEffects(card, s); this._inExhaust = false; this.addLog(`涅槃：${s.name} 被消耗时再次发动。`); }
-        if (s.undying && this.hand.length < HAND_LIMIT) { this.hand.push(CG.makeCard(card.base, card.limit, card.sockets || [])); this.addLog(`不坏：${s.name} 留下一张副本。`); }
+        if (s.nirvana) { this._inExhaust = true; for (let i = 0; i < s.nirvana; i++) this._applyCardEffects(card, s); this._inExhaust = false; this.addLog(`涅槃：${s.name} 被消耗时再次发动 ${s.nirvana} 次。`); }
+        if (s.undying) { for (let i = 0; i < s.undying && this.hand.length < HAND_LIMIT; i++) this.hand.push(CG.makeCard(card.base, card.limit, card.sockets || [])); this.addLog(`不坏：${s.name} 留下 ${s.undying} 张副本。`); }
       }
       this.exhaustPile.push(card);
     }

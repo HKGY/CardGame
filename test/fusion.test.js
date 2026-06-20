@@ -42,9 +42,9 @@ test('gemTheme：按首个增益归主题', () => {
   assert.equal(CG.gemTheme(CG.makeGem([{ id: 'generate', level: 1 }])).name, '电力包');
 });
 
-test('rollRunPacks：默认 = 基础 + 3 随机主题（不含 fusion）', () => {
+test('rollRunPacks：默认 = 基础 + 4 随机主题（不含 fusion）', () => {
   const rp = CG.rollRunPacks();
-  assert.equal(rp.length, 4);
+  assert.equal(rp.length, 5);
   assert.ok(rp.includes('basic'));
   assert.ok(!rp.includes('fusion'));
 });

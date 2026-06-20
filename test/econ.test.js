@@ -13,10 +13,10 @@ test('市场包存在；与厨艺词条 market（给调味料）不冲突', () =
   assert.equal(CG.AFFIXES.market.give, 'season');   // 同名 affix `market` 仍是厨艺「给调味料」，与市场包(id econ)无关
 });
 
-test('进账 +6 / 赋税 -4 / 通胀 ×0.8 改变 run.gold', () => {
+test('进账 +3 / 赋税 -4 / 通胀 ×0.8 改变 run.gold', () => {
   let b = CG.makeBattle({ run: { gold: 100, gems: [] } });
   b.hand = [gemCard('strike', ['income'])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.run.gold, 106);
+  assert.equal(b.run.gold, 103);
   b = CG.makeBattle({ run: { gold: 100, gems: [] } });
   b.hand = [gemCard('strike', ['tax'])]; b.playCard(b.hand[0].uid);
   assert.equal(b.run.gold, 96);
@@ -25,12 +25,12 @@ test('进账 +6 / 赋税 -4 / 通胀 ×0.8 改变 run.gold', () => {
   assert.equal(b.run.gold, 80);
 });
 
-test('投资：花 5 金币造 10 伤害；雇佣：花 5 金币 +1 力量', () => {
+test('投资：花 3 金币造 3 伤害；雇佣：花 5 金币 +1 力量', () => {
   let b = CG.makeBattle({ run: { gold: 100, gems: [] } });
   let hp0 = b.enemies[0].hp;
   b.hand = [gemCard('strike', ['invest'])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.run.gold, 95);
-  assert.equal(b.enemies[0].hp, hp0 - 16);            // 打击 6 + 投资 10
+  assert.equal(b.run.gold, 97);
+  assert.equal(b.enemies[0].hp, hp0 - 9);             // 打击 6 + 投资 3
   b = CG.makeBattle({ run: { gold: 100, gems: [] } });
   b.hand = [gemCard('strike', ['hire'])]; b.playCard(b.hand[0].uid);
   assert.equal(b.run.gold, 95); assert.equal(b.player.statuses.strength, 1);
@@ -44,7 +44,7 @@ test('暴富：数值 +（当前金币 ÷10）；贸易：抽牌 + 金币', () =
   const t = CG.makeBattle({ run: { gold: 0, gems: [] } });
   const hb = t.hand.length;
   t.hand.push(gemCard('strike', ['trade'])); t.playCard(t.hand[t.hand.length - 1].uid);
-  assert.equal(t.run.gold, 4);                        // 贸易 +4
+  assert.equal(t.run.gold, 2);                        // 贸易 +2
   assert.equal(t.hand.length, hb + 1);                // 原手牌 + 抽 1 - 打出 1 = +1（净）... 见下
 });
 

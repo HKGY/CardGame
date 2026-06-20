@@ -111,7 +111,7 @@ window.CG = window.CG || {};
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
-    let ashesN = 0, burnSelN = 0, rebornN = 0, selfBurnN = 0, nirvana = false, undying = false, burnAll = false, nightmare = false;  // 消耗包
+    let ashesN = 0, burnSelN = 0, rebornN = 0, selfBurnN = 0, nirvanaN = 0, undyingN = 0, burnAll = false, nightmare = false;  // 消耗包
     let gainPowerN = 0, overclockN = 0, arcN = 0, chargeN = 0, losePowerN = 0, selfThunderN = 0, paralyzeN = 0;   // 电力包
     // === 死守包 ===
     let shieldBashN = 0, lastStandN = 0, keepBlockN = 0, braceN = 0, loseEnergyN = 0, loseBlockN = 0;
@@ -172,9 +172,9 @@ window.CG = window.CG || {};
       if (d.loseEnergy) loseEnergyN += d.loseEnergy * L;   // 龟缩：失去能量
       if (d.loseBlock)  loseBlockN  += d.loseBlock * L;    // 负重：失去格挡
       // === 生产包 ===
-      if (d.harvest)   harvestN  += d.harvest * L;       // 丰收：产出层数总和 ×L → 格挡
-      if (d.irrigate)  irrigateN += d.irrigate * L;      // 灌溉：立即结算 L 次产出
-      if (d.stagnate)  stagnateN += d.stagnate * L;      // 滞产：蓄能/耕作各 -L
+      if (d.harvest)   harvestN  += 1;                   // 丰收：产出层数总和 ×1 → 格挡（无视等级）
+      if (d.irrigate)  irrigateN += 1;                   // 灌溉：立即结算 1 次产出（无视等级）
+      if (d.stagnate)  stagnateN += Math.min(2, d.stagnate * L);   // 滞产：蓄能/耕作各 -（至多 2）
       // === 留置包 ===
       if (d.retain)     retain = true;                  // 保留：回合结束不弃手
       if (d.heldStrike) heldStrikeN += d.heldStrike * L;  // 蓄力一击：伤害随在手回合数增长（playCard 结算）
@@ -203,8 +203,8 @@ window.CG = window.CG || {};
       if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
       if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
       if (d.selfBurn)  selfBurnN += d.selfBurn * L;     // 着火：给自己上灼伤
-      if (d.nirvana)   nirvana = true;                  // 涅槃：被消耗时打出 1 次
-      if (d.undying)   undying = true;                  // 不坏：被消耗时生成副本
+      if (d.nirvana)   nirvanaN += d.nirvana * L;       // 涅槃：被消耗时打出 N 次
+      if (d.undying)   undyingN += d.undying * L;       // 不坏：被消耗时生成 N 副本
       if (d.burnAll)   burnAll = true;                  // 爆燃：消耗其余手牌
       if (d.nightmare) nightmare = true;                // 噩梦：渣滓塞满手牌
       // —— 奇巧包（随机/赌博）——
@@ -243,7 +243,7 @@ window.CG = window.CG || {};
       if (d.potent) potentN += d.potent * L; if (d.amppain) amppainN += d.amppain * L; if (d.ampgain) ampgainN += d.ampgain * L; if (d.boon) boonN += d.boon * L; if (d.polarize) polarizeN += d.polarize * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
-      if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
+      if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + (d.flat != null ? d.flat : (d.cap != null ? Math.min(d.cap, L) : L));   // flat=无视等级固定值（生产正面）/ cap=封顶（生产负面）
     });
     if (statuses.frozen) statuses.frozen = 1;        // 冰封不随等级叠加：固定跳过 1 次行动
 
@@ -268,10 +268,11 @@ window.CG = window.CG || {};
     if (healAmt) effects.push({ type: 'heal', value: healAmt });
     if (hpLoss)  effects.push({ type: 'loseHp', value: hpLoss });
     if (silenceLv) effects.push({ type: 'silence', value: silenceLv });
-    const strDelta = (inst.base === 'strike' ? prepare : 0) - sapStr;
-    const dexDelta = (inst.base === 'defend' ? prepare : 0) - sapDex;
+    const strDelta = -sapStr;                          // 怯懦：永久 -力量（准备已改为「本回合力量」单列）
+    const dexDelta = -sapDex;                          // 笨拙：永久 -敏捷
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
+    if (prepare) effects.push({ type: 'tempStrength', value: prepare });   // 准备：本回合力量 +n（回合末移除）
     for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给食材卡
     if (selfBurnN) effects.push({ type: 'selfStatus', status: 'burn', value: selfBurnN });   // 着火：自身灼伤
     if (burnAll)   effects.push({ type: 'exhaustHand' });                                     // 爆燃：消耗其余手牌
@@ -282,8 +283,8 @@ window.CG = window.CG || {};
     if (selfThunderN) effects.push({ type: 'selfElement', element: 'thunder', value: selfThunderN });   // 感电：自身附雷
     if (paralyzeN) effects.push({ type: 'paralyze', value: paralyzeN });                      // 麻痹
     // === 死守包 ===
-    if (keepBlockN)  effects.push({ type: 'keepBlock' });                                     // 重甲：格挡回合末保留
-    if (braceN)    { effects.push({ type: 'block', value: 4 * braceN }); effects.push({ type: 'strength', value: braceN }); }   // 严阵：格挡 + 力量
+    if (keepBlockN)  effects.push({ type: 'keepBlock', value: keepBlockN });                  // 重甲：接下来 N 回合格挡不清空
+    if (braceN)    { effects.push({ type: 'block', value: 2 * braceN }); effects.push({ type: 'tempStrength', value: braceN }); }   // 严阵：格挡 + 本回合力量
     if (loseEnergyN) effects.push({ type: 'loseEnergy', value: loseEnergyN });                // 龟缩：失去能量
     if (loseBlockN)  effects.push({ type: 'loseBlock', value: loseBlockN });                  // 负重：失去格挡
     // === 生产包 ===
@@ -384,7 +385,7 @@ window.CG = window.CG || {};
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
       freeNext: freeNextN, combo: comboN, element: elementId, elementLevel,
-      ashes: ashesN, burnSelect: burnSelN, reborn: rebornN, nirvana, undying,   // 消耗包
+      ashes: ashesN, burnSelect: burnSelN, reborn: rebornN, nirvana: nirvanaN, undying: undyingN,   // 消耗包
       overclock: overclockN, arc: arcN,                                          // 电力包（playCard 用）
       shieldBash: shieldBashN, lastStand: lastStandN,                            // 死守包（playCard 用）
       retain, heldStrike: heldStrikeN, hoard: hoardN, chargeUp: chargeUpN, primed: primedN, sluggish: sluggishN,   // === 留置包 ===
@@ -465,7 +466,7 @@ window.CG = window.CG || {};
       base: inst.base, baseName: b.name, cost: b.cost || 0, type: b.type, kind: b.kind || 'food',
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
-      element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: false, undying: false,
+      element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: 0, undying: 0,
       overclock: 0, arc: 0, shieldBash: 0, lastStand: 0, temper: 0, awaken: 0,
       retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置/强化包 ===
       emptyMind: 0, voidEcho: 0, hollow: 0,   // === 虚无包 ===
@@ -543,20 +544,20 @@ window.CG = window.CG || {};
     const key = CG.affixGroupOf ? CG.affixGroupOf(a.id) : null;
     return (key && CG.PACKS && CG.PACKS[key]) || null;
   };
-  // 开局默认主题：恒含「基础」+ 从其它主题里随机 3 个（玩家可在开始菜单改选任意主题，全部融合）。
+  // 开局默认主题：恒含「基础」+ 从其它主题里随机 4 个（玩家可在开始菜单改选任意主题，全部融合）。
   CG.rollRunPacks = function () {
     const themed = (CG.PACK_IDS || []).filter(id => id !== 'basic' && id !== 'fusion');
     for (let i = themed.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [themed[i], themed[j]] = [themed[j], themed[i]]; }
-    return ['basic'].concat(themed.slice(0, 3));
+    return ['basic'].concat(themed.slice(0, 4));
   };
   // 选包：本局有融合包时恒返回它（所有扩充包都＝融合包）；否则（无 run/单测）按权重在全部主题里兜底选一个。
   CG.pickPack = function (tier) {
     if (CG.PACKS && CG.PACKS.fusion) return 'fusion';
     let w = (CG.CONFIG && CG.CONFIG.packW && tier && CG.CONFIG.packW[tier]) || null;
-    if (w && _activePacks) w = w.filter(p => _activePacks.includes(p[0]));
+    if (w) w = w.filter(p => p[0] !== 'basic' && (!_activePacks || _activePacks.includes(p[0])));   // 基础包无增益、不作单独产石源（融合时只贡献减益）
     if (w && w.length) return weightedPick(w);
-    const ids = _activePacks || ((CG.PACKS && Object.keys(CG.PACKS)) || []);
-    return ids.length ? ids[Math.floor(Math.random() * ids.length)] : 'basic';
+    const ids = (_activePacks || ((CG.PACKS && Object.keys(CG.PACKS)) || [])).filter(id => id !== 'basic' && id !== 'fusion');
+    return ids.length ? ids[Math.floor(Math.random() * ids.length)] : 'power';
   };
   // 把「包 id / 包对象 / 空」解析成一个含 {buffs, debuffs} 的包对象（空则按 tier 自动选包）。
   function resolvePack(packOrId, tier) {
@@ -587,7 +588,7 @@ window.CG = window.CG || {};
       const nD = tier === 'boss' && Math.random() < 0.5 ? 2 : 1;
       for (let i = 0; i < nD; i++) { const id = pickDebuffId(debuffPool, ownedD); if (!id) break; ownedD.add(id); affixes.push({ id, level: 1 }); }
     }
-    if (!affixes.length) affixes.push({ id: buffPool[0] || CG.BUFF_ORDER[0], level: 1 });
+    if (!affixes.length) affixes.push({ id: buffPool[0] || debuffPool[0] || CG.BUFF_ORDER[0], level: 1 });   // 兜底尊重包池（基础包无增益时退而取其减益）
     return CG.makeGem(affixes);
   };
 

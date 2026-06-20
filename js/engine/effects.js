@@ -45,6 +45,10 @@ window.CG = window.CG || {};
     strength(game, eff, source) {
       game.applyStatus(source, 'strength', eff.value);
     },
+    tempStrength(game, eff, source) {                  // 准备/严阵：本回合力量（回合末由 endTurn 移除）
+      if (source === game.player) game.addTempStrength(eff.value);
+      else game.applyStatus(source, 'strength', eff.value);
+    },
     dexterity(game, eff, source) {
       game.applyStatus(source, 'dexterity', eff.value);
     },
@@ -85,7 +89,7 @@ window.CG = window.CG || {};
     },
     paralyze(game, eff)  { game._paralyze = Math.max(game._paralyze || 0, eff.value); },       // 麻痹：锁住最左 N 张
     // === 死守包 ===
-    keepBlock(game)      { game._keepBlock = true; },                                          // 重甲：本场格挡回合末不清空
+    keepBlock(game, eff) { game._keepBlock = Math.max(game._keepBlock || 0, eff.value || 1); },  // 重甲：接下来 N 回合格挡不清空（计数器）
     loseEnergy(game, eff){ game.player.energy = Math.max(0, game.player.energy - eff.value); }, // 龟缩：失去能量
     loseBlock(game, eff) { game.player.block = Math.max(0, game.player.block - eff.value); },   // 负重：失去格挡
     // === 生产包 ===
@@ -121,24 +125,23 @@ window.CG = window.CG || {};
     quench(game, eff) { const c = randHand(game); if (c) c.costDown = (c.costDown || 0) + 1; },                           // 淬火：随机手牌永久降费 -1（eff.value 仅记等级）
     anneal(game, eff) { const c = randHand(game); if (c) c.growth = Math.max(0, (c.growth || 0) - eff.value); },          // 退火：随机手牌成长 -N（不低于 0）
     // === 虚无包 ===（eff.value = 词条等级 L；maxHp 改动仅本场，不写回 run）
-    devote(game, eff, source, target) {                                                       // 舍身：失 3L 当前生命，对当前敌人造 (3L)×2 伤害
-      const cost = 3 * eff.value;
-      game.player.hp = Math.max(0, game.player.hp - cost);
+    devote(game, eff, source, target) {                                                       // 舍身：失 2L 当前生命，对当前敌人造 6L 伤害
+      game.player.hp = Math.max(0, game.player.hp - 2 * eff.value);
       game._checkEnd();
-      if (target && target.hp > 0) game.dealAttackDamage(source, target, cost * 2);
+      if (target && target.hp > 0) game.dealAttackDamage(source, target, 6 * eff.value);
     },
-    annihilate(game, eff, source, target) {                                                   // 湮灭：从抽牌堆顶放逐 2L 张，对当前敌人造 (放逐数)×3 伤害
+    annihilate(game, eff, source, target) {                                                   // 湮灭：从抽牌堆顶放逐 L 张，对当前敌人造 (放逐数)×5 伤害
       let n = 0;
-      for (let i = 0; i < 2 * eff.value && game.drawPile.length > 0; i++) { game.exhaustPile.push(game.drawPile.pop()); n++; }
-      if (n > 0 && target && target.hp > 0) game.dealAttackDamage(source, target, n * 3);
+      for (let i = 0; i < eff.value && game.drawPile.length > 0; i++) { game.exhaustPile.push(game.drawPile.pop()); n++; }
+      if (n > 0 && target && target.hp > 0) game.dealAttackDamage(source, target, n * 5);
     },
     offer(game, eff) {                                                                          // 献祭：本场最大生命 -3L（下限 1），获得 2L 力量
       game.player.maxHp = Math.max(1, game.player.maxHp - 3 * eff.value);
       game.player.hp = Math.min(game.player.hp, game.player.maxHp);
       game.applyStatus(game.player, 'strength', 2 * eff.value);
     },
-    erode(game, eff) {                                                                          // 蚀骨：本场最大生命 -2L（下限 1）
-      game.player.maxHp = Math.max(1, game.player.maxHp - 2 * eff.value);
+    erode(game, eff) {                                                                          // 蚀骨：本场最大生命 -L（下限 1）
+      game.player.maxHp = Math.max(1, game.player.maxHp - eff.value);
       game.player.hp = Math.min(game.player.hp, game.player.maxHp);
     },
     banish(game, eff) {                                                                         // 放逐代价：随机放逐 L 张手牌到消耗堆
@@ -186,9 +189,9 @@ window.CG = window.CG || {};
       }
     },
     // === 市场包 ===（金币＝run.gold；无跑图时金币操作安全跳过）
-    invest(game, eff, source, target) { const r = game.run; if (!r) return; const spend = Math.min(r.gold || 0, 5 * eff.value); if (spend > 0) { r.gold -= spend; if (target && target.hp > 0) game.dealAttackDamage(source, target, spend * 2); } },
-    income(game, eff) { if (game.run) game.run.gold = (game.run.gold || 0) + 6 * eff.value; },                       // 进账
-    trade(game, eff)  { game.drawCards(1); if (game.run) game.run.gold = (game.run.gold || 0) + 4 * eff.value; },    // 贸易
+    invest(game, eff, source, target) { const r = game.run; if (!r) return; const spend = Math.min(r.gold || 0, 3 * eff.value); if (spend > 0) { r.gold -= spend; if (target && target.hp > 0) game.dealAttackDamage(source, target, spend); } },   // 投资：花至多 3L 金币·造等量(×1)伤害
+    income(game, eff) { if (game.run) game.run.gold = (game.run.gold || 0) + 3 * eff.value; },                       // 进账
+    trade(game, eff)  { game.drawCards(1); if (game.run) game.run.gold = (game.run.gold || 0) + 2 * eff.value; },    // 贸易
     hire(game, eff)   { const r = game.run; if (r && (r.gold || 0) >= 5 * eff.value) { r.gold -= 5 * eff.value; game.applyStatus(game.player, 'strength', eff.value); } },  // 雇佣
     tax(game, eff)    { if (game.run) game.run.gold = Math.max(0, (game.run.gold || 0) - eff.value); },              // 赋税（eff.value 已含 ×4）
     inflation(game)   { if (game.run) game.run.gold = Math.floor((game.run.gold || 0) * 0.8); },                     // 通胀
@@ -213,22 +216,22 @@ window.CG = window.CG || {};
       const L = eff.value, A = (game.allies = game.allies || []);
       const mk = (name, icon, hp, atk, opts) => Object.assign({ name, icon, hp, maxHp: hp, atk, taunt: false, giveBlock: 0 }, opts || {});
       const add = a => { if (A.length < 6) A.push(a); };   // 召唤物上限 6
-      if (eff.what === 'skeleton') add(mk('骷髅', '💀', 6 * L, 4 * L));
-      else if (eff.what === 'guardian') add(mk('守护灵', '🛡️', 15 * L, 2 * L, { taunt: true }));
-      else if (eff.what === 'totem') add(mk('图腾', '🗿', 8 * L, 0, { giveBlock: 3 * L }));
-      else if (eff.what === 'swarm') for (let i = 0; i < 3; i++) add(mk('小灵', '👻', 2, 2 * L));
+      if (eff.what === 'skeleton') add(mk('骷髅', '💀', 3 * L, L));
+      else if (eff.what === 'guardian') add(mk('守护灵', '🛡️', 4 * L, L, { taunt: true }));
+      else if (eff.what === 'totem') add(mk('图腾', '🗿', 3 * L, 0, { giveBlock: L }));
+      else if (eff.what === 'swarm') for (let i = 0; i < L; i++) add(mk('小灵', '👻', 1, 1));
     },
-    command(game, eff) { (game.allies || []).forEach(a => { a.atk += eff.value; }); if (game._allyAttack) game._allyAttack(); },   // 督战：全体 +攻并立即攻击
+    command(game, eff) { const A = game.allies || []; if (A.length) A[Math.floor(Math.random() * A.length)].atk += eff.value; if (game._allyAttack) game._allyAttack(); },   // 督战：随机一个召唤物 +攻并立即攻击
     culling(game, eff) { const A = game.allies || []; for (let i = 0; i < eff.value && A.length; i++) A.splice(Math.floor(Math.random() * A.length), 1); },  // 折损
     discord(game, eff) { (game.allies || []).forEach(a => { a.hp -= eff.value; }); if (game._reapAllies) game._reapAllies(); },   // 内讧
     // === 建造包 ===（建筑 game.buildings；每回合开始由 _buildingsTick 触发）
     build(game, eff) {
       const L = eff.value, B = (game.buildings = game.buildings || []);
-      const pow = ({ arrowtower: 4 * L, rampart: 4 * L, furnace: 1 * L, workshop: 1 * L })[eff.what] || L;
+      const pow = ({ arrowtower: 2 * L, rampart: 2 * L, furnace: 1, workshop: 1 })[eff.what] || L;
       const meta = ({ arrowtower: ['箭塔', '🏹'], rampart: ['路障', '🧱'], furnace: ['熔炉', '🔥'], workshop: ['工坊', '🏭'] })[eff.what] || ['建筑', '🏗️'];
       if (B.length < 5) B.push({ kind: eff.what, name: meta[0], icon: meta[1], power: pow });   // 槽位上限 5
     },
-    demolish(game, eff) { const B = game.buildings || []; if (!B.length) return; const b = B.shift(); for (let i = 0; i < 3 * eff.value; i++) game._fireBuilding(b); },   // 拆解：拆最早的一座、立即结算 3×L 次
+    demolish(game, eff) { const B = game.buildings || []; if (!B.length) return; const b = B.shift(); for (let i = 0; i < eff.value; i++) game._fireBuilding(b); },   // 拆解：拆最早的一座、立即结算 L 次
     collapse(game, eff) { const B = game.buildings || []; for (let i = 0; i < eff.value && B.length; i++) B.splice(Math.floor(Math.random() * B.length), 1); },   // 坍塌
     subside(game, eff)  { (game.buildings || []).forEach(b => { b.power = Math.max(0, b.power - eff.value); }); },   // 沉降
     // === 弃牌包 ===（reclaim 走选牌队列；forget→clutch、waste→loseEnergy 复用）
@@ -244,8 +247,8 @@ window.CG = window.CG || {};
     clutter(game, eff) { for (let i = 0; i < eff.value; i++) game._addToHand(CG.makeFoodCard('dross')); },                          // 谵妄：塞渣滓
     // === 猎杀包 ===（处决/引爆减益/收割；prey/insight 是 playCard 加成）
     execute(game, eff, source, target) { if (target && target.hp > 0 && target.hp <= target.maxHp * 0.1 * eff.value) { target.hp = 0; game.addLog(`处决：${target.name} 被斩杀！`); game._checkEnd(); } },
-    exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 4 * eff.value); },
-    reaping(game, eff) { game._reaping = (game._reaping || 0) + eff.value; },
+    exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 8 * eff.value); },
+    reaping(game, eff) { game._reaping = (game._reaping || 0) + 2 * eff.value; },
     // === 律动包 ===（活力滚到下一张、灵感本回合抽牌给盾；innate/allin/surplus 在 cardStats/playCard/_startBattle 处理）
     vigor(game, eff) { game._vigor = (game._vigor || 0) + 3 * eff.value; },
     inspire(game, eff) { game._inspire = (game._inspire || 0) + eff.value; },

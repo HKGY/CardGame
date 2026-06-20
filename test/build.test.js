@@ -33,21 +33,21 @@ test('打出即建造；路障回合开始给格挡（整链）', () => {
   b.hand = [gemCard('strike', ['rampart'])]; b.playCard(b.hand[0].uid);
   assert.equal(b.buildings.length, 1); assert.equal(b.buildings[0].kind, 'rampart');
   b.endTurn(); b.runEnemyTurn();                              // 下个回合开始
-  assert.equal(b.player.block, 4);                            // 回合初清零后路障补 4
+  assert.equal(b.player.block, 2);                            // 回合初清零后路障(1级=2)补 2
 });
 
-test('拆解：拆掉最早一座建筑、立即结算 3×等级 次', () => {
+test('拆解：拆掉最早一座建筑、立即结算 等级 次', () => {
   const b = CG.makeBattle();
   b.buildings = [{ kind: 'arrowtower', name: '箭塔', icon: '🏹', power: 4 }]; b.enemies[0].block = 0;
   const hp = b.enemies[0].hp;
   b.hand = [gemCard('strike', ['demolish'])]; b.playCard(b.hand[0].uid);
   assert.equal(b.buildings.length, 0);
-  assert.equal(b.enemies[0].hp, hp - 18);                     // 打击 6 + 箭塔 4×3
+  assert.equal(b.enemies[0].hp, hp - 10);                     // 打击 6 + 箭塔 4×1（1 级拆解结算 1 次）
 });
 
 test('负面：工伤自伤 / 坍塌摧毁 / 沉降减效', () => {
   let b = CG.makeBattle(); b.player.hp = 30;
-  b.hand = [gemCard('strike', ['hazard'])]; b.playCard(b.hand[0].uid); assert.equal(b.player.hp, 27);
+  b.hand = [gemCard('strike', ['hazard'])]; b.playCard(b.hand[0].uid); assert.equal(b.player.hp, 28);   // 工伤自伤 2×1
   b = CG.makeBattle(); b.buildings = [{ kind: 'rampart', power: 4, name: 'a', icon: 'x' }, { kind: 'rampart', power: 4, name: 'b', icon: 'y' }];
   b.hand = [gemCard('strike', ['collapse'])]; b.playCard(b.hand[0].uid); assert.equal(b.buildings.length, 1);
   b = CG.makeBattle(); b.buildings = [{ kind: 'rampart', power: 4, name: 'a', icon: 'x' }];

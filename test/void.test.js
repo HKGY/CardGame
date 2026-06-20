@@ -38,23 +38,23 @@ test('cardStats / foodStats：暴露 emptyMind/voidEcho/hollow 字段（食材�
   assert.equal(f.hollow, 0);
 });
 
-test('空明：手牌越少伤害越高（+= max(0,5-出牌后手牌数) × 等级）', () => {
+test('空明：手牌越少伤害越高（+= max(0,5-出牌后手牌数) × 2×等级）', () => {
   // 出牌后手牌数 = this.hand.length - 1（本牌结算时仍在手里）
-  // 只放空明牌 → handAfter=0 → +5；打击 6 → 11
+  // 只放空明牌 → handAfter=0 → +max(0,5)×2=10；打击 6 → 16
   const b1 = CG.makeBattle();
   const c1 = gemCard('strike', ['emptymind']);
   b1.hand = [c1];
   const hp1 = b1.enemies[0].hp;
   b1.playCard(c1.uid);
-  assert.equal(b1.enemies[0].hp, hp1 - 11);
+  assert.equal(b1.enemies[0].hp, hp1 - 16);
 
-  // 空明牌 + 2 张占位 → handAfter=2 → +3；打击 6 → 9
+  // 空明牌 + 2 张占位 → handAfter=2 → +(5-2)×2=6；打击 6 → 12
   const b2 = CG.makeBattle();
   const c2 = gemCard('strike', ['emptymind']);
   b2.hand = [c2, plain('strike'), plain('strike')];
   const hp2 = b2.enemies[0].hp;
   b2.playCard(c2.uid);
-  assert.equal(b2.enemies[0].hp, hp2 - 9, '手牌更多 → 加成更少');
+  assert.equal(b2.enemies[0].hp, hp2 - 12, '手牌更多 → 加成更少');
 
   // 手牌很满（≥6）→ max(0,5-5)=0，无加成；打击 6 → 6
   const b3 = CG.makeBattle();
@@ -64,21 +64,21 @@ test('空明：手牌越少伤害越高（+= max(0,5-出牌后手牌数) × 等�
   b3.playCard(c3.uid);
   assert.equal(b3.enemies[0].hp, hp3 - 6, '手牌满 → 无加成（夹 0）');
 
-  // 等级 2：handAfter=0 → +max(0,5)×2=10；打击 6 → 16
+  // 等级 2：handAfter=0 → +max(0,5)×2×2=20；打击 6 → 26
   const b4 = CG.makeBattle();
   const c4 = gemCard('strike', [{ id: 'emptymind', level: 2 }]);
   b4.hand = [c4];
   const hp4 = b4.enemies[0].hp;
   b4.playCard(c4.uid);
-  assert.equal(b4.enemies[0].hp, hp4 - 16);
+  assert.equal(b4.enemies[0].hp, hp4 - 26);
 });
 
 test('空明：也加格挡', () => {
   const b = CG.makeBattle();
-  const c = gemCard('defend', ['emptymind']);   // 防御 5；handAfter=0 → +5 → 10
+  const c = gemCard('defend', ['emptymind']);   // 防御 5；handAfter=0 → +10 → 15
   b.hand = [c];
   b.playCard(c.uid);
-  assert.equal(b.player.block, 10);
+  assert.equal(b.player.block, 15);
 });
 
 test('虚空回响：出牌后空手 → 本牌 damage&block ×2；非空手不触发', () => {
@@ -131,28 +131,28 @@ test('空虚：出牌后手牌非空 → damage&block 减半（向下取整）�
   assert.equal(b3.player.block, 2);
 });
 
-test('舍身：失去 3L 当前生命 + 对当前敌人造成 (3L)×2 伤害', () => {
+test('舍身：失去 2L 当前生命 + 对当前敌人造成 6L 伤害', () => {
   // 挂在防御上，避免打击自带伤害干扰；只有舍身造伤
   const b = CG.makeBattle();
-  const c = gemCard('defend', ['devote']);   // L=1：失 3 血，造 6 伤
+  const c = gemCard('defend', ['devote']);   // L=1：失 2 血，造 6 伤
   const hp0 = b.player.hp, ehp0 = b.enemies[0].hp;
   b.hand = [c];
   b.playCard(c.uid);
-  assert.equal(b.player.hp, hp0 - 3, '失去 3 当前生命');
+  assert.equal(b.player.hp, hp0 - 2, '失去 2 当前生命');
   assert.equal(b.enemies[0].hp, ehp0 - 6, '对敌人造 6 伤害');
 
-  // 等级 2：失 6 血、造 12 伤
+  // 等级 2：失 4 血、造 12 伤
   const b2 = CG.makeBattle();
   const c2 = gemCard('defend', [{ id: 'devote', level: 2 }]);
   const hp2 = b2.player.hp, ehp2 = b2.enemies[0].hp;
   b2.hand = [c2];
   b2.playCard(c2.uid);
-  assert.equal(b2.player.hp, hp2 - 6);
+  assert.equal(b2.player.hp, hp2 - 4);
   assert.equal(b2.enemies[0].hp, ehp2 - 12);
 });
 
-test('湮灭：从抽牌堆顶放逐 2L 张到消耗堆，并按实际放逐数 ×3 造伤', () => {
-  // 抽牌堆足量：L=1 放逐 2 张 → 造 6 伤
+test('湮灭：从抽牌堆顶放逐 L 张到消耗堆，并按实际放逐数 ×5 造伤', () => {
+  // 抽牌堆足量：L=1 放逐 1 张 → 造 5 伤
   const b = CG.makeBattle();
   b.drawPile = [plain('strike'), plain('strike'), plain('strike')];
   const exh0 = b.exhaustPile.length;
@@ -160,20 +160,20 @@ test('湮灭：从抽牌堆顶放逐 2L 张到消耗堆，并按实际放逐数 
   const c = gemCard('defend', ['annihilate']);
   b.hand = [c];
   b.playCard(c.uid);
-  assert.equal(b.exhaustPile.length, exh0 + 2, '放逐 2 张进消耗堆');
-  assert.equal(b.drawPile.length, 1, '抽牌堆少 2 张');
-  assert.equal(b.enemies[0].hp, ehp0 - 6, '2 张 → 造 6 伤');
+  assert.equal(b.exhaustPile.length, exh0 + 1, '放逐 1 张进消耗堆');
+  assert.equal(b.drawPile.length, 2, '抽牌堆少 1 张');
+  assert.equal(b.enemies[0].hp, ehp0 - 5, '1 张 → 造 5 伤');
 
-  // 抽牌堆不足：只剩 1 张 → 只放逐 1 张 → 造 3 伤（按实际放逐数）
+  // 抽牌堆不足：L=2 想放逐 2 张但只剩 1 张 → 只放逐 1 张 → 造 5 伤（按实际放逐数）
   const b2 = CG.makeBattle();
   b2.drawPile = [plain('strike')];
   const exh2 = b2.exhaustPile.length, ehp2 = b2.enemies[0].hp;
-  const c2 = gemCard('defend', ['annihilate']);
+  const c2 = gemCard('defend', [{ id: 'annihilate', level: 2 }]);
   b2.hand = [c2];
   b2.playCard(c2.uid);
   assert.equal(b2.exhaustPile.length, exh2 + 1);
   assert.equal(b2.drawPile.length, 0);
-  assert.equal(b2.enemies[0].hp, ehp2 - 3, '只放逐 1 张 → 造 3 伤');
+  assert.equal(b2.enemies[0].hp, ehp2 - 5, '只放逐 1 张 → 造 5 伤');
 });
 
 test('献祭：本场最大生命 -3L（下限 1）+ 获得 2L 力量', () => {
@@ -205,13 +205,13 @@ test('献祭：减最大生命仅作用于本场（不写回 run）', () => {
   assert.equal(run.maxHp, 80, 'run 上的 maxHp 不变');
 });
 
-test('蚀骨：本场最大生命 -2L（下限 1），当前生命被夹到上限', () => {
+test('蚀骨：本场最大生命 -L（下限 1），当前生命被夹到上限', () => {
   const b = CG.makeBattle({ hp: 60, maxHp: 60 });
-  const c = gemCard('defend', ['erode']);   // L=1：maxHp -2
+  const c = gemCard('defend', ['erode']);   // L=1：maxHp -1
   b.hand = [c];
   b.playCard(c.uid);
-  assert.equal(b.player.maxHp, 58);
-  assert.ok(b.player.hp <= 58);
+  assert.equal(b.player.maxHp, 59);
+  assert.ok(b.player.hp <= 59);
 
   // 下限 1：哪怕减成负也夹到 1
   const b2 = CG.makeBattle({ hp: 3, maxHp: 3 });

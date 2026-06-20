@@ -72,14 +72,14 @@ test('cardStats：多颗宝石分组显示 + 空孔 ◇', () => {
   assert.equal(s.value, 12);                          // 过载 ×2
 });
 
-test('准备(prepare) 随基底变化：打击→力量，防御→敏捷', () => {
+test('准备(prepare)：本回合力量 +等级（任意基底，走 tempStrength）', () => {
   const onStrike = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'prepare', level: 2 }])]));
-  assert.equal(eff(onStrike, 'strength').value, 2);
-  assert.equal(eff(onStrike, 'dexterity'), undefined);
+  assert.equal(eff(onStrike, 'tempStrength').value, 2);
+  assert.equal(eff(onStrike, 'strength'), undefined);   // 不再永久加力量
 
   const onDefend = CG.cardStats(CG.makeCard('defend', 1, [CG.makeGem([{ id: 'prepare', level: 2 }])]));
-  assert.equal(eff(onDefend, 'dexterity').value, 2);
-  assert.equal(eff(onDefend, 'strength'), undefined);
+  assert.equal(eff(onDefend, 'tempStrength').value, 2); // 防御也给力量（不再分敏捷）
+  assert.equal(eff(onDefend, 'dexterity'), undefined);
 });
 
 test('installGem 受孔位限制', () => {
@@ -165,4 +165,9 @@ test('cloneCard 深拷贝（改副本不影响原卡）', () => {
 test('gemName 显示格式：增益(减益)', () => {
   assert.equal(CG.gemName(CG.makeGem([{ id: 'multi', level: 1 }])), '多重');
   assert.equal(CG.gemName(CG.makeGem([{ id: 'overload', level: 2 }, { id: 'cumbersome', level: 1 }])), '更过载(笨重)');
+});
+
+test('回春：cardStats 产出 heal = 2×等级', () => {
+  const s = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'recover', level: 3 }])]));
+  assert.equal(eff(s, 'heal').value, 6);   // 2×3
 });
