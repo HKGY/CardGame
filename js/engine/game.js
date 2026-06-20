@@ -394,6 +394,13 @@ window.CG = window.CG || {};
       if (s.freeNext) this.freeCards = (this.freeCards || 0) + s.freeNext;
       this._playedThisTurn = (this._playedThisTurn || 0) + 1;
 
+      // === 强化包 ===（成长挂在被打出的 card 实例上＝本场永久；它随后进弃牌堆/消耗堆，重抽仍是同一实例、成长保留）
+      if (s.temper > 0) card.growth = (card.growth || 0) + s.temper;     // 锤炼：本牌数值永久 +L
+      if (s.awaken > 0) {                                                // 觉醒：累计打出 3 次后跳变 +5×L（仅一次）
+        card.plays = (card.plays || 0) + 1;
+        if (card.plays >= 3 && !card.awakened) { card.growth = (card.growth || 0) + 5 * s.awaken; card.awakened = true; this.addLog(`觉醒：${s.name} 数值大幅提升！`); }
+      }
+
       // 风怒：本回合前 N 次打出后回到手牌（销毁优先，不回手）
       let returned = false;
       if (!s.exhaust && s.windfury > 0 && this.player.hp > 0 && this.aliveEnemies().length > 0 && this.hand.length < HAND_LIMIT) {

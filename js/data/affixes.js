@@ -79,6 +79,12 @@ window.CG = window.CG || {};
     heldstrike: { name: '蓄力一击', color: '#c8a0d8', score: 4, heldStrike: 1,         desc: n => `+在手回合 ×${2 * n}`, long: n => `本牌伤害额外 +（在手回合数 × ${2 * n}）` },
     hoard:      { name: '屯牌', color: '#a0c8c0', score: 4, hoard: 1,                  desc: n => `+出牌后手牌数 ×${n}`, long: n => `本牌数值额外 +（打出后手牌数 × ${n}）` },
     primed:     { name: '待发', color: '#a8c0d0', score: 4, retain: true, primed: 1,   desc: n => `每留 1 回合 -${n} 费`, long: n => `保留在手；每经过 1 个回合本牌耗能 -${n}（越攒越便宜）` },
+    // —— 强化包：卡牌实例「本场永久成长」（成长/降费/觉醒计数挂在战斗克隆实例上，不写回牌组）——
+    temper:    { name: '锤炼', color: '#e0b0e0', score: 4, temper: 1,    desc: n => `打出后本牌永久 +${n}`, long: n => `本牌每被打出 1 次，其数值永久 +${n}（仅本场战斗）` },
+    whet:      { name: '磨砺', color: '#d8a8e0', score: 3, whet: 1,      desc: n => `随机一张手牌 +${n}`, long: n => `打出后随机一张手牌数值永久 +${n}（仅本场战斗）` },
+    awaken:    { name: '觉醒', color: '#caa0e8', score: 4, awaken: 1,    desc: n => `打出 3 次后 +${5 * n}`, long: n => `本牌累计被打出 3 次后觉醒：数值永久 +${5 * n}（仅一次，仅本场）` },
+    quench:    { name: '淬火', color: '#e0a8d0', score: 4, quench: 1,    desc: () => `随机一张手牌永久降费`, long: () => `打出后随机一张手牌耗能永久 -1（仅本场战斗）` },
+    resonance: { name: '共鸣', color: '#d0b0e0', score: 3, resonance: 1, desc: n => `每镶嵌宝石 +${n}`, long: n => `本牌数值额外 +（本牌已镶嵌宝石数 × ${n}）` },
   };
 
   const DEBUFFS = {
@@ -115,6 +121,10 @@ window.CG = window.CG || {};
     heavyhold: { name: '沉重', color: '#8a8f9e', score: -3, debuff: true, retain: true,    desc: () => `强制保留（堵手）`, long: () => `回合结束不被弃掉，强制留在手里却无任何收益` },
     sluggish:  { name: '滞涩', color: '#9a8a6a', score: -3, debuff: true, sluggish: 1,     desc: n => `每留 1 回合 +${n} 费`, long: n => `保留在手时，每经过 1 个回合本牌耗能 +${n}（越攒越贵）` },
     clutch:    { name: '手滑', color: '#a0763c', score: -3, debuff: true, clutch: 1,       desc: n => `随机弃 ${n} 张手牌`, long: n => `打出后随机弃掉 ${n} 张手牌` },
+    // —— 强化包·负面 ——
+    overforge: { name: '过锻', color: '#a05a9a', score: -3, debuff: true, overforge: 1,  desc: () => `成长≥6 则碎裂`, long: () => `若本牌已积累的成长 ≥6，本牌打出后碎裂（进入消耗堆）` },
+    anneal:    { name: '退火', color: '#8a6a9a', score: -3, debuff: true, anneal: 2,      desc: n => `随机手牌成长 -${2 * n}`, long: n => `打出后随机一张手牌的成长 -${2 * n}（不低于 0）` },
+    stress:    { name: '应力', color: '#9a5a7a', score: -3, debuff: true, hpLoss: 2,      desc: n => `失去 ${2 * n} HP`, long: n => `打出后失去 ${2 * n} 点生命（复用反噬式自伤）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -198,6 +208,9 @@ window.CG = window.CG || {};
     retain:   { name: '留置包', icon: '🤲', color: '#b0c0d8', desc: '留牌养牌：握得越久越强。',
                 buffs: ['keep', 'chargeup', 'heldstrike', 'hoard', 'primed'],
                 debuffs: ['heavyhold', 'sluggish', 'clutch'] },
+    enhance:  { name: '强化包', icon: '✨', color: '#e0b0e0', desc: '永久成长：打得越多越强（本场）。',
+                buffs: ['temper', 'whet', 'awaken', 'quench', 'resonance'],
+                debuffs: ['overforge', 'anneal', 'stress'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

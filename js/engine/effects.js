@@ -116,7 +116,12 @@ window.CG = window.CG || {};
         game.discardPile.push(game.hand.splice(j, 1)[0]);
       }
     },
+    // —— 强化包（随机一张手牌的本场永久成长/降费；handler 内直接改实例字段）——
+    whet(game, eff)   { const c = randHand(game); if (c) c.growth = (c.growth || 0) + eff.value; },                       // 磨砺：随机手牌成长 +N
+    quench(game, eff) { const c = randHand(game); if (c) c.costDown = (c.costDown || 0) + 1; },                           // 淬火：随机手牌永久降费 -1（eff.value 仅记等级）
+    anneal(game, eff) { const c = randHand(game); if (c) c.growth = Math.max(0, (c.growth || 0) - eff.value); },          // 退火：随机手牌成长 -N（不低于 0）
   };
+  function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 
   CG.Effects = {
     apply(game, eff, source, target) {

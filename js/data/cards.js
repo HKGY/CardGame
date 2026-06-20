@@ -117,6 +117,8 @@ window.CG = window.CG || {};
     let harvestN = 0, irrigateN = 0, stagnateN = 0;   // === 生产包 ===（push 型词条；farming/stockpile/compound/cropfail/upkeep 走 selfStatus 自动结算）
     // === 留置包 ===
     let retain = false, heldStrikeN = 0, hoardN = 0, chargeUpN = 0, primedN = 0, sluggishN = 0, clutchN = 0;
+    // === 强化包 ===（temper/awaken 透传给 playCard；resonance/overforge 在本函数内结算；growth/costDown 是 inst 上的本场永久字段）
+    let temperN = 0, awakenN = 0, resonanceN = 0, overforge = false, whetN = 0, quenchN = 0, annealN = 0;
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -167,6 +169,13 @@ window.CG = window.CG || {};
       if (d.primed)     primedN += d.primed * L;        // 待发：每回合在手时 holdCost -= L（_startPlayerTurn）
       if (d.sluggish)   sluggishN += d.sluggish * L;    // 滞涩：每回合在手时 holdCost += L（_startPlayerTurn）
       if (d.clutch)     clutchN += d.clutch * L;        // 手滑：打出后随机弃 N 张手牌
+      if (d.temper)    temperN += d.temper * L;          // 锤炼：打出后本牌成长 +L（在 playCard 结算）
+      if (d.awaken)    awakenN += d.awaken * L;          // 觉醒：打出 3 次后跳变 +5×L（在 playCard 结算）
+      if (d.resonance) resonanceN += d.resonance * L;    // 共鸣：数值 +（已镶宝石数 × L）
+      if (d.overforge) overforge = true;                 // 过锻：成长 ≥6 时碎裂（exhaust）
+      if (d.whet)      whetN   += d.whet * L;             // 磨砺：随机一张手牌成长 +L（交给 effects.whet）
+      if (d.quench)    quenchN += d.quench;              // 淬火：随机一张手牌永久降费（push 一个 quench 效果）
+      if (d.anneal)    annealN += d.anneal * L;           // 退火：随机一张手牌成长 -L
       if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
       if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
       if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
@@ -181,9 +190,11 @@ window.CG = window.CG || {};
     });
     if (statuses.frozen) statuses.frozen = 1;        // 冰封不随等级叠加：固定跳过 1 次行动
 
-    // === 留置包 ===：holdCost（待发/滞涩攒出的净改费，可正可负）改费；heldBonus（蓄势攒出的永久加成）增值
-    const cost = Math.max(0, b.cost + costD + (inst.holdCost || 0));
-    const value = Math.max(0, Math.floor((b.base + valFlat + (inst.heldBonus || 0)) * (1 + valPct / 100)) * valueMult);
+    // === 留置包 + 强化包 ===：holdCost(待发/滞涩) 与 costDown(淬火) 共同改费；heldBonus(蓄势)/growth(锤炼/觉醒)/resonance(共鸣) 共同增值；overforge(过锻) 成长过载碎裂
+    const socketCount = sockets.length;
+    const cost = Math.max(0, b.cost + costD + (inst.holdCost || 0) - (inst.costDown || 0));
+    const value = Math.max(0, Math.floor((b.base + valFlat + (inst.heldBonus || 0)) * (1 + valPct / 100)) * valueMult + (inst.growth || 0) + socketCount * resonanceN);
+    if (overforge && (inst.growth || 0) >= 6) exhaust = true;
     const hits = 1 + hitsD;
     const limit = inst.limit == null ? sockets.length : inst.limit;
     const emptySockets = Math.max(0, limit - sockets.length);
@@ -223,6 +234,9 @@ window.CG = window.CG || {};
     if (irrigateN) effects.push({ type: 'irrigate', value: irrigateN });                      // 灌溉：立即产出 L 次
     if (stagnateN) effects.push({ type: 'stagnate', value: stagnateN });                      // 滞产：蓄能/耕作各 -L
     if (clutchN)   effects.push({ type: 'clutch', value: clutchN });                          // === 留置包 === 手滑：随机弃 N 张
+    if (whetN)   effects.push({ type: 'whet', value: whetN });                                // 磨砺：随机手牌成长 +N
+    if (quenchN) effects.push({ type: 'quench', value: quenchN });                            // 淬火：随机手牌永久降费
+    if (annealN) effects.push({ type: 'anneal', value: annealN });                            // 退火：随机手牌成长 -N
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -245,6 +259,7 @@ window.CG = window.CG || {};
       overclock: overclockN, arc: arcN,                                          // 电力包（playCard 用）
       shieldBash: shieldBashN, lastStand: lastStandN,                            // 死守包（playCard 用）
       retain, heldStrike: heldStrikeN, hoard: hoardN, chargeUp: chargeUpN, primed: primedN, sluggish: sluggishN,   // === 留置包 ===
+      temper: temperN, awaken: awakenN,                                          // 强化包（playCard 用）
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -316,8 +331,8 @@ window.CG = window.CG || {};
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
       element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: false, undying: false,
-      overclock: 0, arc: 0, shieldBash: 0, lastStand: 0,
-      retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置包 ===
+      overclock: 0, arc: 0, shieldBash: 0, lastStand: 0, temper: 0, awaken: 0,
+      retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置/强化包 ===
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };
