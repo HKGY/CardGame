@@ -196,7 +196,7 @@ window.CG = window.CG || {};
     // === 矿工包 ===（深度＝game._depth；每跨 5 深度掘出产出：有跑图给金币、否则给格挡）
     mine(game, eff)   { const old = game._depth || 0; game._depth = old + 2 * eff.value; const y = Math.floor(game._depth / 5) - Math.floor(old / 5); for (let i = 0; i < y; i++) { if (game.run) game.run.gold = (game.run.gold || 0) + 8; else game.gainBlock(game.player, 4); } },
     blast(game, eff)  { game._depth = (game._depth || 0) + 5 * eff.value; },                                         // 爆破
-    richvein(game, eff) { if (game.run && game.run.gems) for (let i = 0; i < eff.value; i++) game.run.gems.push(CG.rollGem({ tier: 'elite' })); },  // 富矿：掘出随机宝石进背包
+    richvein(game, eff) { if (game.run && game.run.gems) game.run.gems.push(CG.rollGem({ tier: 'elite' })); },  // 富矿：掘出 1 颗随机宝石进背包（平衡：不随等级翻倍，宝石＝最高价值资源，避免每回合刷出指数级宝石）
     cavein(game, eff) { game.player.hp = Math.max(0, game.player.hp - 3 * eff.value); game._checkEnd(); },           // 塌方
     barren(game, eff) { game._depth = Math.max(0, (game._depth || 0) - 3 * eff.value); },                            // 贫矿
     disaster(game)    { game._depth = Math.floor((game._depth || 0) / 2); },                                         // 矿难

@@ -36,7 +36,7 @@ test('爆破 +5×等级深度；富矿掘出随机宝石进背包', () => {
   assert.equal(b._depth, 5);
   b = CG.makeBattle({ run: { gold: 0, gems: [] } });
   b.hand = [gemCard('strike', [{ id: 'richvein', level: 2 }])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.run.gems.length, 2);                 // 掘出 2 颗宝石
+  assert.equal(b.run.gems.length, 1);                 // 富矿恒掘 1 颗（平衡：不随等级翻倍）
 });
 
 test('塌方自伤 / 贫矿减深度 / 矿难深度减半', () => {

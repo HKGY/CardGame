@@ -58,12 +58,12 @@ window.CG = window.CG || {};
     reborn:  { name: '重生', color: '#7fd0a0', score: 4, reborn: 1,     desc: () => `从消耗堆取回 1 张`, long: () => `打出后：把消耗堆里指定的 1 张牌加入手牌` },
     // —— 电力包：用「电力」代替能量（电力战斗内跨回合保留，显示在能量下方）——
     generate:  { name: '发电', color: '#f0d850', score: 3, gainPower: 2, desc: n => `获得电力 ${2 * n}`, long: n => `打出后获得 ${2 * n} 点电力（战斗内跨回合保留）` },
-    overclock: { name: '改造', color: '#e0a040', score: 4, overclock: 1, desc: n => `电力付费·数值 ×${n}`, long: n => `本牌改为消耗电力（＝耗能 ×${n}）而非能量，且数值 ×${n}` },
+    overclock: { name: '改造', color: '#e0a040', score: 5, overclock: 1, desc: n => `电力付费·数值 ×${n}`, long: n => `本牌改为消耗电力（＝耗能 ×${n}）而非能量，且数值 ×${n}` },
     arc:       { name: '电弧', color: '#f0e060', score: 4, arc: 1,       desc: n => `+当前电力 ×${n}`, long: n => `本牌数值额外 +（当前电力 × ${n}）` },
     discharge: { name: '放电', color: '#e8c84a', score: 4, element: 'thunder', elementBase: 2, desc: n => `附雷 ${2 * n}`, long: n => `命中给敌人附 ${2 * n} 层⚡（叠加触发元素反应）` },
     charge:    { name: '充电', color: '#f0e8a0', score: 3, charge: 1,    desc: n => `电力→能量 ×${n}`, long: n => `打出后消耗至多 ${n} 点电力，转化为等量能量` },
     // === 死守包 ===（把「格挡」当核心资源：保留它、用它打人、残血加伤；bulwark 壁垒复用现有词条）
-    barricade: { name: '重甲', color: '#9ab0c8', score: 4, keepBlock: 1, desc: () => '格挡回合末保留', long: () => '打出后，本场战斗格挡在回合结束时不再清空（持续累积）' },
+    barricade: { name: '重甲', color: '#9ab0c8', score: 5, keepBlock: 1, desc: () => '格挡回合末保留', long: () => '打出后，本场战斗格挡在回合结束时不再清空（持续累积）' },
     shieldbash:{ name: '盾击', color: '#c8a060', score: 4, shieldBash: 1, damageOnly: true, desc: n => `伤害+当前格挡×${n}`, long: n => `本牌伤害额外 +（当前格挡 × ${n}）` },
     brace:     { name: '严阵', color: '#7fb0a8', score: 4, brace: 1, desc: n => `格挡 ${4 * n} + 力量 ${n}`, long: n => `打出后获得 ${4 * n} 点格挡，并永久 +${n} 力量` },
     laststand: { name: '死战', color: '#d08070', score: 4, lastStand: 1, damageOnly: true, desc: n => `残血加伤×${n}`, long: n => `本牌伤害额外 +（已损失生命比例 × 10 × ${n}）` },
@@ -80,7 +80,7 @@ window.CG = window.CG || {};
     hoard:      { name: '屯牌', color: '#a0c8c0', score: 4, hoard: 1,                  desc: n => `+出牌后手牌数 ×${n}`, long: n => `本牌数值额外 +（打出后手牌数 × ${n}）` },
     primed:     { name: '待发', color: '#a8c0d0', score: 4, retain: true, primed: 1,   desc: n => `每留 1 回合 -${n} 费`, long: n => `保留在手；每经过 1 个回合本牌耗能 -${n}（越攒越便宜）` },
     // —— 强化包：卡牌实例「本场永久成长」（成长/降费/觉醒计数挂在战斗克隆实例上，不写回牌组）——
-    temper:    { name: '锤炼', color: '#e0b0e0', score: 4, temper: 1,    desc: n => `打出后本牌永久 +${n}`, long: n => `本牌每被打出 1 次，其数值永久 +${n}（仅本场战斗）` },
+    temper:    { name: '锤炼', color: '#e0b0e0', score: 5, temper: 1,    desc: n => `打出后本牌永久 +${n}`, long: n => `本牌每被打出 1 次，其数值永久 +${n}（仅本场战斗）` },
     whet:      { name: '磨砺', color: '#d8a8e0', score: 3, whet: 1,      desc: n => `随机一张手牌 +${n}`, long: n => `打出后随机一张手牌数值永久 +${n}（仅本场战斗）` },
     awaken:    { name: '觉醒', color: '#caa0e8', score: 4, awaken: 1,    desc: n => `打出 3 次后 +${5 * n}`, long: n => `本牌累计被打出 3 次后觉醒：数值永久 +${5 * n}（仅一次，仅本场）` },
     quench:    { name: '淬火', color: '#e0a8d0', score: 4, quench: 1,    desc: () => `随机一张手牌永久降费`, long: () => `打出后随机一张手牌耗能永久 -1（仅本场战斗）` },
@@ -108,7 +108,7 @@ window.CG = window.CG || {};
     blast:    { name: '爆破', color: '#c87a4a', score: 4, blast: 1,  desc: n => `深度 +${5 * n}`, long: n => `深度 +${5 * n}（一次性猛挖）` },
     prospect: { name: '寻脉', color: '#d0a060', score: 4, prospect: 1, damageOnly: true, desc: n => `伤害+深度×${n}`, long: n => `本牌伤害额外 +（当前深度 × ${n}）` },
     quarry:   { name: '采石', color: '#a89070', score: 4, quarry: 1, desc: n => `格挡+深度×${n}`, long: n => `本牌格挡额外 +（当前深度 × ${n}）` },
-    richvein: { name: '富矿', color: '#e0c040', score: 5, richvein: 1, desc: n => `掘出 ${n} 颗随机宝石`, long: n => `打出后向背包掘出 ${n} 颗随机宝石（需在跑图中）` },
+    richvein: { name: '富矿', color: '#e0c040', score: 5, richvein: 1, desc: () => `掘出 1 颗随机宝石`, long: () => `打出后向背包掘出 1 颗随机宝石（需在跑图中；不随等级翻倍）` },
     // === 锻造包：攒「热度」(本场)，高热爆发——熔炼/淬炼一次性烧掉热度 ===
     bellows:  { name: '鼓风', color: '#e08038', score: 3, bellows: 1, desc: n => `热度 +${2 * n}`, long: n => `热度 +${2 * n}` },
     ember:    { name: '余烬重击', color: '#e86838', score: 4, ember: 1, damageOnly: true, desc: n => `伤害+热度×${n}`, long: n => `本牌伤害额外 +（当前热度 × ${n}）` },
@@ -119,7 +119,7 @@ window.CG = window.CG || {};
     skeleton: { name: '唤骷髅', color: '#c8c8d0', score: 4, summon: 'skeleton', desc: n => `召唤 ${6 * n}血/${4 * n}攻 骷髅`, long: n => `召唤一个 ${6 * n} 血、${4 * n} 攻的骷髅，每回合末攻击当前敌人` },
     swarm:    { name: '群召', color: '#b0c0e0', score: 4, summon: 'swarm', desc: n => `召唤 3 个 ${2 * n}攻小灵`, long: n => `召唤 3 个 2 血、${2 * n} 攻的小灵` },
     totem:    { name: '立图腾', color: '#9ac0a0', score: 4, summon: 'totem', desc: n => `召唤图腾·每回合+${3 * n}格挡`, long: n => `召唤一个 ${8 * n} 血的图腾：不攻击，每回合末给你 ${3 * n} 点格挡` },
-    command:  { name: '督战', color: '#e0a060', score: 4, command: 1, desc: n => `召唤物 +${n}攻并立即攻击`, long: n => `你所有召唤物攻击力 +${n}，并立即发动一次攻击` },
+    command:  { name: '督战', color: '#e0a060', score: 5, command: 1, desc: n => `召唤物 +${n}攻并立即攻击`, long: n => `你所有召唤物攻击力 +${n}，并立即发动一次攻击` },
     guardian: { name: '守护灵', color: '#8ab0d0', score: 5, summon: 'guardian', desc: n => `召唤 ${15 * n}血 嘲讽`, long: n => `召唤一个 ${15 * n} 血、${2 * n} 攻、带「嘲讽」的守护灵（敌人优先攻击它）` },
     // === 建造包：在有限槽位摆放「建筑」(game.buildings)，每回合开始自动触发；工坊增幅、拆解一次兑现 ===
     arrowtower: { name: '箭塔', color: '#c0a060', score: 4, build: 'arrowtower', desc: n => `建造·每回合打 ${4 * n}`, long: n => `建造箭塔：每回合开始对随机敌人造成 ${4 * n}（受工坊增幅）` },
@@ -149,9 +149,9 @@ window.CG = window.CG || {};
     onfire:   { name: '着火', color: '#e0703a', score: -3, debuff: true, selfBurn: 2,  desc: n => `自身灼伤 ${2 * n}`, long: n => `打出后给自己上 ${2 * n} 层「灼伤」（每回合受等量伤害、逐回合 -1，但可被格挡）` },
     nightmare:{ name: '噩梦', color: '#6a5a8a', score: -4, debuff: true, nightmare: 1, desc: () => `渣滓塞满手牌`, long: () => `打出后用「渣滓」(1 费·打出即消耗) 塞满你的手牌（上限 10 张）` },
     // —— 电力包·负面 ——
-    shock:    { name: '感电', color: '#c8b84a', score: -3, debuff: true, selfThunder: 2, desc: n => `自身附雷 ${2 * n}`, long: n => `打出后给自己附 ${2 * n} 层⚡（为「会给玩家附元素的敌人」埋雷；当前无即时副作用）` },
+    shock:    { name: '感电', color: '#c8b84a', score: -2, debuff: true, selfThunder: 2, desc: n => `自身附雷 ${2 * n}`, long: n => `打出后给自己附 ${2 * n} 层⚡（为「会给玩家附元素的敌人」埋雷；当前无即时副作用）` },
     paralyze: { name: '麻痹', color: '#8a8a5a', score: -4, debuff: true, paralyze: 3,   desc: n => `锁住左 ${3 * n} 张`, long: n => `本回合你手牌最左侧 ${3 * n} 张无法打出` },
-    drain:    { name: '漏电', color: '#9a8a4a', score: -3, debuff: true, losePower: 1,  desc: n => `失去电力 ${n}`, long: n => `打出后失去 ${n} 点电力` },
+    drain:    { name: '漏电', color: '#9a8a4a', score: -2, debuff: true, losePower: 1,  desc: n => `失去电力 ${n}`, long: n => `打出后失去 ${n} 点电力` },
     // === 死守包·负面 ===（cumbersome 笨重复用现有词条）
     cower:  { name: '龟缩', color: '#7a8a9a', score: -3, debuff: true, loseEnergy: 1, desc: n => `能量 -${n}`,        long: n => `打出后立即失去 ${n} 点能量` },
     burden: { name: '负重', color: '#8a8a7a', score: -3, debuff: true, loseBlock: 2,  desc: n => `失去 ${2 * n} 格挡`, long: n => `打出后失去 ${2 * n} 点格挡` },
@@ -160,7 +160,7 @@ window.CG = window.CG || {};
     upkeep:   { name: '养护', color: '#9a7a4a', score: -3, debuff: true, selfStatus: 'prodUpkeep', desc: n => `每回合能量 -${n}`, long: n => `获得 ${n} 层「养护」：此后每回合开始失去 ${n} 点能量（常驻）` },
     stagnate: { name: '滞产', color: '#7a8a5a', score: -3, debuff: true, stagnate: 1, desc: n => `蓄能/耕作各 -${n}`, long: n => `打出后：你的「蓄能」与「耕作」各 -${n}（夹 0）` },
     // === 留置包·负面 ===
-    heavyhold: { name: '沉重', color: '#8a8f9e', score: -3, debuff: true, retain: true,    desc: () => `强制保留（堵手）`, long: () => `回合结束不被弃掉，强制留在手里却无任何收益` },
+    heavyhold: { name: '沉重', color: '#8a8f9e', score: -2, debuff: true, retain: true,    desc: () => `强制保留（堵手）`, long: () => `回合结束不被弃掉，强制留在手里却无任何收益` },
     sluggish:  { name: '滞涩', color: '#9a8a6a', score: -3, debuff: true, sluggish: 1,     desc: n => `每留 1 回合 +${n} 费`, long: n => `保留在手时，每经过 1 个回合本牌耗能 +${n}（越攒越贵）` },
     clutch:    { name: '手滑', color: '#a0763c', score: -3, debuff: true, clutch: 1,       desc: n => `随机弃 ${n} 张手牌`, long: n => `打出后随机弃掉 ${n} 张手牌` },
     // —— 强化包·负面 ——
@@ -186,15 +186,15 @@ window.CG = window.CG || {};
     // === 锻造包·负面 ===
     overheat:  { name: '过热', color: '#d05a30', score: -3, debuff: true, overheat: 2, desc: n => `自身灼伤 ${2 * n}`, long: n => `打出后给自己上 ${2 * n} 层灼伤（每回合受伤、可被格挡）` },
     crack:     { name: '崩裂', color: '#9a6a5a', score: -3, debuff: true, crack: 4, desc: n => `失去 ${4 * n} 格挡`, long: n => `打出后失去 ${4 * n} 点格挡` },
-    rust:      { name: '锈蚀', color: '#8a7a6a', score: -3, debuff: true, rust: 3, desc: n => `热度 -${3 * n}`, long: n => `打出后热度 -${3 * n}（夹 0）` },
+    rust:      { name: '锈蚀', color: '#8a7a6a', score: -2, debuff: true, rust: 3, desc: n => `热度 -${3 * n}`, long: n => `打出后热度 -${3 * n}（夹 0）` },
     // === 召唤包·负面 ===
     toll:    { name: '索命', color: '#9a5a6a', score: -3, debuff: true, hpLoss: 3, desc: n => `召唤代价：自伤 ${3 * n}`, long: n => `打出后失去 ${3 * n} 点生命（召唤的代价；复用反噬式自伤）` },
-    culling: { name: '折损', color: '#7a6a7a', score: -3, debuff: true, culling: 1, desc: n => `消灭你 ${n} 个召唤物`, long: n => `打出后随机消灭你 ${n} 个召唤物` },
+    culling: { name: '折损', color: '#7a6a7a', score: -4, debuff: true, culling: 1, desc: n => `消灭你 ${n} 个召唤物`, long: n => `打出后随机消灭你 ${n} 个召唤物` },
     discord: { name: '内讧', color: '#8a6a5a', score: -3, debuff: true, discord: 2, desc: n => `召唤物各 -${2 * n} 血`, long: n => `打出后你所有召唤物各失去 ${2 * n} 点生命` },
     // === 建造包·负面 ===
     hazard:   { name: '工伤', color: '#9a6a5a', score: -3, debuff: true, hpLoss: 3, desc: n => `自伤 ${3 * n}`, long: n => `打出后失去 ${3 * n} 点生命（施工事故；复用反噬式自伤）` },
-    collapse: { name: '坍塌', color: '#7a6a5a', score: -3, debuff: true, collapse: 1, desc: n => `摧毁你 ${n} 座建筑`, long: n => `打出后随机摧毁你 ${n} 座建筑` },
-    subside:  { name: '沉降', color: '#8a7a6a', score: -3, debuff: true, subside: 1, desc: n => `建筑效果各 -${n}`, long: n => `打出后你所有建筑的每次触发效果 -${n}（夹 0）` },
+    collapse: { name: '坍塌', color: '#7a6a5a', score: -4, debuff: true, collapse: 1, desc: n => `摧毁你 ${n} 座建筑`, long: n => `打出后随机摧毁你 ${n} 座建筑` },
+    subside:  { name: '沉降', color: '#8a7a6a', score: -2, debuff: true, subside: 1, desc: n => `建筑效果各 -${n}`, long: n => `打出后你所有建筑的每次触发效果 -${n}（夹 0）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
