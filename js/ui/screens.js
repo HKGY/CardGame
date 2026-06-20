@@ -124,11 +124,14 @@ window.CG = window.CG || {};
         '<div class="codex-sub">减益（负分）</div>' + (CG.DEBUFF_ORDER || []).map(row).join('');
     } else if (tab === 'pack') {
       const names = ids => (ids || []).map(a => `<span style="color:${CG.AFFIXES[a].color}">${CG.AFFIXES[a].name}</span>`).join('、');
+      const active = (H.getRun && H.getRun() && H.getRun().packs) || null;
       html = '<p class="codex-note">战斗胜利后开到一个「booster pack」，包内宝石的词条<b>只来自该包主题</b>；商店 / 祭坛等其它产出的宝石也按包生成。' +
         '一颗宝石仍是「小增益」或「强增益+减益」，只是取材被限定在包内（基础包做通用兜底，与各主题包有意重叠）。</p>' +
+        (active ? `<p class="codex-note">本局启用：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' / ')}（每局＝基础包 + 随机 3 个增强包，其余本局不出）。</p>` : '') +
         (CG.PACK_IDS || []).map(id => {
-          const p = CG.PACKS[id];
-          return `<div class="codex-item"><span class="codex-name" style="color:${p.color}">${p.icon} ${p.name}</span>` +
+          const p = CG.PACKS[id], on = !active || active.includes(id);
+          const tag = active ? (on ? ' <span style="color:#6dbb7a">· 本局启用</span>' : ' <span style="color:var(--muted)">· 本局未启用</span>') : '';
+          return `<div class="codex-item" style="${on ? '' : 'opacity:.5'}"><span class="codex-name" style="color:${p.color}">${p.icon} ${p.name}${tag}</span>` +
                  `<span class="codex-desc">${p.desc}<br><b>增益：</b>${names(p.buffs)}<br><b>减益：</b>${names(p.debuffs)}</span></div>`;
         }).join('');
       // 元素反应矩阵（元素包专属）

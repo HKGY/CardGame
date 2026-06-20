@@ -168,6 +168,8 @@ window.CG = window.CG || {};
       this.gold = C().startGold;
       this.act = 1;                            // 当前层（决定敌人池 / 数值膨胀 / 场景 / 进度）
       this.maxActs = C().acts;
+      this.packs = CG.rollRunPacks();          // 本局可用卡包：基础包 + 3 个随机增强包
+      CG.setActivePacks(this.packs);           // 之后所有产宝石处只在这几个包里取材
       this.tarot = [];                         // 消耗品栏（塔罗牌）
       this.gems = [];                          // 宝石背包（未镶嵌）
       this.relics = [];                        // 遗物

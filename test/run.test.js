@@ -205,6 +205,19 @@ test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）',
   assert.equal(run.shopMult(), 0.5);
 });
 
+test('开局随机卡包：基础包 + 3 个随机增强包；本局只在这几个里出包', () => {
+  const run = newRun('packs-run');
+  assert.equal(run.packs.length, 4);
+  assert.equal(new Set(run.packs).size, 4, '不重复');
+  assert.ok(run.packs.includes('basic'), '必含基础包');
+  run.packs.forEach(id => assert.ok(CG.PACKS[id], '都是合法包 id'));
+  const themed = CG.PACK_IDS.filter(id => id !== 'basic');
+  assert.equal(run.packs.filter(id => id !== 'basic').length, 3, '3 个增强包');
+  assert.ok(themed.some(id => !run.packs.includes(id)), '应排除掉增强包');
+  // 本局产出的包只在 run.packs 内（pickPack 受 setActivePacks 限制）
+  for (let i = 0; i < 60; i++) assert.ok(run.packs.includes(CG.pickPack('elite')), 'pickPack 只应选本局的包');
+});
+
 test('战斗奖励＝主题 booster pack：pending.pack 合法且每颗宝石词条都来自该包', () => {
   const run = newRun('pack-reward');
   run.pending = { tier: 'boss' };                 // 首领档必给宝石奖励（经济档由 pending.tier 决定）

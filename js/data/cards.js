@@ -181,11 +181,22 @@ window.CG = window.CG || {};
     return p.length ? weightedPick(p) : null;
   }
 
-  // 按层数权重选一个 booster pack（缺 tier / 缺权重则在全部包里均匀选）。返回包 id。
+  // 本局可用的 booster 包集合（null = 全部）。开局由 Run 设定：基础包 + 3 个随机增强包。
+  let _activePacks = null;
+  CG.setActivePacks = function (ids) { _activePacks = (ids && ids.length) ? ids.slice() : null; };
+  CG.getActivePacks = function () { return _activePacks; };
+  // 开局随机：恒含「基础包」+ 从增强包里随机 3 个（其余增强包本局不出）。
+  CG.rollRunPacks = function () {
+    const themed = (CG.PACK_IDS || []).filter(id => id !== 'basic');
+    for (let i = themed.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [themed[i], themed[j]] = [themed[j], themed[i]]; }
+    return ['basic'].concat(themed.slice(0, 3));
+  };
+  // 按层数权重选一个 booster pack；本局有 activePacks 时只在其中选。返回包 id。
   CG.pickPack = function (tier) {
-    const w = (CG.CONFIG && CG.CONFIG.packW && tier && CG.CONFIG.packW[tier]) || null;
+    let w = (CG.CONFIG && CG.CONFIG.packW && tier && CG.CONFIG.packW[tier]) || null;
+    if (w && _activePacks) w = w.filter(p => _activePacks.includes(p[0]));
     if (w && w.length) return weightedPick(w);
-    const ids = (CG.PACKS && Object.keys(CG.PACKS)) || [];
+    const ids = _activePacks || ((CG.PACKS && Object.keys(CG.PACKS)) || []);
     return ids.length ? ids[Math.floor(Math.random() * ids.length)] : 'basic';
   };
   // 把「包 id / 包对象 / 空」解析成一个含 {buffs, debuffs} 的包对象（空则按 tier 自动选包）。
