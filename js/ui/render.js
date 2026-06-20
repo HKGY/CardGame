@@ -103,6 +103,50 @@ window.CG = window.CG || {};
     el.className = 'turn-banner'; void el.offsetWidth;
     el.className = 'turn-banner show' + (enemy ? ' enemy' : '');
   }
+  // 精英 / 首领战入场「标题卡」：tier 徽标 + 立绘 + 敌名，淡入定格后淡出（一次性）。
+  // 仅 elite / boss 显示；返回是否显示了（显示时由 render 抑制本场首个「我方回合」横幅，避免重叠）。
+  function showBattleTitle(game) {
+    const tier = game.tier;
+    if (tier !== 'elite' && tier !== 'boss') return false;
+    const isBoss = tier === 'boss', tierCls = isBoss ? 'boss' : 'elite';
+    let el = $('battle-title');
+    if (!el) { el = document.createElement('div'); el.id = 'battle-title'; document.body.appendChild(el); }
+    const enemies = game.enemies || [];
+    const figs = enemies.map(e => `<span class="bt-fig">${CG.Sprites.get(e.def.sprite || 'blob')}</span>`).join('');
+    const names = enemies.map(e => e.name).join(' · ');
+    const label = isBoss ? '👑 首领 · BOSS' : '⚔ 精英 · ELITE';
+    el.className = 'battle-title ' + tierCls;                 // 先复位，再 reflow + 加 show 以重启动画
+    el.innerHTML = `<div class="bt-inner"><div class="bt-tier">${label}</div><div class="bt-portrait">${figs}</div><div class="bt-name">${names}</div></div>`;
+    void el.offsetWidth;
+    el.className = 'battle-title show ' + tierCls;
+    return true;
+  }
+  // 首领入场·cut-in：拉警戒线「KEEP OUT」+ 立绘斜切板切入（取代标题卡）。返回 true（抑制首个回合横幅）。
+  function showBossCutin(game) {
+    const e = (game.enemies || [])[0];
+    if (!e) return false;
+    let el = $('boss-cutin');
+    if (!el) { el = document.createElement('div'); el.id = 'boss-cutin'; document.body.appendChild(el); }
+    const tape = '⚠ KEEP OUT '.repeat(16);
+    const sprite = CG.Sprites.get(e.def.sprite || 'blob');
+    el.className = 'boss-cutin';                              // 先复位
+    el.innerHTML =
+      `<div class="cutin-flash"></div>
+       <div class="cutin-tape tape-1"><span class="tape-text">${tape}</span></div>
+       <div class="cutin-tape tape-2"><span class="tape-text">${tape}</span></div>
+       <div class="cutin-panel"><div class="cutin-fig">${sprite}</div></div>
+       <div class="cutin-sub">⚠ 首领 · BOSS ⚠</div>
+       <div class="cutin-name">${e.name}</div>`;
+    void el.offsetWidth;
+    el.className = 'boss-cutin show';
+    return true;
+  }
+  // 入场演出分派：首领→cut-in；精英→标题卡；其余→无（返回是否展示了，用于抑制首个「我方回合」横幅）。
+  function showBattleIntro(game) {
+    if (game.tier === 'boss') return showBossCutin(game);
+    if (game.tier === 'elite') return showBattleTitle(game);
+    return false;
+  }
   function rcen(r) { return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
   function pileRect(id) { const el = $(id); return el ? el.getBoundingClientRect() : null; }
 
@@ -401,12 +445,17 @@ window.CG = window.CG || {};
     if (!eg) return;
     if (enemyBuilt !== game.enemies.length) buildEnemies(game);
     const tcls = tierClass(game.tier);
+    const isBoss = game.tier === 'boss';        // 首领：血条 / 状态移到顶部居中条，立绘头顶只留意图
     game.enemies.forEach((e, k) => {
       const est = eg.children[k];
       if (!est) return;
       const dead = !e.alive || e.hp <= 0;
       const targeted = !dead && k === game.target;
       est.className = 'estage ' + tcls + (HUMANOID.has(e.def.sprite) ? ' humanoid' : '') + (targeted ? ' targeted' : '') + (dead ? ' dead' : '');
+      if (isBoss) {
+        $('enemy-info-' + k).innerHTML = dead ? '' : `<div class="einfo-intent">${intentHTML(game, e)}</div>`;
+        return;
+      }
       const key = 'enemy' + k, newPct = Math.max(0, (e.hp / e.maxHp) * 100);
       const oldPct = lastHp[key] == null ? newPct : lastHp[key];
       $('enemy-info-' + k).innerHTML =
@@ -419,13 +468,49 @@ window.CG = window.CG || {};
       if (fill && fill.style) { void fill.offsetWidth; fill.style.width = newPct + '%'; }
       lastHp[key] = newPct;
     });
+    renderBossBar(game, isBoss);
+  }
+
+  // ---------- 首领·顶部居中血条（血条 + 状态搬到视图上方居中；动态创建、只读展示）----------
+  function renderBossBar(game, isBoss) {
+    let bar = $('boss-bar');
+    if (!bar) {
+      if (!isBoss) return;                       // 非首领战且尚未创建过 → 无需建
+      bar = document.createElement('div');
+      bar.id = 'boss-bar'; bar.className = 'boss-bar';
+      const sb = $('screen-battle'), tb = sb && sb.querySelector('.battle-topbar');
+      if (tb) tb.appendChild(bar); else if (sb) sb.appendChild(bar);   // 绝对定位悬浮在顶栏正上方居中（不占布局高度，视图不被撑高）
+    }
+    if (!isBoss) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    bar.classList.remove('hidden');
+    bar.innerHTML = game.enemies.map((e, k) => {
+      const dead = !e.alive || e.hp <= 0;
+      const key = 'bossbar' + k, newPct = Math.max(0, (e.hp / e.maxHp) * 100);
+      const oldPct = lastHp[key] == null ? newPct : lastHp[key];
+      return `<div class="boss-unit${dead ? ' dead' : ''}">
+          <div class="boss-name">👑 ${e.name}</div>
+          <div class="hpbar boss-hpbar"><div class="hpfill" id="${key}-hpfill" style="width:${oldPct}%"></div><span class="hptext">${Math.max(0, e.hp)} / ${e.maxHp}</span></div>
+          <div class="badges boss-badges">${blockBadge(e.block)}${statusBadges(e.statuses)}</div>
+        </div>`;
+    }).join('');
+    game.enemies.forEach((e, k) => {              // 提交新宽度，触发血条平滑过渡（同敌人组写法）
+      const key = 'bossbar' + k, newPct = Math.max(0, (e.hp / e.maxHp) * 100);
+      const fill = $(key + '-hpfill');
+      if (fill && fill.style) { void fill.offsetWidth; fill.style.width = newPct + '%'; }
+      lastHp[key] = newPct;
+    });
   }
 
   // ---------- 主渲染 ----------
   function render(game) {
     const freshGame = current !== game;        // 新一场战斗：重置手牌与血条动画基准
     current = game;
-    if (freshGame) { prevHand = []; prevLogLen = (game.log || []).length; lastHp = {}; enemyBuilt = 0; prevPhase = null; if (!REDUCE) flashSprite('enter', 600); }
+    let titleShown = false;                     // 精英/首领：本次是否展示了入场标题卡
+    if (freshGame) {
+      prevHand = []; prevLogLen = (game.log || []).length; lastHp = {}; enemyBuilt = 0; prevPhase = null;
+      if (!REDUCE) flashSprite('enter', 600);
+      titleShown = showBattleIntro(game);
+    }
     const p = game.player;
 
     renderEnemies(game);
@@ -464,7 +549,7 @@ window.CG = window.CG || {};
     const et = $('end-turn');
     et.textContent = '结束第 ' + game.turn + ' 回合';
     et.disabled = game.phase !== 'player';
-    if (prevPhase !== game.phase) {                                 // 回合切换提示
+    if (prevPhase !== game.phase && !titleShown) {                  // 回合切换提示（精英/首领入场以标题卡代替首个横幅）
       if (game.phase === 'player') showTurnBanner('我方回合', false);
       else if (game.phase === 'enemy') showTurnBanner('敌方回合', true);
     }

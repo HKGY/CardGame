@@ -12,6 +12,8 @@ window.CG = window.CG || {};
   let pickerHandler = null;   // 当前选择弹窗的回调（卡 / 宝石通用，回传 uid）
   let chooseState = null;     // 当前三选一弹窗状态
   let benchSel = null;        // 工作台：当前选中的背包宝石 uid
+  let prevHeroRoom = null;    // 上次渲染地图时玩家所在房间 id（用于移动滑动动画；离开地图屏时清空）
+  let pendingMapRise = false; // 从开始菜单进入：让随后出现的地图自下而上滑入（衔接「画面上移」）
   let packOpened = false;     // 奖励界面：当前 booster pack 是否已拆开（纯 UI 翻面，不进 run 状态）
   let lastRewardPending = null;
   let debugPacks = new Set(); // 开始菜单：本局选定的主题（默认＝基础 + 3 随机，可自选；全部融合成一个融合包）
@@ -91,7 +93,7 @@ window.CG = window.CG || {};
     CODEX_TABS.forEach(t => $('codex-tab-' + t).addEventListener('click', () => renderCodex(t)));
 
     // 开始菜单（含调试卡包选择）
-    $('menu-start').addEventListener('click', () => H.onStart(getSelectedPacks()));
+    $('menu-start').addEventListener('click', startGame);
     $('menu-codex').addEventListener('click', () => openCodex());
     $('menu-debug').addEventListener('click', onMenuDebugClick);
 
@@ -198,7 +200,16 @@ window.CG = window.CG || {};
     else if (a === 'clear') { debugGem = []; CG.Audio.play('select'); renderDebug(); }
   }
 
-  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); renderMenuDebug(); showScreen('menu'); }
+  function showMenu() { $('run-header').classList.add('hidden'); $('screen-menu').classList.remove('menu-exit'); CG.Background.setScene('menu'); renderMenuDebug(); showScreen('menu'); }
+  // 点「开始攀登」：菜单整体上滑淡出 → 在其后出现的地图自下而上滑入，衔接成「画面向上移动到地图」。
+  function startGame() {
+    const packs = getSelectedPacks();
+    if (REDUCE) { H.onStart(packs); return; }
+    const menu = $('screen-menu');
+    menu.classList.add('menu-exit');
+    pendingMapRise = true;
+    setTimeout(() => { menu.classList.remove('menu-exit'); H.onStart(packs); }, 380);
+  }
 
   // ---------- 百科大全 ----------
   const CODEX_TABS = ['affix', 'pack', 'tarot', 'relic', 'enemy'];
@@ -218,68 +229,63 @@ window.CG = window.CG || {};
     if (tab === 'affix') {
       const row = id => {
         const a = CG.AFFIXES[id];
-        const detail = (a.long || a.desc)(1, 'strike');   // 百科显示详解（long），卡面用精简 desc
+        const detail = (a.long || a.desc)(1, 'strike');
         return `<div class="codex-item"><span class="codex-name" style="color:${a.color}">${a.name}</span>` +
                `<span class="codex-tag">${a.score > 0 ? '+' + a.score : a.score}</span>` +
                `<span class="codex-desc">${detail}</span></div>`;
       };
-      html = '<p class="codex-note">效果来自<b>宝石</b>：宝石带若干增益(buff)与减益(debuff)，镶进卡牌孔位生效。' +
-        '一颗宝石要么是「小增益」，要么是「强增益+减益」。安装免费；卸下要花钱且宝石会随机多一个减益。' +
-        '词条 1~3 级前加「更/最」、数值 ×2/×3。</p>' +
-        '<div class="codex-sub">增益（正分）</div>' + (CG.BUFF_ORDER || []).map(row).join('') +
-        '<div class="codex-sub">减益（负分）</div>' + (CG.DEBUFF_ORDER || []).map(row).join('');
+      html = '<p class="codex-note">效果来自<b>宝石</b>（镶进卡牌孔位生效）；分数越高越稀有，词条 1~3 级数值 ×1/2/3。</p>' +
+        '<div class="codex-grid"><div class="codex-sub">增益</div>' + (CG.BUFF_ORDER || []).map(row).join('') +
+        '<div class="codex-sub">减益</div>' + (CG.DEBUFF_ORDER || []).map(row).join('') + '</div>';
     } else if (tab === 'pack') {
-      const names = ids => (ids || []).map(a => `<span style="color:${CG.AFFIXES[a].color}">${CG.AFFIXES[a].name}</span>`).join('、');
+      const names = ids => (ids || []).map(a => `<span class="cx-aff" style="color:${CG.AFFIXES[a].color}">${CG.AFFIXES[a].name}</span>`).join('');
       const active = (H.getRun && H.getRun() && H.getRun().packs) || null;
-      html = '<p class="codex-note">每个词条都属于一个<b>主题</b>。开局选定若干主题，它们会<b>融合成一个「🌀 融合包」</b>——本局战斗奖励 / 商店 / 祭坛产出的宝石全部从这些主题的<b>混合池</b>里抽（每颗宝石可能来自不同主题）。' +
-        '一颗宝石仍是「小增益」或「强增益+减益」。</p>' +
-        (active ? `<p class="codex-note">本局融合主题（${active.length} 个）：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' / ')}（默认＝基础 + 随机 3，开始菜单可自选）。</p>` : '') +
-        (CG.PACK_IDS || []).filter(id => id !== 'fusion').map(id => {
-          const p = CG.PACKS[id], on = !active || active.includes(id);
-          const tag = active ? (on ? ' <span style="color:#6dbb7a">· 本局融合</span>' : ' <span style="color:var(--muted)">· 本局未选</span>') : '';
-          return `<div class="codex-item" style="${on ? '' : 'opacity:.5'}"><span class="codex-name" style="color:${p.color}">${p.icon} ${p.name}${tag}</span>` +
-                 `<span class="codex-desc">${p.desc}<br><b>增益：</b>${names(p.buffs)}<br><b>减益：</b>${names(p.debuffs)}</span></div>`;
-        }).join('');
-      // 元素反应矩阵（元素包专属）
+      const card = id => {
+        const p = CG.PACKS[id], on = !active || active.includes(id);
+        return `<div class="codex-pack${on ? '' : ' off'}">` +
+          `<div class="codex-pack-head" style="color:${p.color}">${p.icon} ${p.name}${active && on ? ' <span class="cx-on">本局</span>' : ''}</div>` +
+          `<div class="codex-desc">${p.desc}</div>` +
+          `<div class="cx-affs"><b>增</b>${names(p.buffs)} <b>减</b>${names(p.debuffs)}</div></div>`;
+      };
+      html = '<p class="codex-note">每个词条属于一个<b>主题</b>；开局选定的主题<b>融合成一个「🌀 融合包」</b>，本局产出的宝石都从其混合池里抽。' +
+        (active ? `当前融合 ${active.length} 个：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' ')}` : '') + '</p>' +
+        '<div class="codex-grid wide">' + (CG.PACK_IDS || []).filter(id => id !== 'fusion').map(card).join('') + '</div>';
       if (CG.REACTIONS) {
         const el = id => `<span style="color:${CG.ELEMENTS[id].color}">${CG.ELEMENTS[id].icon}${CG.ELEMENTS[id].name}</span>`;
         const rows = Object.keys(CG.REACTIONS).map(key => {
           const [a, b] = key.split('+'), r = CG.REACTIONS[key];
-          return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span>` +
-                 `<span class="codex-desc">${el(a)} ＋ ${el(b)} → ${r.desc}</span></div>`;
+          return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span><span class="codex-desc">${el(a)}＋${el(b)} → ${r.desc}</span></div>`;
         }).join('');
-        html += '<div class="codex-sub">元素反应（元素包）</div>' +
-          '<p class="codex-note">敌人身上至多挂 1 种元素、层数 1~3（不随回合衰减）；再附异元素＝消耗 min(双方层数) 级、反应发生这么多次、余量留存（放大型按消耗层数叠乘）。商店「五选二」可一次拿 2 颗凑连招。</p>' + rows;
+        html += '<div class="codex-grid"><div class="codex-sub">元素反应（⚗️ 元素）</div>' + rows + '</div>';
       }
     } else if (tab === 'tarot') {
-      html = CG.TAROT_IDS.map(id => {
+      html = '<div class="codex-grid">' + CG.TAROT_IDS.map(id => {
         const t = CG.TAROT[id];
         return `<div class="codex-item"><span class="codex-name">${t.icon} ${t.name}</span>` +
                `<span class="codex-tag">${WHERE_LABEL[t.where]}</span><span class="codex-desc">${t.desc}</span></div>`;
-      }).join('');
+      }).join('') + '</div>';
     } else if (tab === 'relic') {
-      html = CG.RELIC_IDS.map(id => {
+      html = '<div class="codex-grid">' + CG.RELIC_IDS.map(id => {
         const r = CG.RELICS[id];
         return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span><span class="codex-desc">${r.desc}</span></div>`;
-      }).join('');
+      }).join('') + '</div>';
     } else {
       const entry = (sprite, name, tag, hp, body) =>
         `<div class="codex-enemy"><div class="codex-portrait">${CG.Sprites.get(sprite)}</div>` +
         `<div class="codex-enemy-info"><div class="codex-enemy-head"><b>${name}</b>` +
         `<span class="codex-tag">${tag}</span><span class="codex-hp">❤ ${hp}</span></div>${body}</div></div>`;
       const startHp = (CG.CONFIG && CG.CONFIG.startHp) || 75;
-      const hero = entry('knight', '第一女骑士（你）', '主角', startHp,
-        `<div class="codex-move">王国第一女骑士，为夺取古代遗物登上残响之塔。初始牌组：5 打击 + 5 防御（各预镶一颗小宝石）。</div>`);
-      html = hero + Object.keys(CG.ENEMIES).map(id => {
+      const hero = entry('knight', '第一女骑士（你）', '主角', startHp, `<div class="codex-move">初始牌组：5 打击 + 5 防御（各预镶一颗小宝石）。</div>`);
+      html = '<div class="codex-grid wide">' + hero + Object.keys(CG.ENEMIES).map(id => {
         const e = CG.ENEMIES[id];
         const moves = e.moves.map(m => `<div class="codex-move">${m.name}：${moveSummary(m)}</div>`).join('');
         return entry(e.sprite || 'blob', e.name, TIER_LABEL[enemyTier(id)], e.maxHp, moves);
-      }).join('');
+      }).join('') + '</div>';
     }
     $('codex-body').innerHTML = html;
   }
 
-  function showScreen(id) { SCREENS.forEach(s => $('screen-' + s).classList.toggle('active', s === id)); }
+  function showScreen(id) { if (id !== 'map') prevHeroRoom = null; SCREENS.forEach(s => $('screen-' + s).classList.toggle('active', s === id)); }
 
   // 进入战斗：镜头缩放放大到指定房间格（缩放原点对准该格中心），结束后回调切到战斗界面。
   function zoomMapToRoom(id, cb) {
@@ -385,7 +391,50 @@ window.CG = window.CG || {};
     wrap.scrollLeft = cx - wrap.clientWidth / 2;
     wrap.scrollTop = cy - wrap.clientHeight / 2;
   }
-  function showMap(run) {
+  // 计算让整张地图在视口内「完整可见、不出滚动条」的格子尺寸：按可用宽/高 ÷ 列/行 取较小者，封顶 92、保底 16。
+  function fitMapCell(cols, rows) {
+    const wrap = document.querySelector('.map-wrap');
+    if (!wrap || !cols || !rows) return null;
+    const gap = 5;
+    const availW = wrap.clientWidth - 12;
+    const availH = wrap.clientHeight - 20;            // 预留 .map-grid 的上下 margin
+    if (availW <= 0 || availH <= 0) return null;
+    const byW = (availW - gap * (cols - 1)) / cols;
+    const byH = (availH - gap * (rows - 1)) / rows;
+    return Math.max(16, Math.min(92, Math.floor(Math.min(byW, byH))));
+  }
+  // 玩家在相邻房间间直接移动（map→map）时，hero token 从旧房间滑到新房间。
+  function animateHeroMove(run, area) {
+    const curId = run.current && run.current.id;
+    if (prevHeroRoom != null && prevHeroRoom !== curId && !REDUCE) {
+      const hero = area.querySelector('.map-cell.current .map-hero');
+      const prevCell = area.querySelector('.map-cell[data-id="' + prevHeroRoom + '"]');
+      const curCell = area.querySelector('.map-cell.current');
+      if (hero && prevCell && curCell && hero.animate) {
+        const pr = prevCell.getBoundingClientRect(), cr = curCell.getBoundingClientRect();
+        const dx = pr.left - cr.left, dy = pr.top - cr.top;
+        if (dx || dy) hero.animate(
+          [{ transform: `translate(${dx}px, ${dy}px)`, offset: 0 },
+           { transform: 'translate(0, 0)', offset: 1 }],
+          { duration: 240, easing: 'cubic-bezier(.34,.62,.3,1)' });
+      }
+    }
+    prevHeroRoom = curId;
+  }
+  // 从房间返回地图：镜头从所在房间格「拉远」到整图（zoom out，与进入房间的拉近相反）。
+  function playMapZoomOut(run, area) {
+    const cell = (run.current && area) ? area.querySelector('.map-cell[data-id="' + run.current.id + '"]') : null;
+    if (!area || !cell || !area.animate) return;
+    const ar = area.getBoundingClientRect(), cr = cell.getBoundingClientRect();
+    const ox = ar.width ? ((cr.left + cr.width / 2 - ar.left) / ar.width) * 100 : 50;
+    const oy = ar.height ? ((cr.top + cr.height / 2 - ar.top) / ar.height) * 100 : 50;
+    area.style.transformOrigin = `${ox}% ${oy}%`;
+    const anim = area.animate(
+      [{ transform: 'scale(3.4)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
+      { duration: 430, easing: 'cubic-bezier(.5,.05,.5,1)', fill: 'backwards' });
+    anim.onfinish = anim.oncancel = () => { area.style.transformOrigin = ''; };
+  }
+  function showMap(run, zoomOut) {
     showScreen('map');
     const sub = $('map-subtitle');
     if (sub) sub.innerHTML = `🗼 第 <b>${run.act}</b> / ${run.maxActs} 层　｜　WASD / 点击移动；🚩起点　⚔️小怪　👹小boss　🎁宝藏　🩸诅咒　🛒商店　🔮祭坛　👑首领`;
@@ -393,8 +442,23 @@ window.CG = window.CG || {};
     const area = $('map-area');
     area.style.setProperty('--cols', m.cols);
     area.style.setProperty('--rows', m.rows);
+    const cell = fitMapCell(m.cols, m.rows);        // 自适应缩放：整张地图完整可见、不出滚动条
+    if (cell) area.style.setProperty('--cell', cell + 'px'); else area.style.removeProperty('--cell');
     area.innerHTML = gridSvg(m);
-    centerMapOnPlayer();                          // 把玩家所在房间滚到视口正中（出生 / 每次移动跟随）
+    centerMapOnPlayer();                          // 自适应后通常无需滚动（兜底：保底格子仍超框时把玩家滚到正中）
+    const curId = run.current && run.current.id;
+    if (pendingMapRise) {                          // 从开始菜单进入：地图自下而上滑入
+      pendingMapRise = false;
+      const sm = $('screen-map');
+      sm.classList.remove('map-rise'); void sm.offsetWidth; sm.classList.add('map-rise');
+      setTimeout(() => sm.classList.remove('map-rise'), 600);
+      prevHeroRoom = curId;
+    } else if (zoomOut && !REDUCE) {               // 从房间返回地图：镜头拉远
+      playMapZoomOut(run, area);
+      prevHeroRoom = curId;
+    } else {
+      animateHeroMove(run, area);                  // 相邻房间移动：hero 滑动
+    }
     $('map-tarot-bar').innerHTML = CG.UI.tarotBarHTML(run.tarot, "map", true, run.tarotSlots());
   }
   // 战斗界面左上角的略缩地图（非交互，进战斗时渲染一次）
@@ -410,7 +474,8 @@ window.CG = window.CG || {};
   function showReward(run) {
     showScreen('reward');
     const pend = run.pending;
-    if (lastRewardPending !== pend) { packOpened = false; lastRewardPending = pend; }   // 新一轮奖励：包重新封口
+    const freshReward = lastRewardPending !== pend;                                     // 新一轮奖励（区别于开包/重渲染）
+    if (freshReward) { packOpened = false; lastRewardPending = pend; }                  // 新一轮奖励：包重新封口
     CG.Audio.play('coin');
 
     let tarot = '';
@@ -466,6 +531,11 @@ window.CG = window.CG || {};
         ${relics}${tarot}
         ${body}
       </div>`;
+    if (freshReward && !REDUCE) {                   // 新一轮奖励：面板从下往上淡入（开包/重渲染不重播）
+      const sr = $('screen-reward');
+      sr.classList.remove('reward-rise'); void sr.offsetWidth; sr.classList.add('reward-rise');
+      setTimeout(() => sr.classList.remove('reward-rise'), 650);
+    }
   }
   function onRewardClick(ev) {
     if (ev.target.closest('[data-act="open-pack"]')) { CG.Audio.play('upgrade'); packOpened = true; return showReward(H.getRun()); }
@@ -532,23 +602,36 @@ window.CG = window.CG || {};
     const hasSocketed = run.allGems().some(x => x.loc === 'card');
     const canSocket = run.deck.some(c => (c.limit || 0) < CG.MAX_SOCKETS);
     $('screen-shop').innerHTML = `
-      <div class="panel">
+      <div class="panel shop-panel">
         <h2>🛒 商店　<span class="reward-gold">💰 ${run.gold}</span>　<span class="shop-bench-hint">背包宝石 💎 ${run.gems.length}（点顶栏「宝石」免费镶嵌）</span></h2>
-        <div class="shop-section-title">宝石</div>
-        <div class="shop-cards">${gemItems || '<span class="empty-note">（售罄）</span>'}</div>
-        <div class="shop-section-title">宝石包（booster pack · 开包挑 1 颗）</div>
-        <div class="shop-cards">${packItems || '<span class="empty-note">（售罄）</span>'}</div>
-        <div class="shop-section-title">法杖（空孔卡）</div>
-        <div class="shop-cards">${cardItems}</div>
-        <div class="shop-section-title">塔罗 / 遗物</div>
-        <div class="shop-cards">${tarotItems}${relicItems || ''}</div>
-        <div class="shop-services">
-          <button class="big-btn" data-act="bench">💎 镶嵌宝石（免费）</button>
-          <button class="big-btn" data-act="uninstall" ${(run.gold < unPrice || !hasSocketed) ? 'disabled' : ''}>卸下宝石（💰 ${unPrice}）<br><small>宝石将随机多一个减益</small></button>
-          <button class="big-btn" data-act="socket" ${(run.gold < skPrice || !canSocket) ? 'disabled' : ''}>给卡 +1 孔（💰 ${skPrice}）</button>
-          <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
-          <button class="big-btn" data-act="heal" ${(run.svcUsed('heal') || run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>${run.svcUsed('heal') ? '已治疗' : `治疗 +${healAmt}（💰 ${hlPrice}）`}</button>
-          <button class="big-btn leave" data-act="leave">离开</button>
+        <div class="shop-grid">
+          <div class="shop-group">
+            <div class="shop-section-title">宝石</div>
+            <div class="shop-cards">${gemItems || '<span class="empty-note">（售罄）</span>'}</div>
+          </div>
+          <div class="shop-group">
+            <div class="shop-section-title">宝石包（开包挑 1 颗）</div>
+            <div class="shop-cards">${packItems || '<span class="empty-note">（售罄）</span>'}</div>
+          </div>
+          <div class="shop-group">
+            <div class="shop-section-title">法杖（空孔卡）</div>
+            <div class="shop-cards">${cardItems}</div>
+          </div>
+          <div class="shop-group">
+            <div class="shop-section-title">塔罗 / 遗物</div>
+            <div class="shop-cards">${tarotItems}${relicItems || ''}</div>
+          </div>
+          <div class="shop-group shop-group-svc">
+            <div class="shop-section-title">服务</div>
+            <div class="shop-services">
+              <button class="big-btn" data-act="bench">💎 镶嵌宝石（免费）</button>
+              <button class="big-btn" data-act="uninstall" ${(run.gold < unPrice || !hasSocketed) ? 'disabled' : ''}>卸下宝石（💰 ${unPrice}）<br><small>宝石将随机多一个减益</small></button>
+              <button class="big-btn" data-act="socket" ${(run.gold < skPrice || !canSocket) ? 'disabled' : ''}>给卡 +1 孔（💰 ${skPrice}）</button>
+              <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
+              <button class="big-btn" data-act="heal" ${(run.svcUsed('heal') || run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>${run.svcUsed('heal') ? '已治疗' : `治疗 +${healAmt}（💰 ${hlPrice}）`}</button>
+              <button class="big-btn leave" data-act="leave">离开</button>
+            </div>
+          </div>
         </div>
       </div>`;
   }
@@ -686,8 +769,39 @@ window.CG = window.CG || {};
       </div>`;
   }
   function onGameOverClick(ev) {
-    if (ev.target.closest('[data-act="restart"]')) H.onRestart();
+    if (ev.target.closest('[data-act="restart"]')) { CG.Audio.play('select'); blinkTransition(() => H.onRestart()); }
     else if (ev.target.closest('[data-act="menu"]')) showMenu();
+  }
+  // 第一人称「眨眼」转场：先闭眼（上下眼睑合拢→全黑）→ 在黑屏下切到新一局 → 再睁眼。呼应结算的「两眼一黑，一场梦」。
+  function blinkTransition(cb) {
+    if (REDUCE) { if (cb) cb(); return; }
+    let el = document.getElementById('blink-overlay');
+    if (!el) { el = document.createElement('div'); el.id = 'blink-overlay'; document.body.appendChild(el); }
+    el.style.pointerEvents = 'auto';               // 转场期间吃掉点击，避免重复触发
+    // 椭圆视野：全黑遮罩中央挖一个椭圆透明孔，纵向半径 --eye-ry 从 200%(睁开/无黑) → 0%(闭合/全黑)
+    const OPEN = 200, CLOSE_MS = 320, HOLD = 150, OPEN_MS = 380;
+    const ease = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);   // easeInOutQuad
+    const setRy = v => el.style.setProperty('--eye-ry', v + '%');
+    setRy(OPEN);
+    let start = null, fired = false;
+    const close = ts => {
+      if (start == null) start = ts;
+      const t = Math.min(1, (ts - start) / CLOSE_MS);
+      setRy(OPEN * (1 - ease(t)));                  // 椭圆视野纵向收拢
+      if (t < 1) return requestAnimationFrame(close);
+      setRy(0);                                     // 完全闭眼（全黑）
+      if (cb && !fired) { fired = true; cb(); }     // 黑屏下切到新一局
+      setTimeout(() => { start = null; requestAnimationFrame(open); }, HOLD);
+    };
+    const open = ts => {
+      if (start == null) start = ts;
+      const t = Math.min(1, (ts - start) / OPEN_MS);
+      setRy(OPEN * ease(t));                        // 椭圆视野重新张开
+      if (t < 1) return requestAnimationFrame(open);
+      setRy(OPEN);
+      el.style.pointerEvents = 'none';
+    };
+    requestAnimationFrame(close);
   }
 
   // ---------- 选择弹窗（卡 / 宝石通用） ----------

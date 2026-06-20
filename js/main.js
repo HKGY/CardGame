@@ -37,14 +37,23 @@ window.CG = window.CG || {};
     CG.Music.playScene(musicFor());
     const from = prevPhase;
     prevPhase = run.phase;
+    // 从地图进入任何「非空房间」（战斗 / 商店 / 宝藏 / 诅咒 / 祭坛）都先把镜头拉近到所在房间格，再切到对应界面
+    const roomId = run.current && run.current.id;
     switch (run.phase) {
-      case 'battle':                               // 从地图进战斗：先镜头缩放到所在房间，再开战
-        if (from === 'map') return CG.Screens.zoomMapToRoom(run.current && run.current.id, startBattle);
+      case 'battle':
+        if (from === 'map') return CG.Screens.zoomMapToRoom(roomId, startBattle);
         return startBattle();
-      case 'map':      return CG.Screens.showMap(run);
+      case 'map': {    // 从房间（战斗/商店/事件/奖励）返回地图 → 镜头拉远 zoom out
+        const cameFromRoom = from === 'reward' || from === 'shop' || from === 'event' || from === 'battle';
+        return CG.Screens.showMap(run, cameFromRoom);
+      }
       case 'reward':   return CG.Screens.showReward(run);
-      case 'shop':     return CG.Screens.showShop(run);
-      case 'event':    return CG.Screens.showEvent(run);
+      case 'shop':
+        if (from === 'map') return CG.Screens.zoomMapToRoom(roomId, () => CG.Screens.showShop(run));
+        return CG.Screens.showShop(run);
+      case 'event':
+        if (from === 'map') return CG.Screens.zoomMapToRoom(roomId, () => CG.Screens.showEvent(run));
+        return CG.Screens.showEvent(run);
       case 'dead':
       case 'victory':  return CG.Screens.showGameOver(run);
     }

@@ -84,32 +84,39 @@ body::before {
 }
 
 
-/* ===== 开始菜单 ===== */
-#screen-menu.active { display: flex; }
-.menu { width: 100%; max-width: 640px; margin: 6vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
-.menu-title { font-size: 52px; margin: 0; letter-spacing: 10px; font-weight: 900;
+/* ===== 开始菜单（限定一屏内：超出部分由卡包列表内部滚动吸收，开始按钮始终可见） ===== */
+#screen-menu.active { display: flex; flex-direction: column; min-height: calc(100vh - 32px); }
+.menu { width: 100%; max-width: 640px; margin: auto; padding: 2.2vh 4px; max-height: calc(100vh - 28px);
+  text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.menu > * { flex-shrink: 0; }                 /* 各区块默认不压缩，只让卡包列表伸缩+滚动 */
+.menu-title { font-size: clamp(32px, 6vw, 46px); margin: 0; letter-spacing: 8px; font-weight: 900;
   background: linear-gradient(#ffe9a8, #f0c040 55%, #b8860b); -webkit-background-clip: text; background-clip: text; color: transparent;
   text-shadow: 0 4px 24px #f0c04033; }
-.menu-sub { margin: -6px 0 4px; color: var(--muted); letter-spacing: 3px; }
-.menu-story { --oct-fill: #1c1f2c; --oct-rim: #46506f; --radius: 20px; width: 100%; padding: 18px 22px; line-height: 1.9; color: #cfd4e4; text-align: left; }
-.menu-story p { margin: 0 0 10px; }
+.menu-sub { margin: -4px 0 2px; color: var(--muted); letter-spacing: 3px; }
+.menu-story { --oct-fill: #1c1f2c; --oct-rim: #46506f; --radius: 20px; width: 100%; padding: 12px 18px; line-height: 1.6; font-size: 13px; color: #cfd4e4; text-align: left; }
+.menu-story p { margin: 0 0 6px; }
 .menu-story p:last-child { margin: 0; }
-.menu-actions { display: flex; gap: 14px; margin-top: 6px; }
+.menu-actions { display: flex; gap: 14px; margin-top: 2px; }
 .seed-input { width: 100%; max-width: 340px; padding: 11px 16px; font-family: inherit; font-size: 14px;
   color: var(--ink); background: #11141ccc; border: 2px solid var(--edge); border-radius: 12px; text-align: center; }
 .seed-input::placeholder { color: var(--muted); }
 .run-seed { color: #9fd4a0; font-size: 13px; font-weight: 700; letter-spacing: .5px; }
 
-/* 开始菜单·调试卡包选择 */
-.menu-debug { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 8px; }
-.menu-debug-head { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
-.menu-debug-sub { color: var(--ink); font-size: 12px; line-height: 1.5; text-align: center; opacity: .85; }
-.menu-debug-packs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-.pack-toggle { --oct-fill: #1c1f2c; --radius: 12px; font-size: 13px; font-weight: 700; padding: 8px 12px; opacity: .5; filter: grayscale(.55); }
+/* 开始菜单·调试卡包选择：卡包网格 flex 伸缩 + 内部滚动，吸收超出的高度 */
+.menu-debug { width: 100%; max-width: 560px; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.menu-debug-head { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.menu-debug-sub { color: var(--ink); font-size: 12px; line-height: 1.4; text-align: center; opacity: .85; }
+.menu-debug-packs { flex: 1 1 auto; min-height: 56px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; align-content: flex-start; padding: 2px; }
+.pack-toggle { --oct-fill: #1c1f2c; --radius: 12px; font-size: 12px; font-weight: 700; padding: 6px 10px; opacity: .5; filter: grayscale(.55); }
 .pack-toggle.on { opacity: 1; filter: none; outline: 2px solid color-mix(in srgb, var(--pk) 78%, transparent); outline-offset: -2px;
   box-shadow: 0 0 12px color-mix(in srgb, var(--pk) 45%, transparent) !important; }
 .menu-debug-tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .menu-debug-tools button { --oct-fill: var(--panel); --radius: 12px; font-size: 12px; padding: 6px 12px; }
+/* 开始 → 地图：菜单整体上滑淡出，地图随后自下而上滑入（画面向上移动） */
+#screen-menu.menu-exit { animation: menu-rise-out .38s cubic-bezier(.45,0,.55,1) forwards; }
+@keyframes menu-rise-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-12vh); opacity: 0; } }
+#screen-map.map-rise { animation: map-rise-in .55s cubic-bezier(.18,.82,.3,1); }
+@keyframes map-rise-in { from { transform: translateY(14vh); opacity: 0; } to { transform: none; opacity: 1; } }
 
 #app { max-width: 1600px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
@@ -281,9 +288,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   50%      { box-shadow: inset 0 0 0 2px var(--pk), 0 0 26px color-mix(in srgb, var(--pk) 45%, transparent); }
 }
 .pack-open { font-weight: 800; color: var(--pk, var(--accent)); letter-spacing: .5px; }
+/* 战斗奖励：面板从下往上淡入（仅新一轮奖励出现时） */
+#screen-reward.reward-rise .panel { animation: reward-rise-in .5s cubic-bezier(.2,.82,.3,1); }
+@keyframes reward-rise-in { from { transform: translateY(42px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ===== 战场（立绘为主视觉，血条等控件缩小置于脚下） ===== */
-.battle-topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.battle-topbar { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .topbar-btns { display: flex; gap: 8px; }
 .mute-btn { padding: 8px 12px; }
 .run-relics { display: inline-flex; gap: 3px; flex-wrap: wrap; }
@@ -328,6 +338,27 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .estage .intent { font-size: 12px; padding: 2px 6px; }
 .estage.dead { opacity: .32; filter: grayscale(1); pointer-events: none; }
 .estage.dead .info { visibility: hidden; }
+/* 首领战：立绘头顶只居中显示「意图」（血条/状态在顶部居中条里） */
+.estage .einfo-intent { display: flex; justify-content: center; }
+.estage .einfo-intent .intent { margin-left: 0; }
+
+/* ===== 首领·顶部居中血条（无外框、加大；血条 + 状态搬到视图上方居中） ===== */
+.boss-bar {
+  position: absolute; top: 4px; left: 0; right: 0; margin: 0 auto;  /* 悬浮在顶栏正上方居中：不占布局高度，故不会把战斗视图撑出一屏 */
+  width: min(680px, 66%); z-index: 8; pointer-events: none;          /* 只读 + 穿透点击：即便与略缩地图/按钮相邻也不挡操作（无外框） */
+  display: flex; flex-direction: column; gap: 4px; padding: 0 10px;
+}
+.boss-bar.hidden { display: none; }
+.boss-unit { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.boss-unit + .boss-unit { margin-top: 6px; }
+.boss-unit.dead { opacity: .4; filter: grayscale(1); }
+.boss-name { font-size: 23px; font-weight: 900; letter-spacing: 3px; color: #ffcf6a; text-shadow: 0 2px 8px #000, 0 0 16px #f0c04066, 0 0 4px #000; }
+.boss-hpbar { width: 100%; height: 30px; border-radius: 8px; box-shadow: inset 0 0 0 2px #00000099, 0 3px 12px #000b; }
+.boss-hpbar .hpfill { background: linear-gradient(#e85a52, #7e1a1a); }
+.boss-hpbar .hptext { font-size: 16px; letter-spacing: 1px; }
+.boss-badges { justify-content: center; min-height: 0; gap: 5px; }
+.boss-badges:empty { display: none; }
+.boss-badges .badge { font-size: 13px; padding: 2px 9px; }
 
 /* 立绘舞台：放大为主视觉，脚下渲染椭圆阴影（贴近画面底部） */
 .stage { position: relative; flex: 0 1 330px; height: 350px; display: flex; align-items: flex-end; justify-content: center; }
@@ -490,7 +521,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .forge-opt { display: flex; flex-direction: column; gap: 1px; text-align: left; min-width: 150px; }
 .forge-opt small { color: var(--muted); font-weight: 400; margin-bottom: 4px; }
 .forge-buff, .forge-dbf { font-weight: 800; }
-.codex-sub { font-weight: 800; color: var(--accent); margin: 10px 0 4px; border-bottom: 1px solid #34394d; padding-bottom: 3px; }
+.codex-sub { font-weight: 800; color: var(--accent); font-size: 13px; letter-spacing: .5px; margin: 12px 0 4px; border-bottom: 1px solid #34394d; padding-bottom: 3px; }
+.codex-sub:first-child { margin-top: 0; }
 .kw-dmg { color: #ff6b5e; font-weight: 700; }
 .kw-block { color: #6fa8dc; font-weight: 700; }
 
@@ -529,27 +561,44 @@ button.menu-start, button.end-turn {
 .modal-cards { display: flex; flex-wrap: wrap; gap: 10px; overflow: auto; justify-content: center; padding: 4px; }
 .empty-note { color: var(--muted); }
 
-/* ===== 百科大全 ===== */
-.codex-box { width: min(680px, 94vw); }
-.codex-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+/* ===== 百科大全（多列紧凑排版，便于查阅） ===== */
+.codex-box { width: min(1040px, 96vw); }
+.codex-tabs { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.codex-tab { padding: 6px 14px; }
 .codex-tab.active { --oct-fill: var(--accent); --oct-rim: #ffe9a8; color: #1a1d29; }
 .codex-body { overflow: auto; }
-.codex-note { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
-.codex-item { display: flex; align-items: baseline; gap: 10px; padding: 5px 4px; border-bottom: 1px solid #2e3347; }
-.codex-name { font-weight: 800; min-width: 86px; flex-shrink: 0; }
-.codex-tag { font-size: 11px; color: var(--muted); border: 1px solid #3a3f55; border-radius: 6px; padding: 0 6px; flex-shrink: 0; }
-.codex-desc { color: #d2d6e4; font-size: 13px; }
-.codex-enemy { display: flex; gap: 12px; align-items: flex-start; padding: 10px 4px; border-bottom: 1px solid #2e3347; }
+.codex-note { color: var(--muted); font-size: 11.5px; line-height: 1.5; margin: 0 0 8px; }
+.codex-note b { color: #cdd2e2; }
+/* 通用多列：词条/塔罗/遗物/卡包/敌人 紧凑分栏（竖向填充、不留行间空隙）；子标题横跨整行 */
+.codex-grid { columns: 330px; column-gap: 24px; }
+.codex-grid.wide { columns: 450px; column-gap: 20px; }
+.codex-grid .codex-sub { column-span: all; }
+.codex-grid .codex-item, .codex-grid .codex-pack, .codex-grid .codex-enemy { break-inside: avoid; }
+.codex-item { display: flex; align-items: baseline; gap: 8px; padding: 3px 2px; border-bottom: 1px solid #262b3a; min-width: 0; }
+.codex-name { font-weight: 800; font-size: 12.5px; min-width: 3.6em; flex-shrink: 0; }
+.codex-tag { font-size: 10px; color: var(--muted); border: 1px solid #3a3f55; border-radius: 5px; padding: 0 5px; flex-shrink: 0; }
+.codex-desc { color: #c4c9d9; font-size: 12px; line-height: 1.4; min-width: 0; }
+/* 卡包卡片 */
+.codex-pack { padding: 5px 2px 6px; border-bottom: 1px solid #262b3a; min-width: 0; }
+.codex-pack.off { opacity: .5; }
+.codex-pack-head { font-weight: 800; font-size: 13px; margin-bottom: 1px; }
+.cx-on { font-size: 9.5px; color: #7bcd86; border: 1px solid #3a5a40; border-radius: 5px; padding: 0 5px; font-weight: 700; vertical-align: 1px; }
+.cx-affs { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.55; }
+.cx-affs b { color: #8a90a6; font-weight: 700; margin: 0 3px 0 1px; }
+.cx-aff { margin-right: 6px; font-weight: 700; white-space: nowrap; }
+/* 敌人卡片 */
+.codex-enemy { display: flex; gap: 10px; align-items: flex-start; padding: 7px 2px; border-bottom: 1px solid #262b3a; min-width: 0; }
 .codex-portrait {
-  width: 78px; height: 92px; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center;
+  width: 60px; height: 72px; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center;
   background: radial-gradient(120% 90% at 50% 18%, #ffffff10 0%, #00000040 72%), #11182a;
   border: 1px solid #34394d; border-radius: 8px; overflow: hidden;
 }
 .codex-portrait img, .codex-portrait svg { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
 .codex-enemy-info { flex: 1; min-width: 0; }
-.codex-enemy-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.codex-hp { color: var(--hp); font-size: 13px; }
-.codex-move { color: var(--muted); font-size: 12px; margin-left: 10px; line-height: 1.6; }
+.codex-enemy-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.codex-enemy-head b { font-size: 13px; }
+.codex-hp { color: var(--hp); font-size: 12px; }
+.codex-move { color: var(--muted); font-size: 11px; line-height: 1.5; }
 
 
 
@@ -562,6 +611,94 @@ button.menu-start, button.end-turn {
 .turn-banner.enemy { color:#ff6a5a; text-shadow:0 2px 14px #000, 0 0 22px #ff6a5a99; }
 .turn-banner.show { animation: turn-flash 1.15s ease forwards; }
 @keyframes turn-flash { 0%{ opacity:0; transform:translate(-50%,-50%) scale(.82); } 18%{ opacity:1; transform:translate(-50%,-50%) scale(1); } 72%{ opacity:1; } 100%{ opacity:0; transform:translate(-50%,-50%) scale(1.06); } }
+
+/* ===== 精英 / 首领·入场标题卡（一次性，render 在 freshGame 时触发） ===== */
+.battle-title { position: fixed; inset: 0; z-index: 55; pointer-events: none; display: flex; align-items: center; justify-content: center; opacity: 0; }
+.battle-title .bt-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 36px; max-width: 92vw; text-align: center; color: #ff8a5a; }
+.battle-title.elite .bt-inner { color: #c79cf0; }
+.bt-inner::before, .bt-inner::after { content: ''; width: 78%; height: 2px; background: linear-gradient(90deg, transparent, currentColor, transparent); opacity: .55; }
+.bt-tier { font-size: clamp(14px, 3.4vw, 21px); font-weight: 800; letter-spacing: 6px; }
+.battle-title.boss .bt-tier { color: #ff9a6a; text-shadow: 0 2px 10px #000, 0 0 18px #ff5a4e66; }
+.battle-title.elite .bt-tier { color: #d8a0ff; text-shadow: 0 2px 10px #000, 0 0 18px #a86adf77; }
+.bt-portrait { display: flex; gap: 14px; align-items: flex-end; justify-content: center; height: clamp(76px, 17vw, 120px); margin: 2px 0; }
+.bt-portrait .bt-fig { display: block; height: 100%; }
+.bt-portrait svg { height: 100%; width: auto; display: block; filter: drop-shadow(0 6px 14px #000b); }
+.bt-name { font-size: clamp(26px, 7vw, 46px); font-weight: 900; letter-spacing: 6px; color: #fff; line-height: 1.1; }
+.battle-title.boss .bt-name { text-shadow: 0 3px 18px #000, 0 0 30px #ff5a4e77; }
+.battle-title.elite .bt-name { text-shadow: 0 3px 16px #000, 0 0 26px #a86adf66; }
+.battle-title.show { animation: bt-pop 2.5s ease forwards; }
+@keyframes bt-pop {
+  0%   { opacity: 0; transform: scale(.86); }
+  10%  { opacity: 1; transform: scale(1.03); }
+  16%  { transform: scale(1); }
+  76%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+@keyframes bt-fade { 0% { opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .battle-title.show { animation: bt-fade 2.4s ease forwards; } }
+
+/* ===== 首领入场·cut-in：拉警戒线「KEEP OUT」+ 立绘斜切板切入 ===== */
+.boss-cutin { position: fixed; inset: 0; z-index: 56; pointer-events: none; overflow: hidden; opacity: 0; }
+.boss-cutin.show { animation: cutin-life 2.7s ease forwards; }
+@keyframes cutin-life { 0% { opacity: 0; } 3% { opacity: 1; } 84% { opacity: 1; } 100% { opacity: 0; } }
+/* 起手白闪 */
+.cutin-flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+.boss-cutin.show .cutin-flash { animation: cutin-flash .45s ease forwards; }
+@keyframes cutin-flash { 0% { opacity: 0; } 9% { opacity: .6; } 100% { opacity: 0; } }
+/* 警戒线：黄底 + 黑边 + 黑色「KEEP OUT」字带，从两侧拉过来交叉成 X */
+.cutin-tape {
+  position: absolute; left: -22%; width: 144%; height: 56px; overflow: hidden;
+  display: flex; align-items: center;
+  background: #f2c200; border-top: 4px solid #161616; border-bottom: 4px solid #161616;
+  box-shadow: 0 8px 26px #000a;
+}
+.cutin-tape.tape-1 { top: 39%; transform: rotate(-13deg) translateX(-135%); }
+.cutin-tape.tape-2 { top: 49%; transform: rotate(8deg) translateX(135%); }
+.boss-cutin.show .tape-1 { animation: tape-in-l .5s cubic-bezier(.18,.9,.28,1) .06s forwards; }
+.boss-cutin.show .tape-2 { animation: tape-in-r .55s cubic-bezier(.18,.9,.28,1) .16s forwards; }
+@keyframes tape-in-l { to { transform: rotate(-13deg) translateX(0); } }
+@keyframes tape-in-r { to { transform: rotate(8deg) translateX(0); } }
+.tape-text { white-space: nowrap; font-weight: 900; font-size: 27px; letter-spacing: 9px; color: #161616; padding-left: 10px; }
+.boss-cutin.show .tape-text { animation: tape-scroll 9s linear infinite; }
+@keyframes tape-scroll { from { transform: translateX(0); } to { transform: translateX(-220px); } }
+/* 立绘斜切板：从右侧切入 */
+.cutin-panel {
+  position: absolute; right: 5%; top: 50%; width: clamp(200px, 30vw, 320px); height: clamp(210px, 32vw, 330px);
+  display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+  background: linear-gradient(160deg, #45101580, #14080a80);
+  box-shadow: 0 0 46px #ff5a4e66, inset 0 0 0 3px #ff5a4e;
+  transform: translateY(-50%) skewX(-9deg) translateX(180%);
+}
+.boss-cutin.show .cutin-panel { animation: cutin-panel-in .55s cubic-bezier(.12,.85,.3,1) .26s forwards; }
+@keyframes cutin-panel-in { to { transform: translateY(-50%) skewX(-9deg) translateX(0); } }
+.cutin-fig { transform: skewX(9deg); height: 94%; display: flex; align-items: flex-end; }
+.cutin-fig svg { height: 100%; width: auto; display: block; filter: drop-shadow(0 8px 16px #000b); }
+/* 名字 + 副标题：从左滑入 */
+.cutin-sub { position: absolute; left: 7%; bottom: 33%; font-size: clamp(15px, 2.6vw, 22px); font-weight: 800; letter-spacing: 5px; color: #ffcf6a; text-shadow: 0 2px 10px #000, 0 0 16px #f0c04055; transform: translateX(-130%); }
+.cutin-name { position: absolute; left: 7%; bottom: 21%; font-size: clamp(30px, 6.4vw, 60px); font-weight: 900; letter-spacing: 5px; color: #fff; text-shadow: 0 3px 18px #000, 0 0 30px #ff5a4e88; transform: translateX(-130%); }
+.boss-cutin.show .cutin-sub  { animation: cutin-text-in .5s cubic-bezier(.2,.9,.3,1) .34s forwards; }
+.boss-cutin.show .cutin-name { animation: cutin-text-in .52s cubic-bezier(.2,.9,.3,1) .42s forwards; }
+@keyframes cutin-text-in { to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .boss-cutin.show .cutin-flash, .boss-cutin.show .tape-1, .boss-cutin.show .tape-2,
+  .boss-cutin.show .tape-text, .boss-cutin.show .cutin-panel,
+  .boss-cutin.show .cutin-sub, .boss-cutin.show .cutin-name { animation: none; }
+  .cutin-tape.tape-1 { transform: rotate(-13deg); }
+  .cutin-tape.tape-2 { transform: rotate(8deg); }
+  .cutin-panel { transform: translateY(-50%) skewX(-9deg); }
+  .cutin-sub, .cutin-name { transform: none; }
+  .cutin-flash { opacity: 0; }
+}
+
+/* ===== 第一人称「眨眼」转场（再来一局：椭圆视野先闭后睁） ===== */
+/* 全黑遮罩，用 mask 在中央挖一个椭圆透明孔＝椭圆视野；JS 改 --eye-ry 让它纵向开合 */
+#blink-overlay {
+  position: fixed; inset: 0; z-index: 100; pointer-events: none; background: #000;
+  --eye-ry: 200%;
+  -webkit-mask: radial-gradient(125% var(--eye-ry) at 50% 50%, transparent 0 78%, #000 98%);
+          mask: radial-gradient(125% var(--eye-ry) at 50% 50%, transparent 0 78%, #000 98%);
+}
+@media (prefers-reduced-motion: reduce) { #blink-overlay { display: none; } }
 
 /* ===== 交互 / 文字效果增强（纯 CSS，无外部素材） ===== */
 :where(button:not(.map-cell), .card, .pile, .shop-tarot-face):hover {
@@ -611,6 +748,25 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
 /* ===== 商店分区 / 工作台 ===== */
 .shop-section-title { font-weight: 800; color: var(--accent); margin: 14px 0 4px; letter-spacing: 1px; }
 .shop-bench-hint { font-size: 12px; color: var(--muted); font-weight: 600; }
+/* 商店·单屏布局：各分区作为「组」横向流式排布、居中、利用两侧空白，整体一屏放下 */
+.shop-panel { max-width: min(1480px, 97vw); margin: 6px auto 4px; padding: 12px 20px 12px; }
+.shop-panel h2 { margin: 0 0 4px; }
+.shop-grid { display: flex; flex-wrap: wrap; gap: 6px 22px; justify-content: center; align-items: flex-start; }
+.shop-group { display: flex; flex-direction: column; }
+.shop-grid .shop-section-title { margin: 6px 0 6px; font-size: 14px; }
+.shop-grid .shop-cards { margin: 0; gap: 10px; }
+.shop-group-svc .shop-services { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 7px; width: 226px; margin-top: 0; }
+.shop-group-svc .big-btn { font-size: 12.5px; padding: 8px 12px; line-height: 1.3; }
+.shop-group-svc .big-btn small { font-size: 10px; }
+/* 商店内的货品图块整体收紧，保证一屏放下 */
+.shop-panel .card { width: 124px; height: 176px; padding: 6px; }
+.shop-panel .card-art { height: 64px; margin-bottom: 4px; }
+.shop-panel .card-cost { width: 25px; height: 25px; font-size: 13px; }
+.shop-panel .card-name { font-size: 12px; }
+.shop-panel .gem { width: 116px; min-height: 126px; padding: 8px 6px; }
+.shop-panel .gem-orb { font-size: 24px; }
+.shop-panel .shop-tarot-face { width: 116px; height: 128px; }
+.shop-panel .shop-tarot-icon { font-size: 27px; }
 #bench-btn b { color: var(--accent); }
 .bench-box { width: min(1040px, 95vw); }
 .bench-body { overflow: auto; }
@@ -654,6 +810,10 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
   .stage { flex: 1 1 0; max-width: 44vw; height: 220px; }
   .sprite { height: 212px; }
   .unit { padding: 6px 9px; }
+  .boss-bar { width: min(480px, 78%); padding: 0 8px; }
+  .boss-name { font-size: 17px; }
+  .boss-hpbar { height: 24px; }
+  .boss-hpbar .hptext { font-size: 13px; }
 
   /* 手牌占整行（卡牌正常换行），抽/弃牌堆移到下面一行 */
   .board { gap: 8px; min-height: 0; flex-wrap: wrap; justify-content: center; }
