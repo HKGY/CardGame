@@ -122,6 +122,9 @@ window.CG = window.CG || {};
     let emptyMindN = 0, voidEchoN = 0, hollowN = 0;   // === 虚无包 ===（playCard 结算）
     let devoteN = 0, annihilateN = 0, offerN = 0, erodeN = 0, banishN = 0;   // === 虚无包 ===（effects 处理器结算）
     let randbuffN = 0, diceN = 0, coinN = 0, jackpotN = 0, slotsN = 0, misfireN = 0, fickleN = 0, backfireN = 0;   // 奇巧包（随机/赌博）
+    let investN = 0, incomeN = 0, tradeN = 0, windfallN = 0, hireN = 0, taxN = 0, inflationN = 0, debtN = 0;       // 市场包（金币）
+    let mineN = 0, blastN = 0, prospectN = 0, quarryN = 0, richveinN = 0, caveinN = 0, barrenN = 0, disasterN = 0;  // 矿工包（深度）
+    let bellowsN = 0, emberN = 0, smeltN = 0, coolantN = 0, whitehotN = 0, overheatN = 0, crackN = 0, rustN = 0;   // 锻造包（热度）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -205,6 +208,15 @@ window.CG = window.CG || {};
       if (d.misfire)  misfireN += d.misfire * L;       // 哑火：25% 自伤
       if (d.fickle)   fickleN  += d.fickle * L;        // 无常：随机自身减益
       if (d.backfire) backfireN += d.backfire * L;     // 走火：50% 误伤
+      // —— 市场包 ——
+      if (d.invest) investN += d.invest * L; if (d.income) incomeN += d.income * L; if (d.trade) tradeN += d.trade * L; if (d.windfall) windfallN += d.windfall * L; if (d.hire) hireN += d.hire * L;
+      if (d.tax) taxN += d.tax * L; if (d.inflation) inflationN += d.inflation * L; if (d.debt) debtN += d.debt * L;
+      // —— 矿工包 ——
+      if (d.mine) mineN += d.mine * L; if (d.blast) blastN += d.blast * L; if (d.prospect) prospectN += d.prospect * L; if (d.quarry) quarryN += d.quarry * L; if (d.richvein) richveinN += d.richvein * L;
+      if (d.cavein) caveinN += d.cavein * L; if (d.barren) barrenN += d.barren * L; if (d.disaster) disasterN += d.disaster * L;
+      // —— 锻造包 ——
+      if (d.bellows) bellowsN += d.bellows * L; if (d.ember) emberN += d.ember * L; if (d.smelt) smeltN += d.smelt * L; if (d.coolant) coolantN += d.coolant * L; if (d.whitehot) whitehotN += d.whitehot * L;
+      if (d.overheat) overheatN += d.overheat * L; if (d.crack) crackN += d.crack * L; if (d.rust) rustN += d.rust * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -273,6 +285,29 @@ window.CG = window.CG || {};
     if (misfireN)  effects.push({ type: 'misfire', value: misfireN });
     if (fickleN)   effects.push({ type: 'fickle', value: fickleN });
     if (backfireN) effects.push({ type: 'backfire', value: backfireN });
+    // === 市场包 ===（windfall 是 playCard 加成、不在此 push）
+    if (investN) effects.push({ type: 'invest', value: investN });
+    if (incomeN) effects.push({ type: 'income', value: incomeN });
+    if (tradeN)  effects.push({ type: 'trade', value: tradeN });
+    if (hireN)   effects.push({ type: 'hire', value: hireN });
+    if (taxN)    effects.push({ type: 'tax', value: taxN });
+    if (inflationN) effects.push({ type: 'inflation', value: inflationN });
+    if (debtN)   effects.push({ type: 'debt', value: debtN });
+    // === 矿工包 ===（prospect/quarry 是 playCard 加成、不在此 push）
+    if (mineN)   effects.push({ type: 'mine', value: mineN });
+    if (blastN)  effects.push({ type: 'blast', value: blastN });
+    if (richveinN) effects.push({ type: 'richvein', value: richveinN });
+    if (caveinN) effects.push({ type: 'cavein', value: caveinN });
+    if (barrenN) effects.push({ type: 'barren', value: barrenN });
+    if (disasterN) effects.push({ type: 'disaster', value: disasterN });
+    // === 锻造包 ===（ember 是 playCard 加成、不在此 push）
+    if (bellowsN) effects.push({ type: 'bellows', value: bellowsN });
+    if (smeltN)   effects.push({ type: 'smelt', value: smeltN });
+    if (coolantN) effects.push({ type: 'coolant', value: coolantN });
+    if (whitehotN) effects.push({ type: 'whitehot', value: whitehotN });
+    if (overheatN) effects.push({ type: 'overheat', value: overheatN });
+    if (crackN)   effects.push({ type: 'crack', value: crackN });
+    if (rustN)    effects.push({ type: 'rust', value: rustN });
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -297,6 +332,7 @@ window.CG = window.CG || {};
       retain, heldStrike: heldStrikeN, hoard: hoardN, chargeUp: chargeUpN, primed: primedN, sluggish: sluggishN,   // === 留置包 ===
       temper: temperN, awaken: awakenN,                                          // 强化包（playCard 用）
       emptyMind: emptyMindN, voidEcho: voidEchoN, hollow: hollowN,               // === 虚无包 ===（playCard 用）
+      windfall: windfallN, prospect: prospectN, quarry: quarryN, ember: emberN,  // 市场/矿工/锻造（playCard 用）
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -371,6 +407,7 @@ window.CG = window.CG || {};
       overclock: 0, arc: 0, shieldBash: 0, lastStand: 0, temper: 0, awaken: 0,
       retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置/强化包 ===
       emptyMind: 0, voidEcho: 0, hollow: 0,   // === 虚无包 ===
+      windfall: 0, prospect: 0, quarry: 0, ember: 0,   // 市场/矿工/锻造（playCard 加成默认）
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };

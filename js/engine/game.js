@@ -103,6 +103,7 @@ window.CG = window.CG || {};
       this.target = 0; this.enemy = this.enemies[0];
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this._keepBlock = false;                  // 死守包·重甲：愚者重开时重置
+      this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -134,6 +135,8 @@ window.CG = window.CG || {};
       this.freeCards = 0;                      // 回响：可免费打出的张数
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
       this._keepBlock = false;                 // 死守包·重甲：本场格挡回合末是否保留（打出重甲后置 true）
+      this._depth = 0;                         // 矿工包：本场挖矿深度
+      this._heat = 0;                          // 锻造包：本场热度
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -312,6 +315,23 @@ window.CG = window.CG || {};
       if (s.arc > 0) {
         const bonus = s.arc * (this.player.power || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // === 市场/矿工/锻造：随资源动态加成（仿电弧，读打出前的资源）===
+      if (s.windfall > 0) {   // 暴富：数值 +（当前金币 ÷10 × 等级）
+        const bonus = Math.floor(((this.run && this.run.gold) || 0) / 10) * s.windfall;
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      if (s.prospect > 0) {   // 寻脉：伤害 +（当前深度 × 等级）
+        const bonus = s.prospect * (this._depth || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      if (s.quarry > 0) {     // 采石：格挡 +（当前深度 × 等级）
+        const bonus = s.quarry * (this._depth || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'block' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      if (s.ember > 0) {      // 余烬重击：伤害 +（当前热度 × 等级）
+        const bonus = s.ember * (this._heat || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // === 死守包 ===
       // 盾击：本牌伤害额外 +（当前格挡 × 等级）——读取打出前的格挡（仿电弧/连击）

@@ -97,6 +97,24 @@ window.CG = window.CG || {};
     grabbag:  { name: '百宝箱', color: '#b890d8', score: 3, randbuff: 1, desc: n => `获得 ${n} 层随机增益`, long: n => `打出后随机获得 ${n} 层力量或敏捷` },
     jackpot:  { name: '头奖', color: '#d8b0f0', score: 5, jackpot: 1,   desc: n => `三选一：${12 * n} 伤害/格挡/抽3`, long: n => `等概率三选一：造成 ${12 * n} 点伤害 / 获得 ${12 * n} 点格挡 / 抽 3 张` },
     slots:    { name: '老虎机', color: '#c0a0e0', score: 5, slots: 1,   desc: n => `每 3 次打出爆出 ${20 * n} 伤害`, long: n => `本场战斗中，每打出第 3 张含「老虎机」的牌，造成 ${20 * n} 点伤害（计数器随后归零）` },
+    // === 市场包：金币当战斗资源（花钱换强度 / 打牌生金；金币＝跑图通用货币 run.gold）===
+    invest:   { name: '投资', color: '#e8c84a', score: 4, invest: 1, damageOnly: true, desc: n => `花金币换伤害×${n}`, long: n => `打出后花至多 ${5 * n} 金币，对当前敌人造成（花掉金币 ×2）点伤害` },
+    income:   { name: '进账', color: '#d8b84a', score: 3, income: 1, desc: n => `获得金币 ${6 * n}`, long: n => `打出后获得 ${6 * n} 金币` },
+    trade:    { name: '贸易', color: '#c8d86a', score: 3, trade: 1,  desc: n => `抽1·金币 ${4 * n}`, long: n => `打出后抽 1 张牌并获得 ${4 * n} 金币` },
+    windfall: { name: '暴富', color: '#f0e070', score: 4, windfall: 1, desc: n => `+当前金币/10 ×${n}`, long: n => `本牌数值额外 +（当前金币 ÷10 × ${n}）` },
+    hire:     { name: '雇佣', color: '#e0c068', score: 4, hire: 1,   desc: n => `花 ${5 * n} 金币·力量 ${n}`, long: n => `打出后花 ${5 * n} 金币（足够则）永久 +${n} 力量` },
+    // === 矿工包：挖矿攒「深度」(本场)，深度换伤害/格挡，越挖越掘出金币/宝石 ===
+    mine:     { name: '开采', color: '#b08a5a', score: 4, mine: 1,   desc: n => `深度 +${2 * n}`, long: n => `深度 +${2 * n}；每跨过 5 深度掘出一份产出（有跑图则得金币，否则得格挡）` },
+    blast:    { name: '爆破', color: '#c87a4a', score: 4, blast: 1,  desc: n => `深度 +${5 * n}`, long: n => `深度 +${5 * n}（一次性猛挖）` },
+    prospect: { name: '寻脉', color: '#d0a060', score: 4, prospect: 1, damageOnly: true, desc: n => `伤害+深度×${n}`, long: n => `本牌伤害额外 +（当前深度 × ${n}）` },
+    quarry:   { name: '采石', color: '#a89070', score: 4, quarry: 1, desc: n => `格挡+深度×${n}`, long: n => `本牌格挡额外 +（当前深度 × ${n}）` },
+    richvein: { name: '富矿', color: '#e0c040', score: 5, richvein: 1, desc: n => `掘出 ${n} 颗随机宝石`, long: n => `打出后向背包掘出 ${n} 颗随机宝石（需在跑图中）` },
+    // === 锻造包：攒「热度」(本场)，高热爆发——熔炼/淬炼一次性烧掉热度 ===
+    bellows:  { name: '鼓风', color: '#e08038', score: 3, bellows: 1, desc: n => `热度 +${2 * n}`, long: n => `热度 +${2 * n}` },
+    ember:    { name: '余烬重击', color: '#e86838', score: 4, ember: 1, damageOnly: true, desc: n => `伤害+热度×${n}`, long: n => `本牌伤害额外 +（当前热度 × ${n}）` },
+    smelt:    { name: '熔炼', color: '#f06030', score: 5, smelt: 1,  desc: n => `烧光热度·造等量×${n}`, long: n => `对当前敌人造成（当前热度 × ${n}）点伤害，随后热度清零` },
+    coolant:  { name: '淬炼', color: '#d09850', score: 4, coolant: 1, desc: n => `烧光热度·换等量×${n}格挡`, long: n => `获得（当前热度 × ${n}）点格挡，随后热度清零` },
+    whitehot: { name: '白热', color: '#f0a040', score: 4, whitehot: 1, desc: n => `热度 +${3 * n}·伤害 ${3 * n}`, long: n => `热度 +${3 * n}，并对当前敌人造成 ${3 * n} 点伤害` },
   };
 
   const DEBUFFS = {
@@ -145,6 +163,18 @@ window.CG = window.CG || {};
     misfire:  { name: '哑火', color: '#b5616a', score: -3, debuff: true, misfire: 1,  desc: n => `25% 失去 ${3 * n} HP`, long: n => `打出后 25% 概率炸膛：失去 ${3 * n} 点生命` },
     fickle:   { name: '无常', color: '#9a6ab0', score: -3, debuff: true, fickle: 1,   desc: n => `随机自身减益 ${n}`, long: n => `打出后随机获得 ${n} 层易伤 / 虚弱 / 脆弱之一` },
     backfire: { name: '走火', color: '#c08a4a', score: -3, debuff: true, backfire: 1, desc: n => `50% 误伤自己 ${5 * n}`, long: n => `打出后 50% 对敌人、否则对自己造成 ${5 * n} 点伤害` },
+    // === 市场包·负面 ===
+    tax:       { name: '赋税', color: '#9a8a4a', score: -3, debuff: true, tax: 4, desc: n => `失去金币 ${4 * n}`, long: n => `打出后失去 ${4 * n} 金币` },
+    inflation: { name: '通胀', color: '#8a7a5a', score: -3, debuff: true, inflation: 1, desc: () => `失去 20% 金币`, long: () => `打出后失去当前金币的 20%（向下取整）` },
+    debt:      { name: '赌债', color: '#7a6a4a', score: -3, debuff: true, debt: 3, desc: n => `失 ${3 * n} 金币/血`, long: n => `打出后失去 ${3 * n} 金币；不足则改为失去等量生命抵债` },
+    // === 矿工包·负面 ===
+    cavein:    { name: '塌方', color: '#7a6a5a', score: -3, debuff: true, cavein: 1, desc: n => `自伤 ${3 * n}`, long: n => `打出后失去 ${3 * n} 点生命（矿洞塌方）` },
+    barren:    { name: '贫矿', color: '#8a8a6a', score: -3, debuff: true, barren: 1, desc: n => `深度 -${3 * n}`, long: n => `打出后深度 -${3 * n}（夹 0）` },
+    disaster:  { name: '矿难', color: '#6a5a4a', score: -4, debuff: true, disaster: 1, desc: () => `深度减半`, long: () => `打出后当前深度减半（向下取整）` },
+    // === 锻造包·负面 ===
+    overheat:  { name: '过热', color: '#d05a30', score: -3, debuff: true, overheat: 2, desc: n => `自身灼伤 ${2 * n}`, long: n => `打出后给自己上 ${2 * n} 层灼伤（每回合受伤、可被格挡）` },
+    crack:     { name: '崩裂', color: '#9a6a5a', score: -3, debuff: true, crack: 4, desc: n => `失去 ${4 * n} 格挡`, long: n => `打出后失去 ${4 * n} 点格挡` },
+    rust:      { name: '锈蚀', color: '#8a7a6a', score: -3, debuff: true, rust: 3, desc: n => `热度 -${3 * n}`, long: n => `打出后热度 -${3 * n}（夹 0）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -239,6 +269,15 @@ window.CG = window.CG || {};
     gadget:   { name: '奇巧包', icon: '🎲', color: '#c8a0e0', desc: '随机/赌博：高方差的骰子、硬币、抽奖。',
                 buffs: ['dice', 'coinflip', 'grabbag', 'jackpot', 'slots'],
                 debuffs: ['misfire', 'fickle', 'backfire'] },
+    econ:     { name: '市场包', icon: '💰', color: '#e8c84a', desc: '金币当战斗资源：投资/雇佣花钱换强度，进账/贸易/暴富靠钱滚钱。',
+                buffs: ['invest', 'income', 'trade', 'windfall', 'hire'],
+                debuffs: ['tax', 'inflation', 'debt'] },
+    miner:    { name: '矿工包', icon: '⛏️', color: '#b08a5a', desc: '挖矿攒深度：深度换伤害/格挡，越挖越掘出金币与宝石。',
+                buffs: ['mine', 'blast', 'prospect', 'quarry', 'richvein'],
+                debuffs: ['cavein', 'barren', 'disaster'] },
+    forge:    { name: '锻造包', icon: '🔨', color: '#e86838', desc: '攒热度搏爆发：高热的余烬重击、熔炼/淬炼一次性烧光热度。',
+                buffs: ['bellows', 'ember', 'smelt', 'coolant', 'whitehot'],
+                debuffs: ['overheat', 'crack', 'rust'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
@@ -248,7 +287,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;

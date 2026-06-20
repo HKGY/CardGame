@@ -185,6 +185,29 @@ window.CG = window.CG || {};
         game._checkEnd();
       }
     },
+    // === 市场包 ===（金币＝run.gold；无跑图时金币操作安全跳过）
+    invest(game, eff, source, target) { const r = game.run; if (!r) return; const spend = Math.min(r.gold || 0, 5 * eff.value); if (spend > 0) { r.gold -= spend; if (target && target.hp > 0) game.dealAttackDamage(source, target, spend * 2); } },
+    income(game, eff) { if (game.run) game.run.gold = (game.run.gold || 0) + 6 * eff.value; },                       // 进账
+    trade(game, eff)  { game.drawCards(1); if (game.run) game.run.gold = (game.run.gold || 0) + 4 * eff.value; },    // 贸易
+    hire(game, eff)   { const r = game.run; if (r && (r.gold || 0) >= 5 * eff.value) { r.gold -= 5 * eff.value; game.applyStatus(game.player, 'strength', eff.value); } },  // 雇佣
+    tax(game, eff)    { if (game.run) game.run.gold = Math.max(0, (game.run.gold || 0) - eff.value); },              // 赋税（eff.value 已含 ×4）
+    inflation(game)   { if (game.run) game.run.gold = Math.floor((game.run.gold || 0) * 0.8); },                     // 通胀
+    debt(game, eff)   { const r = game.run, amt = eff.value; if (r && (r.gold || 0) >= amt) { r.gold -= amt; } else { if (r) r.gold = 0; game.player.hp = Math.max(0, game.player.hp - amt); game._checkEnd(); } },  // 赌债（eff.value 已含 ×3）
+    // === 矿工包 ===（深度＝game._depth；每跨 5 深度掘出产出：有跑图给金币、否则给格挡）
+    mine(game, eff)   { const old = game._depth || 0; game._depth = old + 2 * eff.value; const y = Math.floor(game._depth / 5) - Math.floor(old / 5); for (let i = 0; i < y; i++) { if (game.run) game.run.gold = (game.run.gold || 0) + 8; else game.gainBlock(game.player, 4); } },
+    blast(game, eff)  { game._depth = (game._depth || 0) + 5 * eff.value; },                                         // 爆破
+    richvein(game, eff) { if (game.run && game.run.gems) for (let i = 0; i < eff.value; i++) game.run.gems.push(CG.rollGem({ tier: 'elite' })); },  // 富矿：掘出随机宝石进背包
+    cavein(game, eff) { game.player.hp = Math.max(0, game.player.hp - 3 * eff.value); game._checkEnd(); },           // 塌方
+    barren(game, eff) { game._depth = Math.max(0, (game._depth || 0) - 3 * eff.value); },                            // 贫矿
+    disaster(game)    { game._depth = Math.floor((game._depth || 0) / 2); },                                         // 矿难
+    // === 锻造包 ===（热度＝game._heat；熔炼/淬炼一次性烧光热度）
+    bellows(game, eff)  { game._heat = (game._heat || 0) + 2 * eff.value; },                                         // 鼓风
+    smelt(game, eff, source, target) { const h = game._heat || 0; if (h > 0 && target && target.hp > 0) game.dealAttackDamage(source, target, h * eff.value); game._heat = 0; },  // 熔炼
+    coolant(game, eff)  { const h = game._heat || 0; if (h > 0) game.gainBlock(game.player, h * eff.value); game._heat = 0; },  // 淬炼
+    whitehot(game, eff, source, target) { game._heat = (game._heat || 0) + 3 * eff.value; if (target && target.hp > 0) game.dealAttackDamage(source, target, 3 * eff.value); },  // 白热
+    overheat(game, eff) { game.applyStatus(game.player, 'burn', eff.value); },                                       // 过热（eff.value 已含 ×2）
+    crack(game, eff)    { game.player.block = Math.max(0, game.player.block - eff.value); },                         // 崩裂（eff.value 已含 ×4）
+    rust(game, eff)     { game._heat = Math.max(0, (game._heat || 0) - eff.value); },                                // 锈蚀（eff.value 已含 ×3）
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 
