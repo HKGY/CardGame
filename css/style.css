@@ -455,6 +455,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* 回响：本回合可免费打出 → 耗能徽标变青并发光 */
 .card-cost.free { background: linear-gradient(#9ff0e0, #2fd0c0 58%, #1aa898); border-color: #d8fff8; color: #06231f; box-shadow: 0 0 10px #58c8d8cc; }
 .free-hint { color: #58c8d8; font-size: 13px; font-weight: 800; }
+/* 电力包：电力付费(改造)的耗费徽标、能量下方的电力行、麻痹锁住的牌 */
+.card-cost.power { background: linear-gradient(#f6e870, #e0b840 58%, #b88a18); border-color: #fff3b0; color: #3a2a00; box-shadow: 0 0 10px #f0d040cc; font-size: 11px; }
+.power-line { font-size: 12px; font-weight: 800; color: #f0d040; margin-top: 3px; }
+.card.paralyzed { filter: grayscale(.55) brightness(.8); }
+.card.paralyzed::after { content: '🔒'; position: absolute; top: 4px; right: 4px; font-size: 16px; filter: drop-shadow(0 1px 1px #000); }
 .card-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 2px #000a; }
 .card-name .aff { font-weight: 800; }
 .card-name .base-name { color: var(--ink); }

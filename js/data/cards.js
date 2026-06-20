@@ -111,6 +111,7 @@ window.CG = window.CG || {};
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
     let ashesN = 0, burnSelN = 0, rebornN = 0, selfBurnN = 0, nirvana = false, undying = false, burnAll = false, nightmare = false;  // 消耗包
+    let gainPowerN = 0, overclockN = 0, arcN = 0, chargeN = 0, losePowerN = 0, selfThunderN = 0, paralyzeN = 0;   // 电力包
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -134,7 +135,14 @@ window.CG = window.CG || {};
       if (d.block)     blockFlat += d.block * L;        // 壁垒：附加格挡
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
-      if (d.element) { elementId = d.element; elementLevel = L; }   // 元素附着：命中时给敌人附 L 层该元素
+      if (d.element) { elementId = d.element; elementLevel = (d.elementBase || 1) * L; }   // 元素附着：附 (base×L) 层（放电=2×L）
+      if (d.gainPower) gainPowerN += d.gainPower * L;   // 发电
+      if (d.overclock) overclockN += d.overclock * L;   // 改造：超频倍数（消耗电力、数值 ×N）
+      if (d.arc)       arcN    += d.arc * L;            // 电弧：数值随电力增长（playCard 结算）
+      if (d.charge)    chargeN += d.charge * L;         // 充电：电力→能量
+      if (d.losePower) losePowerN += d.losePower * L;   // 漏电
+      if (d.selfThunder) selfThunderN += d.selfThunder * L;  // 感电：自身附雷
+      if (d.paralyze)  paralyzeN += d.paralyze * L;     // 麻痹：锁住最左 N 张
       if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
       if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
       if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
@@ -175,6 +183,11 @@ window.CG = window.CG || {};
     if (selfBurnN) effects.push({ type: 'selfStatus', status: 'burn', value: selfBurnN });   // 着火：自身灼伤
     if (burnAll)   effects.push({ type: 'exhaustHand' });                                     // 爆燃：消耗其余手牌
     if (nightmare) effects.push({ type: 'nightmare' });                                       // 噩梦：渣滓塞满手牌
+    if (gainPowerN) effects.push({ type: 'gainPower', value: gainPowerN });                   // 发电
+    if (chargeN)    effects.push({ type: 'charge', value: chargeN });                         // 充电：电力→能量
+    if (losePowerN) effects.push({ type: 'losePower', value: losePowerN });                   // 漏电
+    if (selfThunderN) effects.push({ type: 'selfElement', element: 'thunder', value: selfThunderN });   // 感电：自身附雷
+    if (paralyzeN) effects.push({ type: 'paralyze', value: paralyzeN });                      // 麻痹
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -194,6 +207,7 @@ window.CG = window.CG || {};
       windfury, lifesteal, exhaust, pierce: pierceN,
       freeNext: freeNextN, combo: comboN, element: elementId, elementLevel,
       ashes: ashesN, burnSelect: burnSelN, reborn: rebornN, nirvana, undying,   // 消耗包
+      overclock: overclockN, arc: arcN,                                          // 电力包（playCard 用）
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -265,6 +279,7 @@ window.CG = window.CG || {};
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
       element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: false, undying: false,
+      overclock: 0, arc: 0,
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };

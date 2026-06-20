@@ -291,7 +291,7 @@ window.CG = window.CG || {};
       g.buffs.concat(g.debuffs).map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>')
     ).filter(Boolean).join('<span class="gem-sep"> ┃ </span>');
     const lines = descGroups ? `<div class="affix-lines">${descGroups}</div>` : '';
-    return `<div class="card-cost${s._free ? ' free' : ''}">${s.cost}</div>
+    return `<div class="card-cost${s._free ? ' free' : ''}${s._power ? ' power' : ''}">${s._power ? '🔋' : ''}${s.cost}</div>
       <div class="card-art">${CG.CardArt.get(s.base)}</div>
       <div class="card-body">
         <div class="card-name">${name}</div>
@@ -324,13 +324,23 @@ window.CG = window.CG || {};
     const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
     return `<div class="${cls}" ${data}>${cardInner(s)}</div>`;
   }
-  function handCardHTML(game, inst) {
+  function handCardHTML(game, inst, idx) {
     let s = CG.cardStats(inst, { valueMult: game.cardValueMult });
-    const free = (game.freeCards || 0) > 0;                     // 回响：本张可免费打出
-    const payCost = free ? 0 : s.cost;
-    const ok = game.phase === 'player' && payCost <= game.player.energy && !s.noPlay && !game.craft;
-    if (free) s = Object.assign({}, s, { cost: 0, _free: true });
-    return `<div class="card type-${s.type} ${ok ? '' : 'disabled'}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
+    const oc = s.overclock || 0;                                // 改造：超频（电力付费、数值 ×N）
+    const paralyzed = idx != null && idx < (game._paralyze || 0);   // 麻痹：最左 N 张锁住
+    const blocked = !!(game.craft || game.pick) || paralyzed;
+    let ok;
+    if (oc) {
+      const pc = s.cost * oc;
+      ok = game.phase === 'player' && (game.player.power || 0) >= pc && !s.noPlay && !blocked;
+      s = Object.assign({}, s, { cost: pc, _power: true });     // 卡面耗费显示为电力
+    } else {
+      const free = (game.freeCards || 0) > 0;
+      const payCost = free ? 0 : s.cost;
+      ok = game.phase === 'player' && payCost <= game.player.energy && !s.noPlay && !blocked;
+      if (free) s = Object.assign({}, s, { cost: 0, _free: true });
+    }
+    return `<div class="card type-${s.type} ${ok ? '' : 'disabled'} ${paralyzed ? 'paralyzed' : ''}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
   }
 
   // ---------- 小组件 ----------
@@ -421,7 +431,8 @@ window.CG = window.CG || {};
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());
     $('battle-relics').innerHTML = relicIcons(game.relics);
     const freeHint = (game.freeCards || 0) > 0 ? ` <small class="free-hint" title="回响：接下来 ${game.freeCards} 张牌免费打出">🔁${game.freeCards}</small>` : '';
-    $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}${freeHint}`;
+    const powerLine = (p.power || 0) > 0 ? `<div class="power-line" title="电力：用于「改造」等卡，战斗内跨回合保留">🔋 电力 ${p.power}</div>` : '';
+    $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}${freeHint}${powerLine}`;
     $('draw-pile').innerHTML = `🂠 抽牌堆 <b>${game.drawPile.length}</b><small>点击查看</small>`;
     $('discard-pile').innerHTML = `🗑️ 弃牌堆 <b>${game.discardPile.length}</b><small>点击查看</small>`;
 
@@ -430,7 +441,7 @@ window.CG = window.CG || {};
     const oldRects = {}, oldNodes = {};
     if (!REDUCE) handEl.querySelectorAll('.card').forEach(el => { const u = el.dataset.uid; oldRects[u] = el.getBoundingClientRect(); oldNodes[u] = el; });
     const newUids = game.hand.map(c => String(c.uid));
-    handEl.innerHTML = game.hand.map(c => handCardHTML(game, c)).join('');
+    handEl.innerHTML = game.hand.map((c, i) => handCardHTML(game, c, i)).join('');
     const logs = game.log || [];
     if (!REDUCE) {
       if (logs.slice(prevLogLen).some(l => l.indexOf('洗入抽牌堆') >= 0)) shuffleFx();

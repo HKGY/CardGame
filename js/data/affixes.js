@@ -56,6 +56,12 @@ window.CG = window.CG || {};
     nirvana: { name: '涅槃', color: '#c79ae0', score: 5, nirvana: 1,    desc: () => `被消耗时打出 1 次`, long: () => `这张牌被消耗时，自动打出 1 次（再结算一遍其效果）` },
     undying: { name: '不坏', color: '#c2c6d6', score: 5, undying: 1,    desc: () => `被消耗时生成副本`, long: () => `这张牌被消耗时，生成 1 张相同副本进手牌` },
     reborn:  { name: '重生', color: '#7fd0a0', score: 4, reborn: 1,     desc: () => `从消耗堆取回 1 张`, long: () => `打出后：把消耗堆里指定的 1 张牌加入手牌` },
+    // —— 电力包：用「电力」代替能量（电力战斗内跨回合保留，显示在能量下方）——
+    generate:  { name: '发电', color: '#f0d850', score: 3, gainPower: 2, desc: n => `获得电力 ${2 * n}`, long: n => `打出后获得 ${2 * n} 点电力（战斗内跨回合保留）` },
+    overclock: { name: '改造', color: '#e0a040', score: 4, overclock: 1, desc: n => `电力付费·数值 ×${n}`, long: n => `本牌改为消耗电力（＝耗能 ×${n}）而非能量，且数值 ×${n}` },
+    arc:       { name: '电弧', color: '#f0e060', score: 4, arc: 1,       desc: n => `+当前电力 ×${n}`, long: n => `本牌数值额外 +（当前电力 × ${n}）` },
+    discharge: { name: '放电', color: '#e8c84a', score: 4, element: 'thunder', elementBase: 2, desc: n => `附雷 ${2 * n}`, long: n => `命中给敌人附 ${2 * n} 层⚡（叠加触发元素反应）` },
+    charge:    { name: '充电', color: '#f0e8a0', score: 3, charge: 1,    desc: n => `电力→能量 ×${n}`, long: n => `打出后消耗至多 ${n} 点电力，转化为等量能量` },
   };
 
   const DEBUFFS = {
@@ -77,6 +83,10 @@ window.CG = window.CG || {};
     detonate: { name: '爆燃', color: '#c75450', score: -4, debuff: true, burnAll: 1,   desc: () => `消耗其余手牌`, long: () => `打出后消耗你其余所有手牌` },
     onfire:   { name: '着火', color: '#e0703a', score: -3, debuff: true, selfBurn: 2,  desc: n => `自身灼伤 ${2 * n}`, long: n => `打出后给自己上 ${2 * n} 层「灼伤」（每回合受等量伤害、逐回合 -1，但可被格挡）` },
     nightmare:{ name: '噩梦', color: '#6a5a8a', score: -4, debuff: true, nightmare: 1, desc: () => `渣滓塞满手牌`, long: () => `打出后用「渣滓」(1 费·打出即消耗) 塞满你的手牌（上限 10 张）` },
+    // —— 电力包·负面 ——
+    shock:    { name: '感电', color: '#c8b84a', score: -3, debuff: true, selfThunder: 2, desc: n => `自身附雷 ${2 * n}`, long: n => `打出后给自己附 ${2 * n} 层⚡（为「会给玩家附元素的敌人」埋雷；当前无即时副作用）` },
+    paralyze: { name: '麻痹', color: '#8a8a5a', score: -4, debuff: true, paralyze: 3,   desc: n => `锁住左 ${3 * n} 张`, long: n => `本回合你手牌最左侧 ${3 * n} 张无法打出` },
+    drain:    { name: '漏电', color: '#9a8a4a', score: -3, debuff: true, losePower: 1,  desc: n => `失去电力 ${n}`, long: n => `打出后失去 ${n} 点电力` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -145,6 +155,9 @@ window.CG = window.CG || {};
     exhaust:  { name: '消耗包', icon: '🔥', color: '#d2603a', desc: '玩「消耗」：灰烬随消耗堆变强、燃烧/重生操纵牌堆、涅槃/不坏让被消耗的牌再生；大宝石附带爆燃/着火/噩梦。',
                 buffs: ['ashes', 'burning', 'nirvana', 'undying', 'reborn'],
                 debuffs: ['detonate', 'onfire', 'nightmare'] },
+    elec:     { name: '电力包', icon: '⚡', color: '#f0d040', desc: '用「电力」代替能量：发电攒电、改造超频、电弧/放电；大宝石附带感电/麻痹/漏电。',
+                buffs: ['generate', 'overclock', 'arc', 'discharge', 'charge'],
+                debuffs: ['shock', 'paralyze', 'drain'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 })(window.CG);

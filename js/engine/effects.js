@@ -75,6 +75,15 @@ window.CG = window.CG || {};
     freeNext(game, eff) { game.freeCards = (game.freeCards || 0) + eff.value; },              // 回响：接下来若干张牌免费
     exhaustHand(game)   { if (game.exhaustAllHand) game.exhaustAllHand(); },                  // 爆燃：消耗其余手牌
     nightmare(game)     { if (game.fillNightmare) game.fillNightmare(); },                    // 噩梦：渣滓塞满手牌
+    // —— 电力包 ——
+    gainPower(game, eff) { game.player.power = (game.player.power || 0) + eff.value; },        // 发电
+    charge(game, eff)    { const n = Math.min(game.player.power || 0, eff.value); game.player.power -= n; game.player.energy += n; },   // 充电：电力→能量
+    losePower(game, eff) { game.player.power = Math.max(0, (game.player.power || 0) - eff.value); },   // 漏电
+    selfElement(game, eff) {                                                                  // 感电：给自己附元素（复用敌人光环逻辑）
+      const p = game.player, cur = (game._auraOf(p) === eff.element) ? (p.statuses[eff.element] || 0) : 0;
+      game._setAura(p, eff.element, cur + eff.value);
+    },
+    paralyze(game, eff)  { game._paralyze = Math.max(game._paralyze || 0, eff.value); },       // 麻痹：锁住最左 N 张
   };
 
   CG.Effects = {

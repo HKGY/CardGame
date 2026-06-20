@@ -101,7 +101,7 @@ window.CG = window.CG || {};
     restart() {                                 // 愚者：重开本场（保留当前血量，不退道具）
       this.enemies.forEach(e => { e.hp = e.maxHp; e.block = 0; e.statuses = {}; e.history = []; e.intent = null; e.alive = true; });
       this.target = 0; this.enemy = this.enemies[0];
-      this.player.block = 0; this.player.statuses = {};
+      this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -138,7 +138,7 @@ window.CG = window.CG || {};
       const maxEnergy = START_ENERGY + this.relics.reduce((s, id) => s + (CG.RELICS[id].maxEnergyBonus || 0), 0);  // 电池
       this.player = {
         name: '你', maxHp, hp, block: 0,
-        energy: maxEnergy, maxEnergy, statuses: {},
+        energy: maxEnergy, maxEnergy, power: 0, statuses: {},   // 电力：战斗内跨回合保留（不随回合回满）
       };
       this.enemies = (enemyIds || []).map(id => this._makeEnemy(id, sc, hpMult));   // 数值膨胀 + 女祭司减血
       this.target = 0;
@@ -171,6 +171,7 @@ window.CG = window.CG || {};
       this._turnPlays = {};                       // 风怒：本回合各卡已打出次数
       this.freeCards = 0;                          // 回响：本回合可免费打出的张数
       this._playedThisTurn = 0;                    // 连击：本回合已打出牌数
+      this._paralyze = 0;                          // 麻痹：本回合锁住最左侧 N 张手牌（电力不在此列，跨回合保留）
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -260,9 +261,15 @@ window.CG = window.CG || {};
       let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
       if (s.noPlay) { this.addLog(`${s.name} 不能直接打出。`); this._emit(); return; }   // 调味料 / 腐坏卡
       if (s.kind === 'veg') return this._startCraft(card);             // 素菜 → 进入做菜
-      const free = (this.freeCards || 0) > 0;                          // 回响：本张免费打出
-      const payCost = free ? 0 : s.cost;
-      if (payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
+      if (idx < (this._paralyze || 0)) { this.addLog(`麻痹：最左 ${this._paralyze} 张牌本回合无法打出。`); this._emit(); return; }
+      // 资源：改造(超频)→改用电力付费(耗能×N)、数值×N；否则走能量(回响可免费)
+      const oc = s.overclock || 0;
+      const free = oc ? false : (this.freeCards || 0) > 0;             // 回响：本张免费打出（超频时不适用）
+      const payCost = oc ? 0 : (free ? 0 : s.cost);
+      const payPower = oc ? s.cost * oc : 0;
+      if (oc && payPower > (this.player.power || 0)) { this.addLog('电力不足。'); this._emit(); return; }
+      if (!oc && payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
+      if (oc > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value * oc }) : e) });
 
       // 力量塔罗：下一张攻击牌造成 N 倍伤害（用后清除）
       if (this.nextCardDmgMult > 1 && s.kind === 'damage') {
@@ -278,6 +285,11 @@ window.CG = window.CG || {};
       if (s.ashes > 0) {
         const bonus = s.ashes * this.exhaustPile.length;
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // 电弧：本牌数值额外 +（当前电力 × 等级）
+      if (s.arc > 0) {
+        const bonus = s.arc * (this.player.power || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // 元素反应：本牌附元素时，按主目标当前元素与层数定反应（消耗 min(prev,new) 级、效果发生这么多次、余量留存）
       const elem = s.element, elemLv = s.elementLevel || 0;
@@ -298,10 +310,10 @@ window.CG = window.CG || {};
         }
       }
 
-      if (free) this.freeCards -= 1;                                   // 消耗一层回响
-      this.player.energy -= payCost;
+      if (oc > 0) this.player.power -= payPower;                       // 改造：扣电力
+      else { if (free) this.freeCards -= 1; this.player.energy -= payCost; }   // 否则扣能量（回响免费）
       this.hand.splice(idx, 1);
-      this.addLog(`你打出了 ${s.name}。`);
+      this.addLog(`你打出了 ${s.name}${oc ? `（耗电力 ${payPower}）` : ''}。`);
 
       const target = this.currentTarget();
       const enemyHpBefore = target.hp;
