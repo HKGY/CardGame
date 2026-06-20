@@ -112,6 +112,8 @@ window.CG = window.CG || {};
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
     let ashesN = 0, burnSelN = 0, rebornN = 0, selfBurnN = 0, nirvana = false, undying = false, burnAll = false, nightmare = false;  // 消耗包
     let gainPowerN = 0, overclockN = 0, arcN = 0, chargeN = 0, losePowerN = 0, selfThunderN = 0, paralyzeN = 0;   // 电力包
+    // === 死守包 ===
+    let shieldBashN = 0, lastStandN = 0, keepBlockN = 0, braceN = 0, loseEnergyN = 0, loseBlockN = 0;
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -143,6 +145,13 @@ window.CG = window.CG || {};
       if (d.losePower) losePowerN += d.losePower * L;   // 漏电
       if (d.selfThunder) selfThunderN += d.selfThunder * L;  // 感电：自身附雷
       if (d.paralyze)  paralyzeN += d.paralyze * L;     // 麻痹：锁住最左 N 张
+      // === 死守包 ===
+      if (d.shieldBash) shieldBashN += d.shieldBash * L;   // 盾击：伤害随当前格挡增长（在 playCard 结算）
+      if (d.lastStand)  lastStandN  += d.lastStand * L;    // 死战：伤害随已损失生命增长（在 playCard 结算）
+      if (d.keepBlock)  keepBlockN  += d.keepBlock * L;    // 重甲：格挡回合末保留
+      if (d.brace)      braceN     += d.brace * L;         // 严阵：格挡 4×L + 力量 L
+      if (d.loseEnergy) loseEnergyN += d.loseEnergy * L;   // 龟缩：失去能量
+      if (d.loseBlock)  loseBlockN  += d.loseBlock * L;    // 负重：失去格挡
       if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
       if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
       if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
@@ -188,6 +197,11 @@ window.CG = window.CG || {};
     if (losePowerN) effects.push({ type: 'losePower', value: losePowerN });                   // 漏电
     if (selfThunderN) effects.push({ type: 'selfElement', element: 'thunder', value: selfThunderN });   // 感电：自身附雷
     if (paralyzeN) effects.push({ type: 'paralyze', value: paralyzeN });                      // 麻痹
+    // === 死守包 ===
+    if (keepBlockN)  effects.push({ type: 'keepBlock' });                                     // 重甲：格挡回合末保留
+    if (braceN)    { effects.push({ type: 'block', value: 4 * braceN }); effects.push({ type: 'strength', value: braceN }); }   // 严阵：格挡 + 力量
+    if (loseEnergyN) effects.push({ type: 'loseEnergy', value: loseEnergyN });                // 龟缩：失去能量
+    if (loseBlockN)  effects.push({ type: 'loseBlock', value: loseBlockN });                  // 负重：失去格挡
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -208,6 +222,7 @@ window.CG = window.CG || {};
       freeNext: freeNextN, combo: comboN, element: elementId, elementLevel,
       ashes: ashesN, burnSelect: burnSelN, reborn: rebornN, nirvana, undying,   // 消耗包
       overclock: overclockN, arc: arcN,                                          // 电力包（playCard 用）
+      shieldBash: shieldBashN, lastStand: lastStandN,                            // 死守包（playCard 用）
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -279,7 +294,7 @@ window.CG = window.CG || {};
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
       element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: false, undying: false,
-      overclock: 0, arc: 0,
+      overclock: 0, arc: 0, shieldBash: 0, lastStand: 0,
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };

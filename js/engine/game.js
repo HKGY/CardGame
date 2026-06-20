@@ -102,6 +102,7 @@ window.CG = window.CG || {};
       this.enemies.forEach(e => { e.hp = e.maxHp; e.block = 0; e.statuses = {}; e.history = []; e.intent = null; e.alive = true; });
       this.target = 0; this.enemy = this.enemies[0];
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
+      this._keepBlock = false;                  // 死守包·重甲：愚者重开时重置
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -132,6 +133,7 @@ window.CG = window.CG || {};
       this._tempStrength = 0;                  // 战车（本回合力量）
       this.freeCards = 0;                      // 回响：可免费打出的张数
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
+      this._keepBlock = false;                 // 死守包·重甲：本场格挡回合末是否保留（打出重甲后置 true）
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -163,7 +165,7 @@ window.CG = window.CG || {};
     _startPlayerTurn() {
       this.turn += 1;
       this.phase = 'player';
-      this.player.block = 0;
+      if (!this._keepBlock) this.player.block = 0;        // 死守包·重甲：打出后本场格挡回合末不清空
       let energyBonus = 0, drawBonus = 0;          // 癌症/无神论者：每回合额外能量/抽牌
       this.relics.forEach(id => { const r = CG.RELICS[id]; energyBonus += r.turnEnergy || 0; drawBonus += r.turnDraw || 0; });
       this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)) + energyBonus;
@@ -290,6 +292,17 @@ window.CG = window.CG || {};
       if (s.arc > 0) {
         const bonus = s.arc * (this.player.power || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // === 死守包 ===
+      // 盾击：本牌伤害额外 +（当前格挡 × 等级）——读取打出前的格挡（仿电弧/连击）
+      if (s.shieldBash > 0) {
+        const bonus = s.shieldBash * (this.player.block || 0);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // 死战：本牌伤害额外 +（已损失生命比例 × 10 × 等级）
+      if (s.lastStand > 0) {
+        const bonus = Math.floor((1 - this.player.hp / this.player.maxHp) * 10 * s.lastStand);
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // 元素反应：本牌附元素时，按主目标当前元素与层数定反应（消耗 min(prev,new) 级、效果发生这么多次、余量留存）
       const elem = s.element, elemLv = s.elementLevel || 0;

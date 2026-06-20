@@ -62,6 +62,11 @@ window.CG = window.CG || {};
     arc:       { name: '电弧', color: '#f0e060', score: 4, arc: 1,       desc: n => `+当前电力 ×${n}`, long: n => `本牌数值额外 +（当前电力 × ${n}）` },
     discharge: { name: '放电', color: '#e8c84a', score: 4, element: 'thunder', elementBase: 2, desc: n => `附雷 ${2 * n}`, long: n => `命中给敌人附 ${2 * n} 层⚡（叠加触发元素反应）` },
     charge:    { name: '充电', color: '#f0e8a0', score: 3, charge: 1,    desc: n => `电力→能量 ×${n}`, long: n => `打出后消耗至多 ${n} 点电力，转化为等量能量` },
+    // === 死守包 ===（把「格挡」当核心资源：保留它、用它打人、残血加伤；bulwark 壁垒复用现有词条）
+    barricade: { name: '重甲', color: '#9ab0c8', score: 4, keepBlock: 1, desc: () => '格挡回合末保留', long: () => '打出后，本场战斗格挡在回合结束时不再清空（持续累积）' },
+    shieldbash:{ name: '盾击', color: '#c8a060', score: 4, shieldBash: 1, damageOnly: true, desc: n => `伤害+当前格挡×${n}`, long: n => `本牌伤害额外 +（当前格挡 × ${n}）` },
+    brace:     { name: '严阵', color: '#7fb0a8', score: 4, brace: 1, desc: n => `格挡 ${4 * n} + 力量 ${n}`, long: n => `打出后获得 ${4 * n} 点格挡，并永久 +${n} 力量` },
+    laststand: { name: '死战', color: '#d08070', score: 4, lastStand: 1, damageOnly: true, desc: n => `残血加伤×${n}`, long: n => `本牌伤害额外 +（已损失生命比例 × 10 × ${n}）` },
   };
 
   const DEBUFFS = {
@@ -87,6 +92,9 @@ window.CG = window.CG || {};
     shock:    { name: '感电', color: '#c8b84a', score: -3, debuff: true, selfThunder: 2, desc: n => `自身附雷 ${2 * n}`, long: n => `打出后给自己附 ${2 * n} 层⚡（为「会给玩家附元素的敌人」埋雷；当前无即时副作用）` },
     paralyze: { name: '麻痹', color: '#8a8a5a', score: -4, debuff: true, paralyze: 3,   desc: n => `锁住左 ${3 * n} 张`, long: n => `本回合你手牌最左侧 ${3 * n} 张无法打出` },
     drain:    { name: '漏电', color: '#9a8a4a', score: -3, debuff: true, losePower: 1,  desc: n => `失去电力 ${n}`, long: n => `打出后失去 ${n} 点电力` },
+    // === 死守包·负面 ===（cumbersome 笨重复用现有词条）
+    cower:  { name: '龟缩', color: '#7a8a9a', score: -3, debuff: true, loseEnergy: 1, desc: n => `能量 -${n}`,        long: n => `打出后立即失去 ${n} 点能量` },
+    burden: { name: '负重', color: '#8a8a7a', score: -3, debuff: true, loseBlock: 2,  desc: n => `失去 ${2 * n} 格挡`, long: n => `打出后失去 ${2 * n} 点格挡` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -158,6 +166,10 @@ window.CG = window.CG || {};
     elec:     { name: '电力包', icon: '⚡', color: '#f0d040', desc: '用「电力」代替能量：发电攒电、改造超频、电弧/放电；大宝石附带感电/麻痹/漏电。',
                 buffs: ['generate', 'overclock', 'arc', 'discharge', 'charge'],
                 debuffs: ['shock', 'paralyze', 'drain'] },
+    // === 死守包 ===
+    bastion:  { name: '死守包', icon: '🛡️', color: '#7fa8c8', desc: '格挡即进攻：保留格挡、以盾为矛、残血爆发。',
+                buffs: ['bulwark', 'barricade', 'shieldbash', 'brace', 'laststand'],
+                debuffs: ['cower', 'burden', 'cumbersome'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

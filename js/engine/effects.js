@@ -84,6 +84,10 @@ window.CG = window.CG || {};
       game._setAura(p, eff.element, cur + eff.value);
     },
     paralyze(game, eff)  { game._paralyze = Math.max(game._paralyze || 0, eff.value); },       // 麻痹：锁住最左 N 张
+    // === 死守包 ===
+    keepBlock(game)      { game._keepBlock = true; },                                          // 重甲：本场格挡回合末不清空
+    loseEnergy(game, eff){ game.player.energy = Math.max(0, game.player.energy - eff.value); }, // 龟缩：失去能量
+    loseBlock(game, eff) { game.player.block = Math.max(0, game.player.block - eff.value); },   // 负重：失去格挡
   };
 
   CG.Effects = {
