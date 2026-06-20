@@ -85,6 +85,12 @@ window.CG = window.CG || {};
     awaken:    { name: '觉醒', color: '#caa0e8', score: 4, awaken: 1,    desc: n => `打出 3 次后 +${5 * n}`, long: n => `本牌累计被打出 3 次后觉醒：数值永久 +${5 * n}（仅一次，仅本场）` },
     quench:    { name: '淬火', color: '#e0a8d0', score: 4, quench: 1,    desc: () => `随机一张手牌永久降费`, long: () => `打出后随机一张手牌耗能永久 -1（仅本场战斗）` },
     resonance: { name: '共鸣', color: '#d0b0e0', score: 3, resonance: 1, desc: n => `每镶嵌宝石 +${n}`, long: n => `本牌数值额外 +（本牌已镶嵌宝石数 × ${n}）` },
+    // === 虚无包 ===（牺牲与空：手牌越空、献祭越多越强）
+    emptymind: { name: '空明', color: '#8a90b0', score: 4, emptyMind: 1, desc: n => `空手时数值 +${5 * n}`, long: n => `本牌数值额外 +（max(0, 5 − 出牌后手牌数) × ${n}）：手里牌越少加得越多` },
+    devote:    { name: '舍身', color: '#b05a7a', score: 4, devote: 1,    desc: n => `失 ${3 * n} 血·造 ${6 * n} 伤`, long: n => `失去 ${3 * n} 点当前生命，对当前敌人造成 ${6 * n} 点伤害` },
+    annihilate:{ name: '湮灭', color: '#6a5a8a', score: 4, annihilate: 1, desc: n => `放逐牌堆 ${2 * n} 张·造伤`, long: n => `从抽牌堆顶放逐 ${2 * n} 张牌，对当前敌人造成（实际放逐数 × 3）点伤害` },
+    voidecho:  { name: '虚空回响', color: '#7a6fb0', score: 5, voidEcho: 1, desc: () => `空手时数值翻倍`, long: () => `若出牌后手牌为空，本牌伤害与格挡 ×2` },
+    offer:     { name: '献祭', color: '#a05fb0', score: 5, offer: 1,     desc: n => `减最大生命 ${3 * n}·力量 +${2 * n}`, long: n => `本场最大生命 −${3 * n}（下限 1），并获得 ${2 * n} 点力量` },
   };
 
   const DEBUFFS = {
@@ -125,6 +131,10 @@ window.CG = window.CG || {};
     overforge: { name: '过锻', color: '#a05a9a', score: -3, debuff: true, overforge: 1,  desc: () => `成长≥6 则碎裂`, long: () => `若本牌已积累的成长 ≥6，本牌打出后碎裂（进入消耗堆）` },
     anneal:    { name: '退火', color: '#8a6a9a', score: -3, debuff: true, anneal: 2,      desc: n => `随机手牌成长 -${2 * n}`, long: n => `打出后随机一张手牌的成长 -${2 * n}（不低于 0）` },
     stress:    { name: '应力', color: '#9a5a7a', score: -3, debuff: true, hpLoss: 2,      desc: n => `失去 ${2 * n} HP`, long: n => `打出后失去 ${2 * n} 点生命（复用反噬式自伤）` },
+    // === 虚无包·负面 ===
+    erode:  { name: '蚀骨', color: '#7a6a8a', score: -3, debuff: true, erode: 1,  desc: n => `减最大生命 ${2 * n}`, long: n => `打出后本场最大生命 −${2 * n}（下限 1）` },
+    banish: { name: '放逐代价', color: '#6a5a7a', score: -4, debuff: true, banish: 1, desc: n => `随机放逐 ${n} 张手牌`, long: n => `打出后随机放逐 ${n} 张手牌（进入消耗堆）` },
+    hollow: { name: '空虚', color: '#8a7a9a', score: -3, debuff: true, hollow: 1,  desc: () => `非空手时数值减半`, long: () => `若出牌后手牌非空，本牌伤害与格挡减半（向下取整）` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -211,6 +221,10 @@ window.CG = window.CG || {};
     enhance:  { name: '强化包', icon: '✨', color: '#e0b0e0', desc: '永久成长：打得越多越强（本场）。',
                 buffs: ['temper', 'whet', 'awaken', 'quench', 'resonance'],
                 debuffs: ['overforge', 'anneal', 'stress'] },
+    // === 虚无包 ===
+    void:     { name: '虚无包', icon: '🕳️', color: '#6a6f8a', desc: '牺牲与空：手牌越空、献祭越多越强。',
+                buffs: ['emptymind', 'devote', 'annihilate', 'voidecho', 'offer'],
+                debuffs: ['erode', 'banish', 'hollow'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

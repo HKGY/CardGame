@@ -119,6 +119,8 @@ window.CG = window.CG || {};
     let retain = false, heldStrikeN = 0, hoardN = 0, chargeUpN = 0, primedN = 0, sluggishN = 0, clutchN = 0;
     // === 强化包 ===（temper/awaken 透传给 playCard；resonance/overforge 在本函数内结算；growth/costDown 是 inst 上的本场永久字段）
     let temperN = 0, awakenN = 0, resonanceN = 0, overforge = false, whetN = 0, quenchN = 0, annealN = 0;
+    let emptyMindN = 0, voidEchoN = 0, hollowN = 0;   // === 虚无包 ===（playCard 结算）
+    let devoteN = 0, annihilateN = 0, offerN = 0, erodeN = 0, banishN = 0;   // === 虚无包 ===（effects 处理器结算）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -176,6 +178,15 @@ window.CG = window.CG || {};
       if (d.whet)      whetN   += d.whet * L;             // 磨砺：随机一张手牌成长 +L（交给 effects.whet）
       if (d.quench)    quenchN += d.quench;              // 淬火：随机一张手牌永久降费（push 一个 quench 效果）
       if (d.anneal)    annealN += d.anneal * L;           // 退火：随机一张手牌成长 -L
+      // === 虚无包 ===
+      if (d.emptyMind) emptyMindN += d.emptyMind * L;   // 空明：空手时数值增长（playCard 结算）
+      if (d.voidEcho)  voidEchoN  += d.voidEcho * L;    // 虚空回响：空手时数值翻倍（playCard 结算）
+      if (d.hollow)    hollowN    += d.hollow * L;       // 空虚：非空手时数值减半（playCard 结算）
+      if (d.devote)    devoteN    += d.devote * L;       // 舍身：失血 + 造伤
+      if (d.annihilate) annihilateN += d.annihilate * L; // 湮灭：放逐牌堆顶 + 造伤
+      if (d.offer)     offerN     += d.offer * L;        // 献祭：减最大生命 + 加力量
+      if (d.erode)     erodeN     += d.erode * L;        // 蚀骨：减最大生命
+      if (d.banish)    banishN    += d.banish * L;       // 放逐代价：随机放逐手牌
       if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
       if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
       if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
@@ -237,6 +248,12 @@ window.CG = window.CG || {};
     if (whetN)   effects.push({ type: 'whet', value: whetN });                                // 磨砺：随机手牌成长 +N
     if (quenchN) effects.push({ type: 'quench', value: quenchN });                            // 淬火：随机手牌永久降费
     if (annealN) effects.push({ type: 'anneal', value: annealN });                            // 退火：随机手牌成长 -N
+    // === 虚无包 ===
+    if (devoteN)     effects.push({ type: 'devote', value: devoteN });                        // 舍身
+    if (annihilateN) effects.push({ type: 'annihilate', value: annihilateN });                // 湮灭
+    if (offerN)      effects.push({ type: 'offer', value: offerN });                          // 献祭
+    if (erodeN)      effects.push({ type: 'erode', value: erodeN });                          // 蚀骨
+    if (banishN)     effects.push({ type: 'banish', value: banishN });                        // 放逐代价
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -260,6 +277,7 @@ window.CG = window.CG || {};
       shieldBash: shieldBashN, lastStand: lastStandN,                            // 死守包（playCard 用）
       retain, heldStrike: heldStrikeN, hoard: hoardN, chargeUp: chargeUpN, primed: primedN, sluggish: sluggishN,   // === 留置包 ===
       temper: temperN, awaken: awakenN,                                          // 强化包（playCard 用）
+      emptyMind: emptyMindN, voidEcho: voidEchoN, hollow: hollowN,               // === 虚无包 ===（playCard 用）
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -333,6 +351,7 @@ window.CG = window.CG || {};
       element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: false, undying: false,
       overclock: 0, arc: 0, shieldBash: 0, lastStand: 0, temper: 0, awaken: 0,
       retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置/强化包 ===
+      emptyMind: 0, voidEcho: 0, hollow: 0,   // === 虚无包 ===
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };

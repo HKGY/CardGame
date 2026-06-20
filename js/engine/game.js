@@ -335,6 +335,21 @@ window.CG = window.CG || {};
         const bonus = s.hoard * Math.max(0, this.hand.length - 1);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
+      // === 虚无包 ===（此处本牌仍在手里，故「出牌后手牌数」= this.hand.length - 1）
+      const handAfter = this.hand.length - 1;
+      // 空明：damage&block += max(0, 5 - 出牌后手牌数) × 等级
+      if (s.emptyMind > 0) {
+        const bonus = Math.max(0, 5 - handAfter) * s.emptyMind;
+        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // 虚空回响：出牌后空手 → 本牌 damage&block ×2
+      if (s.voidEcho > 0 && handAfter === 0) {
+        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value * 2 }) : e) });
+      }
+      // 空虚：出牌后手牌非空 → 本牌 damage&block 减半（向下取整）
+      if (s.hollow > 0 && handAfter > 0) {
+        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: Math.floor(e.value * 0.5) }) : e) });
+      }
       // 元素反应：本牌附元素时，按主目标当前元素与层数定反应（消耗 min(prev,new) 级、效果发生这么多次、余量留存）
       const elem = s.element, elemLv = s.elementLevel || 0;
       let reaction = null, rxAura = null, rxPrev = 0, rxConsumed = 0;

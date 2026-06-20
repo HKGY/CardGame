@@ -120,6 +120,33 @@ window.CG = window.CG || {};
     whet(game, eff)   { const c = randHand(game); if (c) c.growth = (c.growth || 0) + eff.value; },                       // 磨砺：随机手牌成长 +N
     quench(game, eff) { const c = randHand(game); if (c) c.costDown = (c.costDown || 0) + 1; },                           // 淬火：随机手牌永久降费 -1（eff.value 仅记等级）
     anneal(game, eff) { const c = randHand(game); if (c) c.growth = Math.max(0, (c.growth || 0) - eff.value); },          // 退火：随机手牌成长 -N（不低于 0）
+    // === 虚无包 ===（eff.value = 词条等级 L；maxHp 改动仅本场，不写回 run）
+    devote(game, eff, source, target) {                                                       // 舍身：失 3L 当前生命，对当前敌人造 (3L)×2 伤害
+      const cost = 3 * eff.value;
+      game.player.hp = Math.max(0, game.player.hp - cost);
+      game._checkEnd();
+      if (target && target.hp > 0) game.dealAttackDamage(source, target, cost * 2);
+    },
+    annihilate(game, eff, source, target) {                                                   // 湮灭：从抽牌堆顶放逐 2L 张，对当前敌人造 (放逐数)×3 伤害
+      let n = 0;
+      for (let i = 0; i < 2 * eff.value && game.drawPile.length > 0; i++) { game.exhaustPile.push(game.drawPile.pop()); n++; }
+      if (n > 0 && target && target.hp > 0) game.dealAttackDamage(source, target, n * 3);
+    },
+    offer(game, eff) {                                                                          // 献祭：本场最大生命 -3L（下限 1），获得 2L 力量
+      game.player.maxHp = Math.max(1, game.player.maxHp - 3 * eff.value);
+      game.player.hp = Math.min(game.player.hp, game.player.maxHp);
+      game.applyStatus(game.player, 'strength', 2 * eff.value);
+    },
+    erode(game, eff) {                                                                          // 蚀骨：本场最大生命 -2L（下限 1）
+      game.player.maxHp = Math.max(1, game.player.maxHp - 2 * eff.value);
+      game.player.hp = Math.min(game.player.hp, game.player.maxHp);
+    },
+    banish(game, eff) {                                                                         // 放逐代价：随机放逐 L 张手牌到消耗堆
+      for (let i = 0; i < eff.value && game.hand.length > 0; i++) {
+        const idx = Math.floor(Math.random() * game.hand.length);
+        game.exhaustPile.push(game.hand.splice(idx, 1)[0]);
+      }
+    },
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 
