@@ -131,6 +131,7 @@ window.CG = window.CG || {};
     let tossN = 0, siftN = 0, madnessN = 0, reclaimN = 0, dumpsterN = 0;   // 弃牌包（forget→clutch、waste→loseEnergy 复用）
     let conjureN = 0, daggersN = 0, duplicateN = 0, foresightN = 0, mindblastN = 0, clutterN = 0;   // 术士包
     let executeN = 0, preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
+    let vigorN = 0, innateN = 0, inspireN = 0, allinN = 0, surplusN = 0;   // 律动包（innate/allin/surplus 由 game/playCard 读取）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -235,6 +236,8 @@ window.CG = window.CG || {};
       if (d.conjure) conjureN += d.conjure * L; if (d.daggers) daggersN += d.daggers * L; if (d.duplicate) duplicateN += d.duplicate * L; if (d.foresight) foresightN += d.foresight * L; if (d.mindblast) mindblastN += d.mindblast * L; if (d.clutter) clutterN += d.clutter * L;
       // —— 猎杀包 ——
       if (d.execute) executeN += d.execute * L; if (d.prey) preyN += d.prey * L; if (d.exploit) exploitN += d.exploit * L; if (d.insight) insightN += d.insight * L; if (d.reaping) reapingN += d.reaping * L;
+      // —— 律动包 ——
+      if (d.vigor) vigorN += d.vigor * L; if (d.innate) innateN += d.innate * L; if (d.inspire) inspireN += d.inspire * L; if (d.allin) allinN += d.allin * L; if (d.surplus) surplusN += d.surplus * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -351,6 +354,9 @@ window.CG = window.CG || {};
     if (executeN) effects.push({ type: 'execute', value: executeN });
     if (exploitN) effects.push({ type: 'exploit', value: exploitN });
     if (reapingN) effects.push({ type: 'reaping', value: reapingN });
+    // === 律动包 ===（innate/allin/surplus 是 game/playCard 读取、不在此 push）
+    if (vigorN)   effects.push({ type: 'vigor', value: vigorN });
+    if (inspireN) effects.push({ type: 'inspire', value: inspireN });
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -378,6 +384,7 @@ window.CG = window.CG || {};
       windfall: windfallN, prospect: prospectN, quarry: quarryN, ember: emberN,  // 市场/矿工/锻造（playCard 用）
       reclaim: reclaimN, dumpster: dumpsterN,                                     // 弃牌包（reclaim 选牌队列、dumpster playCard 加成）
       prey: preyN, insight: insightN,                                             // 猎杀包（playCard 加成）
+      innate: innateN, allin: allinN, surplus: surplusN,                          // 律动包（innate=开局抽序、allin/surplus=playCard）
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -455,6 +462,7 @@ window.CG = window.CG || {};
       windfall: 0, prospect: 0, quarry: 0, ember: 0,   // 市场/矿工/锻造（playCard 加成默认）
       reclaim: 0, dumpster: 0,                          // 弃牌包默认
       prey: 0, insight: 0,                              // 猎杀包默认
+      innate: 0, allin: 0, surplus: 0,                  // 律动包默认
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };

@@ -107,6 +107,7 @@ window.CG = window.CG || {};
       this.allies = [];                         // 召唤：愚者重开时清空召唤物
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
+      this._vigor = 0; this._inspire = 0;        // 律动：活力(下一张加成,跨回合保留)/灵感(本回合抽牌给格挡)
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -143,6 +144,7 @@ window.CG = window.CG || {};
       this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
+      this._vigor = 0; this._inspire = 0;       // 律动包：活力(下一张牌加成)/灵感(本回合抽牌给格挡)
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -156,6 +158,7 @@ window.CG = window.CG || {};
       this.enemy = this.enemies[0];            // this.enemy 始终指向「当前目标」，兼容遗物/塔罗
       this._computeCardMult();                 // 达摩克利斯
       this.drawPile = shuffle(deck.map(cloneCard));  // 克隆副本：洗牌不影响原牌组
+      this.drawPile.sort((a, b) => (CG.cardStats(a).innate ? 1 : 0) - (CG.cardStats(b).innate ? 1 : 0));   // 律动·固有：带固有的牌排到末尾＝开局首抽
       this.hand = [];
       this.discardPile = [];
       this.exhaustPile = [];
@@ -184,6 +187,7 @@ window.CG = window.CG || {};
       this._playedThisTurn = 0;                    // 连击：本回合已打出牌数
       this._paralyze = 0;                          // 麻痹：本回合锁住最左侧 N 张手牌（电力不在此列，跨回合保留）
       this._discardedThisTurn = 0;                 // 弃牌包·倾倒：本回合已丢弃牌数
+      this._inspire = 0;                           // 律动·灵感：每回合重置（活力 _vigor 不在此重置＝跨回合保留）
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -305,7 +309,8 @@ window.CG = window.CG || {};
       // 资源：改造(超频)→改用电力付费(耗能×N)、数值×N；否则走能量(回响可免费)
       const oc = s.overclock || 0;
       const free = oc ? false : (this.freeCards || 0) > 0;             // 回响：本张免费打出（超频时不适用）
-      const payCost = oc ? 0 : (free ? 0 : s.cost);
+      let payCost = oc ? 0 : (free ? 0 : s.cost);
+      if (!oc && !free && s.surplus > 0 && this.player.energy >= Math.max(2, 5 - s.surplus)) payCost = 0;   // 律动·余裕：能量充裕时本牌免费
       const payPower = oc ? s.cost * oc : 0;
       if (oc && payPower > (this.player.power || 0)) { this.addLog('电力不足。'); this._emit(); return; }
       if (!oc && payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
@@ -330,6 +335,16 @@ window.CG = window.CG || {};
       if (s.arc > 0) {
         const bonus = s.arc * (this.player.power || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // 律动·活力：消耗存量，给本牌数值 +（不含给出活力的那张牌自己）
+      if (this._vigor > 0) {
+        const bonus = this._vigor; this._vigor = 0;
+        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+      }
+      // 律动·全力：若打出本牌后能量恰好归零，数值 ×(1+等级)
+      if (s.allin > 0 && !oc && this.player.energy - payCost === 0) {
+        const m = 1 + s.allin;
+        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value * m }) : e) });
       }
       // === 市场/矿工/锻造：随资源动态加成（仿电弧，读打出前的资源）===
       if (s.windfall > 0) {   // 暴富：数值 +（当前金币 ÷10 × 等级）
@@ -636,6 +651,7 @@ window.CG = window.CG || {};
           this.addLog('弃牌堆已洗入抽牌堆。');
         }
         this.hand.push(this.drawPile.pop());
+        if (this._inspire > 0) this.gainBlock(this.player, this._inspire);   // 律动·灵感：本回合每抽到一张牌 +格挡
       }
     }
     _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数

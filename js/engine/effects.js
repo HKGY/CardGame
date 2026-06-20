@@ -246,6 +246,9 @@ window.CG = window.CG || {};
     execute(game, eff, source, target) { if (target && target.hp > 0 && target.hp <= target.maxHp * 0.1 * eff.value) { target.hp = 0; game.addLog(`处决：${target.name} 被斩杀！`); game._checkEnd(); } },
     exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 4 * eff.value); },
     reaping(game, eff) { game._reaping = (game._reaping || 0) + eff.value; },
+    // === 律动包 ===（活力滚到下一张、灵感本回合抽牌给盾；innate/allin/surplus 在 cardStats/playCard/_startBattle 处理）
+    vigor(game, eff) { game._vigor = (game._vigor || 0) + 3 * eff.value; },
+    inspire(game, eff) { game._inspire = (game._inspire || 0) + eff.value; },
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 
