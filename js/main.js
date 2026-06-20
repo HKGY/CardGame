@@ -80,19 +80,19 @@ window.CG = window.CG || {};
     CG.Screens.playBattleEntrance();             // 控件从屏幕外飞入
   }
 
-  function newRun(cls, seed) {
+  function newRun(cls, seed, opts) {
     const s = (seed && seed.trim()) ? seed.trim() : CG.RNG.randomSeed();
     CG.RNG.seed(s);                          // 设定随机种子（覆盖 Math.random）—— 同种子同地图
-    run = new CG.Run(cls);
+    run = new CG.Run(cls, opts);
     run.seed = s;
     run.onChange(route);
     route();
   }
-  // 读取种子输入、选择职业后开始
-  function chooseClassAndStart() {
+  // 读取种子输入、选择职业后开始；packs=调试菜单手动选的卡包（从开始菜单传入）
+  function chooseClassAndStart(packs) {
     // 职业 / 卡组选择暂时禁用：默认「战士」直接开始（保留 CLASSES/buildDeck 备用）
     const seedEl = document.getElementById('seed-input');
-    newRun('warrior', seedEl ? seedEl.value : '');
+    newRun('warrior', seedEl ? seedEl.value : '', { packs: packs });
   }
 
   // 使用一张塔罗牌（战斗 / 地图通用）
@@ -152,7 +152,7 @@ window.CG = window.CG || {};
     setupMute();
     CG.UI.init(battleHandlers);
     CG.Screens.init({
-      onStart:        () => chooseClassAndStart(),
+      onStart:        packs => chooseClassAndStart(packs),
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
       onTakeTarot:    () => run.takeTarot(),
@@ -160,6 +160,8 @@ window.CG = window.CG || {};
       onLeaveEvent:   () => run.leaveEvent(),
       // 宝石工作台（免费镶嵌）
       onInstallGem:   (gemUid, cardUid) => run.installGemInv(gemUid, cardUid),
+      // 调试菜单：把自定义宝石加入背包
+      onDebugAddGem:  affixes => run.debugAddGem(affixes),
       // 事件祭坛（宝石）
       onAltarInstall: (gemUid, cardUid) => run.altarInstall(gemUid, cardUid),
       onAltarPurify:  gemUid => run.altarPurify(gemUid),

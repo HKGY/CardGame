@@ -100,6 +100,16 @@ body::before {
 .seed-input::placeholder { color: var(--muted); }
 .run-seed { color: #9fd4a0; font-size: 13px; font-weight: 700; letter-spacing: .5px; }
 
+/* 开始菜单·调试卡包选择 */
+.menu-debug { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 8px; }
+.menu-debug-head { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.menu-debug-packs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.pack-toggle { --oct-fill: #1c1f2c; --radius: 12px; font-size: 13px; font-weight: 700; padding: 8px 12px; opacity: .5; filter: grayscale(.55); }
+.pack-toggle.on { opacity: 1; filter: none; outline: 2px solid color-mix(in srgb, var(--pk) 78%, transparent); outline-offset: -2px;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--pk) 45%, transparent) !important; }
+.menu-debug-tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.menu-debug-tools button { --oct-fill: var(--panel); --radius: 12px; font-size: 12px; padding: 6px 12px; }
+
 #app { max-width: 1600px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
 button {
@@ -600,6 +610,25 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
 .bench-sub { font-weight: 800; color: var(--accent); margin: 10px 0 6px; border-bottom: 1px solid #34394d; padding-bottom: 3px; }
 .bench-gems, .bench-cards { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 
+/* ===== 调试菜单（自定义宝石） ===== */
+.debug-box { width: min(900px, 95vw); }
+.debug-body { overflow: auto; }
+.debug-build { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 14px; }
+.debug-preview { flex: 0 0 auto; }
+.debug-build-side { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 10px; }
+.debug-build-side .bench-hint { text-align: left; margin: 0; }
+.debug-actions { display: flex; gap: 10px; }
+.debug-affixes { display: flex; flex-direction: column; gap: 8px; }
+.debug-group-title { font-weight: 800; margin: 6px 0 2px; border-bottom: 1px solid #34394d; padding-bottom: 3px; }
+.debug-affix { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-bottom: 1px solid #23283a; }
+.debug-affix.sel { background: #2a3145; border-radius: 6px; }
+.debug-affix-name { font-weight: 800; min-width: 70px; flex-shrink: 0; }
+.debug-affix-name small { color: var(--muted); font-weight: 600; font-size: 9.5px; margin-left: 3px; }
+.debug-affix-desc { flex: 1; color: var(--muted); font-size: 12px; min-width: 0; }
+.debug-levels { display: flex; gap: 4px; flex-shrink: 0; }
+.dbg-lvl { --oct-fill: var(--panel-2); --radius: 8px; width: 30px; padding: 5px 0; font-weight: 800; font-size: 12px; }
+.dbg-lvl.on { --oct-fill: var(--accent); color: #1a1d29; }
+
 /* ===== 移动端适配 ===== */
 @media (max-width: 680px) {
   #app { padding: 10px; gap: 10px; }
@@ -668,4 +697,5 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
   .menu-title { font-size: 30px; letter-spacing: 4px; }
   .gem { width: 92px; }
   .map-grid { --cell: 54px; }
+  .debug-affix-desc { display: none; }   /* 窄屏：留名称 + 等级按钮即可 */
 }

@@ -14,6 +14,8 @@ window.CG = window.CG || {};
   let benchSel = null;        // 工作台：当前选中的背包宝石 uid
   let packOpened = false;     // 奖励界面：当前 booster pack 是否已拆开（纯 UI 翻面，不进 run 状态）
   let lastRewardPending = null;
+  let debugPacks = new Set(); // 开始菜单·调试：本局手动启用的卡包（默认全空，至少 1 个才能开始）
+  let debugGem = [];          // 调试菜单·自定义宝石：构建中的词条 [{id, level}]
 
   // 以撒式房间类型 → 图标 / 名称（普通房不剧透是否有敌人；清空后统一显示 ✓）
   const ICON  = { start: '🚩', normal: '', combat: '⚔️', elite: '👹', boss: '👑', shop: '🛒', treasure: '🎁', curse: '🩸', altar: '🔮' };
@@ -87,12 +89,112 @@ window.CG = window.CG || {};
     $('codex-modal').addEventListener('click', e => { if (e.target.id === 'codex-modal') $('codex-modal').classList.add('hidden'); });
     CODEX_TABS.forEach(t => $('codex-tab-' + t).addEventListener('click', () => renderCodex(t)));
 
-    // 开始菜单
-    $('menu-start').addEventListener('click', () => H.onStart());
+    // 开始菜单（含调试卡包选择）
+    $('menu-start').addEventListener('click', () => H.onStart(getSelectedPacks()));
     $('menu-codex').addEventListener('click', () => openCodex());
+    $('menu-debug').addEventListener('click', onMenuDebugClick);
+
+    // 调试菜单（自定义宝石 → 背包）
+    $('debug-btn').addEventListener('click', openDebug);
+    $('debug-close').addEventListener('click', closeDebug);
+    $('debug-modal').addEventListener('click', e => { if (e.target.id === 'debug-modal') closeDebug(); });
+    $('debug-body').addEventListener('click', onDebugClick);
   }
 
-  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); showScreen('menu'); }
+  // ---------- 开始菜单·调试：手动开关本局卡包 ----------
+  function getSelectedPacks() { return (CG.PACK_IDS || []).filter(id => debugPacks.has(id)); }
+  function syncMenuStart() { const b = $('menu-start'); if (b) b.disabled = debugPacks.size === 0; }
+  function renderMenuDebug() {
+    const box = $('menu-debug');
+    if (!box) return;
+    const toggles = (CG.PACK_IDS || []).map(id => {
+      const p = CG.PACKS[id];
+      return `<button class="pack-toggle ${debugPacks.has(id) ? 'on' : ''}" data-pack="${id}" style="--pk:${p.color}" title="${p.desc}">${p.icon} ${p.name}</button>`;
+    }).join('');
+    box.innerHTML =
+      `<div class="menu-debug-head">🐞 调试 · 选择本局启用的卡包（默认全关，至少开 1 个才能开始）</div>
+       <div class="menu-debug-packs">${toggles}</div>
+       <div class="menu-debug-tools">
+         <button data-dbg="all">全选</button>
+         <button data-dbg="none">清空</button>
+         <button data-dbg="random">🎲 随机 4 包</button>
+       </div>`;
+    syncMenuStart();
+  }
+  function onMenuDebugClick(ev) {
+    const t = ev.target.closest('[data-pack]');
+    if (t) {
+      const id = t.dataset.pack;
+      if (debugPacks.has(id)) debugPacks.delete(id); else debugPacks.add(id);
+      CG.Audio.play('select');
+      return renderMenuDebug();
+    }
+    const tool = ev.target.closest('[data-dbg]');
+    if (!tool) return;
+    const a = tool.dataset.dbg;
+    if (a === 'all') debugPacks = new Set(CG.PACK_IDS);
+    else if (a === 'none') debugPacks = new Set();
+    else if (a === 'random') debugPacks = new Set(CG.rollRunPacks());
+    CG.Audio.play('select');
+    renderMenuDebug();
+  }
+
+  // ---------- 调试菜单：构建一颗任意词条的宝石并加入背包 ----------
+  function openDebug() { if (!H.getRun()) return; renderDebug(); $('debug-modal').classList.remove('hidden'); }
+  function closeDebug() { $('debug-modal').classList.add('hidden'); }
+  function debugLevelOf(id) { const a = debugGem.find(x => x.id === id); return a ? a.level : 0; }
+  function renderDebug() {
+    const run = H.getRun();
+    if (!run) return;
+    const preview = { affixes: debugGem };
+    const groups = (CG.AFFIX_GROUP_ORDER || []).map(key => {
+      const ids = (CG.AFFIX_ORDER || []).filter(id => CG.affixGroupOf(id) === key);
+      if (!ids.length) return '';
+      const meta = CG.affixGroupMeta(key);
+      const rows = ids.map(id => {
+        const a = CG.AFFIXES[id], cur = debugLevelOf(id);
+        const levels = [1, 2, 3].map(n =>
+          `<button class="dbg-lvl ${cur === n ? 'on' : ''}" data-affix="${id}" data-level="${n}">${n}</button>`).join('');
+        return `<div class="debug-affix ${cur ? 'sel' : ''}">
+            <span class="debug-affix-name" style="color:${a.color}">${a.name}${CG.isDebuff(id) ? '<small>减益</small>' : ''}</span>
+            <span class="debug-affix-desc">${(a.desc)(cur || 1, 'strike')}</span>
+            <span class="debug-levels">${levels}</span>
+          </div>`;
+      }).join('');
+      return `<div class="debug-group"><div class="debug-group-title" style="color:${meta.color}">${meta.icon} ${meta.name}</div>${rows}</div>`;
+    }).join('');
+    $('debug-body').innerHTML =
+      `<div class="debug-build">
+         <div class="debug-preview">${CG.UI.gemFace(preview)}</div>
+         <div class="debug-build-side">
+           <div class="bench-hint">点词条的 <b>1/2/3</b> 选等级加入这颗宝石；点高亮的等级可移除。背包现有宝石 💎 ${run.gems.length}。加入后可在顶栏「💎 宝石」工作台镶嵌。</div>
+           <div class="debug-actions">
+             <button class="big-btn" data-debugact="add" ${debugGem.length ? '' : 'disabled'}>加入背包</button>
+             <button class="big-btn leave" data-debugact="clear" ${debugGem.length ? '' : 'disabled'}>清空</button>
+           </div>
+         </div>
+       </div>
+       <div class="debug-affixes">${groups}</div>`;
+  }
+  function onDebugClick(ev) {
+    const lvl = ev.target.closest('[data-affix]');
+    if (lvl) {
+      const id = lvl.dataset.affix, n = +lvl.dataset.level;
+      const existing = debugGem.find(x => x.id === id);
+      if (existing && existing.level === n) debugGem = debugGem.filter(x => x.id !== id);   // 点高亮等级 → 移除
+      else if (existing) existing.level = n;                                                // 改等级
+      else debugGem.push({ id, level: n });                                                 // 新增
+      CG.Audio.play('select');
+      return renderDebug();
+    }
+    const act = ev.target.closest('[data-debugact]');
+    if (!act || act.disabled) return;
+    const a = act.dataset.debugact;
+    if (a === 'add') { if (H.onDebugAddGem(debugGem)) { CG.Audio.play('upgrade'); debugGem = []; renderDebug(); } }
+    else if (a === 'clear') { debugGem = []; CG.Audio.play('select'); renderDebug(); }
+  }
+
+  function showMenu() { $('run-header').classList.add('hidden'); CG.Background.setScene('menu'); renderMenuDebug(); showScreen('menu'); }
 
   // ---------- 百科大全 ----------
   const CODEX_TABS = ['affix', 'pack', 'tarot', 'relic', 'enemy'];

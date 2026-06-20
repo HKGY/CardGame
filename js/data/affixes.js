@@ -160,4 +160,25 @@ window.CG = window.CG || {};
                 debuffs: ['shock', 'paralyze', 'drain'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
+
+  /* =========================================================================
+   *  词条分组 —— 给「调试菜单·自定义宝石」按主题归类，便于查找。
+   *  每个词条恰好归入一组：取它所属的「第一个主题包」（强攻→诅咒→…→消耗）；
+   *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
+   *  纯展示用，不影响生成 / 选包。
+   * ========================================================================= */
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'misc'];
+  CG.affixGroupOf = function (id) {
+    for (const pid of CG.AFFIX_GROUP_ORDER) {
+      if (pid === 'misc') break;
+      const p = CG.PACKS[pid];
+      if (p && (p.buffs.includes(id) || p.debuffs.includes(id))) return pid;
+    }
+    return 'misc';
+  };
+  CG.affixGroupMeta = function (key) {
+    if (key === 'misc') return { name: '通用', icon: '🎴', color: '#cdd2e2' };
+    const p = CG.PACKS[key];
+    return p ? { name: p.name, icon: p.icon, color: p.color } : { name: key, icon: '•', color: '#cdd2e2' };
+  };
 })(window.CG);

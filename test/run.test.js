@@ -371,3 +371,30 @@ test('整局推进：领奖励 + 镶嵌 + 逛遍房型（覆盖宝石/法杖/商
   assert.ok(sawShop && sawTreasure && sawCurse && sawElite, '应当逛过商店 / 宝藏 / 诅咒 / 小boss');
   assert.ok(run.deck.length >= 10);
 });
+
+test('调试：debugAddGem 把自定义词条宝石加入背包（夹等级 1~3、滤非法、空则不加）', () => {
+  const run = newRun('debug-gem');
+  const n0 = run.gems.length;
+  const gem = run.debugAddGem([{ id: 'overload', level: 5 }, { id: 'cumbersome', level: 1 }, { id: 'not_real', level: 2 }]);
+  assert.ok(gem);
+  assert.equal(run.gems.length, n0 + 1);
+  assert.equal(run.gems[run.gems.length - 1], gem);
+  assert.equal(gem.affixes.length, 2, '非法词条被过滤');
+  assert.equal(gem.affixes.find(a => a.id === 'overload').level, 3, '等级夹到 1~3');
+  // 空 / 全非法 → 不加、返回 null
+  assert.equal(run.debugAddGem([]), null);
+  assert.equal(run.debugAddGem([{ id: 'nope' }]), null);
+  assert.equal(run.gems.length, n0 + 1);
+});
+
+test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则回退随机 4 包）', () => {
+  CG.RNG.seed('debug-packs');
+  const run = new CG.Run('warrior', { packs: ['cook', 'elements', 'bogus'] });
+  assert.equal(run.packs.length, 2, '过滤掉非法 id');
+  assert.ok(run.packs.includes('cook') && run.packs.includes('elements'));
+  for (let i = 0; i < 40; i++) assert.ok(run.packs.includes(CG.pickPack('elite')), '本局只在指定包里选');
+  // 空 / 全非法 → 回退随机（基础包 + 3）
+  const run2 = new CG.Run('warrior', { packs: ['bogus'] });
+  assert.equal(run2.packs.length, 4);
+  assert.ok(run2.packs.includes('basic'));
+});

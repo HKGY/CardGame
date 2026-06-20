@@ -112,6 +112,26 @@ test('元素：4 个附着词条、ELEMENTS 展示齐全、都收进元素包', 
   assert.equal(s.elementLevel, 3);          // 附着层数 = 词条等级
 });
 
+test('词条分组（调试菜单）：每个词条恰好归入一个合法组、组有展示信息、划分覆盖全部词条', () => {
+  const groups = CG.AFFIX_GROUP_ORDER;
+  assert.ok(Array.isArray(groups) && groups.length >= 2, '应有分组顺序');
+  CG.AFFIX_ORDER.forEach(id => {
+    const g = CG.affixGroupOf(id);
+    assert.ok(groups.includes(g), `${id} 归到非法组 ${g}`);
+    const meta = CG.affixGroupMeta(g);
+    assert.ok(meta && meta.name && meta.icon && meta.color, `${g} 缺展示信息`);
+  });
+  // 主题词条归到对应主题组
+  assert.equal(CG.affixGroupOf('flame'), 'elements');
+  assert.equal(CG.affixGroupOf('ashes'), 'exhaust');
+  assert.equal(CG.affixGroupOf('farm'), 'cook');
+  assert.equal(CG.affixGroupOf('multi'), 'power');
+  // 分组是 AFFIX_ORDER 的一个划分：每个词条出现且仅出现在自己的组里，合计覆盖全部
+  let total = 0;
+  groups.forEach(g => { total += CG.AFFIX_ORDER.filter(id => CG.affixGroupOf(id) === g).length; });
+  assert.equal(total, CG.AFFIX_ORDER.length, '分组应不重不漏地覆盖所有词条');
+});
+
 test('元素反应矩阵：4 元素两两都反应、对称、同元素不反应', () => {
   const ids = CG.ELEMENT_IDS;
   for (let i = 0; i < ids.length; i++) {

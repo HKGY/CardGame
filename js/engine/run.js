@@ -160,7 +160,9 @@ window.CG = window.CG || {};
   }
 
   class Run {
-    constructor(cls) {
+    // opts.packs：调试用，手动指定本局可用卡包（过滤非法 id，为空则回退随机）。
+    constructor(cls, opts) {
+      opts = opts || {};
       this.listeners = [];
       this.cls = CG.CLASSES[cls] ? cls : 'warrior';
       this.maxHp = C().startHp;
@@ -168,7 +170,8 @@ window.CG = window.CG || {};
       this.gold = C().startGold;
       this.act = 1;                            // 当前层（决定敌人池 / 数值膨胀 / 场景 / 进度）
       this.maxActs = C().acts;
-      this.packs = CG.rollRunPacks();          // 本局可用卡包：基础包 + 3 个随机增强包
+      const chosen = (opts.packs || []).filter(id => CG.PACKS[id]);
+      this.packs = chosen.length ? chosen : CG.rollRunPacks();   // 本局可用卡包：默认基础包 + 3 个随机增强包；调试可手动指定
       CG.setActivePacks(this.packs);           // 之后所有产宝石处只在这几个包里取材
       this.tarot = [];                         // 消耗品栏（塔罗牌）
       this.gems = [];                          // 宝石背包（未镶嵌）
@@ -251,6 +254,17 @@ window.CG = window.CG || {};
       return true;
     }
     installGemInv(gemUid, cardUid) { if (this._doInstall(gemUid, cardUid)) this._emit(); }   // 工作台：免费、留在原界面
+    // 调试：用任意词条构建一颗宝石放入背包（夹等级 1~3、过滤未知词条；空则不加，返回宝石或 null）
+    debugAddGem(affixes) {
+      const valid = (affixes || [])
+        .filter(a => a && CG.AFFIXES[a.id])
+        .map(a => ({ id: a.id, level: Math.max(1, Math.min(3, a.level || 1)) }));
+      if (!valid.length) return null;
+      const gem = CG.makeGem(valid);
+      this.gems.push(gem);
+      this._emit();
+      return gem;
+    }
 
     // 玩家走进一个相邻房间（WASD / 点击）：未清的内容房 → 触发；其余（起点/空房/已清）→ 走过去。
     selectNode(node) {
