@@ -125,6 +125,7 @@ window.CG = window.CG || {};
     let investN = 0, incomeN = 0, tradeN = 0, windfallN = 0, hireN = 0, taxN = 0, inflationN = 0, debtN = 0;       // 市场包（金币）
     let mineN = 0, blastN = 0, prospectN = 0, quarryN = 0, richveinN = 0, caveinN = 0, barrenN = 0, disasterN = 0;  // 矿工包（深度）
     let bellowsN = 0, emberN = 0, smeltN = 0, coolantN = 0, whitehotN = 0, overheatN = 0, crackN = 0, rustN = 0;   // 锻造包（热度）
+    const summonList = []; let commandN = 0, cullingN = 0, discordN = 0;   // 召唤包（toll 复用 hpLoss）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -217,6 +218,9 @@ window.CG = window.CG || {};
       // —— 锻造包 ——
       if (d.bellows) bellowsN += d.bellows * L; if (d.ember) emberN += d.ember * L; if (d.smelt) smeltN += d.smelt * L; if (d.coolant) coolantN += d.coolant * L; if (d.whitehot) whitehotN += d.whitehot * L;
       if (d.overheat) overheatN += d.overheat * L; if (d.crack) crackN += d.crack * L; if (d.rust) rustN += d.rust * L;
+      // —— 召唤包 ——
+      if (d.summon) summonList.push({ what: d.summon, level: L });
+      if (d.command) commandN += d.command * L; if (d.culling) cullingN += d.culling * L; if (d.discord) discordN += d.discord * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -308,6 +312,11 @@ window.CG = window.CG || {};
     if (overheatN) effects.push({ type: 'overheat', value: overheatN });
     if (crackN)   effects.push({ type: 'crack', value: crackN });
     if (rustN)    effects.push({ type: 'rust', value: rustN });
+    // === 召唤包 ===
+    summonList.forEach(s => effects.push({ type: 'summon', what: s.what, value: s.level }));
+    if (commandN) effects.push({ type: 'command', value: commandN });
+    if (cullingN) effects.push({ type: 'culling', value: cullingN });
+    if (discordN) effects.push({ type: 'discord', value: discordN });
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,

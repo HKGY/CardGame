@@ -208,6 +208,19 @@ window.CG = window.CG || {};
     overheat(game, eff) { game.applyStatus(game.player, 'burn', eff.value); },                                       // 过热（eff.value 已含 ×2）
     crack(game, eff)    { game.player.block = Math.max(0, game.player.block - eff.value); },                         // 崩裂（eff.value 已含 ×4）
     rust(game, eff)     { game._heat = Math.max(0, (game._heat || 0) - eff.value); },                                // 锈蚀（eff.value 已含 ×3）
+    // === 召唤包 ===（己方召唤物 game.allies；toll 复用 loseHp）
+    summon(game, eff) {
+      const L = eff.value, A = (game.allies = game.allies || []);
+      const mk = (name, icon, hp, atk, opts) => Object.assign({ name, icon, hp, maxHp: hp, atk, taunt: false, giveBlock: 0 }, opts || {});
+      const add = a => { if (A.length < 6) A.push(a); };   // 召唤物上限 6
+      if (eff.what === 'skeleton') add(mk('骷髅', '💀', 6 * L, 4 * L));
+      else if (eff.what === 'guardian') add(mk('守护灵', '🛡️', 15 * L, 2 * L, { taunt: true }));
+      else if (eff.what === 'totem') add(mk('图腾', '🗿', 8 * L, 0, { giveBlock: 3 * L }));
+      else if (eff.what === 'swarm') for (let i = 0; i < 3; i++) add(mk('小灵', '👻', 2, 2 * L));
+    },
+    command(game, eff) { (game.allies || []).forEach(a => { a.atk += eff.value; }); if (game._allyAttack) game._allyAttack(); },   // 督战：全体 +攻并立即攻击
+    culling(game, eff) { const A = game.allies || []; for (let i = 0; i < eff.value && A.length; i++) A.splice(Math.floor(Math.random() * A.length), 1); },  // 折损
+    discord(game, eff) { (game.allies || []).forEach(a => { a.hp -= eff.value; }); if (game._reapAllies) game._reapAllies(); },   // 内讧
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 

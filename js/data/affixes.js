@@ -115,6 +115,12 @@ window.CG = window.CG || {};
     smelt:    { name: '熔炼', color: '#f06030', score: 5, smelt: 1,  desc: n => `烧光热度·造等量×${n}`, long: n => `对当前敌人造成（当前热度 × ${n}）点伤害，随后热度清零` },
     coolant:  { name: '淬炼', color: '#d09850', score: 4, coolant: 1, desc: n => `烧光热度·换等量×${n}格挡`, long: n => `获得（当前热度 × ${n}）点格挡，随后热度清零` },
     whitehot: { name: '白热', color: '#f0a040', score: 4, whitehot: 1, desc: n => `热度 +${3 * n}·伤害 ${3 * n}`, long: n => `热度 +${3 * n}，并对当前敌人造成 ${3 * n} 点伤害` },
+    // === 召唤包：己方召唤物（有血量、回合末替你攻击、可被敌人攻击、嘲讽可吸引火力）===
+    skeleton: { name: '唤骷髅', color: '#c8c8d0', score: 4, summon: 'skeleton', desc: n => `召唤 ${6 * n}血/${4 * n}攻 骷髅`, long: n => `召唤一个 ${6 * n} 血、${4 * n} 攻的骷髅，每回合末攻击当前敌人` },
+    swarm:    { name: '群召', color: '#b0c0e0', score: 4, summon: 'swarm', desc: n => `召唤 3 个 ${2 * n}攻小灵`, long: n => `召唤 3 个 2 血、${2 * n} 攻的小灵` },
+    totem:    { name: '立图腾', color: '#9ac0a0', score: 4, summon: 'totem', desc: n => `召唤图腾·每回合+${3 * n}格挡`, long: n => `召唤一个 ${8 * n} 血的图腾：不攻击，每回合末给你 ${3 * n} 点格挡` },
+    command:  { name: '督战', color: '#e0a060', score: 4, command: 1, desc: n => `召唤物 +${n}攻并立即攻击`, long: n => `你所有召唤物攻击力 +${n}，并立即发动一次攻击` },
+    guardian: { name: '守护灵', color: '#8ab0d0', score: 5, summon: 'guardian', desc: n => `召唤 ${15 * n}血 嘲讽`, long: n => `召唤一个 ${15 * n} 血、${2 * n} 攻、带「嘲讽」的守护灵（敌人优先攻击它）` },
   };
 
   const DEBUFFS = {
@@ -175,6 +181,10 @@ window.CG = window.CG || {};
     overheat:  { name: '过热', color: '#d05a30', score: -3, debuff: true, overheat: 2, desc: n => `自身灼伤 ${2 * n}`, long: n => `打出后给自己上 ${2 * n} 层灼伤（每回合受伤、可被格挡）` },
     crack:     { name: '崩裂', color: '#9a6a5a', score: -3, debuff: true, crack: 4, desc: n => `失去 ${4 * n} 格挡`, long: n => `打出后失去 ${4 * n} 点格挡` },
     rust:      { name: '锈蚀', color: '#8a7a6a', score: -3, debuff: true, rust: 3, desc: n => `热度 -${3 * n}`, long: n => `打出后热度 -${3 * n}（夹 0）` },
+    // === 召唤包·负面 ===
+    toll:    { name: '索命', color: '#9a5a6a', score: -3, debuff: true, hpLoss: 3, desc: n => `召唤代价：自伤 ${3 * n}`, long: n => `打出后失去 ${3 * n} 点生命（召唤的代价；复用反噬式自伤）` },
+    culling: { name: '折损', color: '#7a6a7a', score: -3, debuff: true, culling: 1, desc: n => `消灭你 ${n} 个召唤物`, long: n => `打出后随机消灭你 ${n} 个召唤物` },
+    discord: { name: '内讧', color: '#8a6a5a', score: -3, debuff: true, discord: 2, desc: n => `召唤物各 -${2 * n} 血`, long: n => `打出后你所有召唤物各失去 ${2 * n} 点生命` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -278,6 +288,9 @@ window.CG = window.CG || {};
     forge:    { name: '锻造包', icon: '🔨', color: '#e86838', desc: '攒热度搏爆发：高热的余烬重击、熔炼/淬炼一次性烧光热度。',
                 buffs: ['bellows', 'ember', 'smelt', 'coolant', 'whitehot'],
                 debuffs: ['overheat', 'crack', 'rust'] },
+    summon:   { name: '召唤包', icon: '👻', color: '#b0b0e0', desc: '召唤有血量的随从替你作战：骷髅/群召/图腾/守护灵（嘲讽），督战增援。',
+                buffs: ['skeleton', 'swarm', 'totem', 'command', 'guardian'],
+                debuffs: ['toll', 'culling', 'discord'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
@@ -287,7 +300,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;

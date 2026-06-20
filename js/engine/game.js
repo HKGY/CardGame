@@ -104,6 +104,7 @@ window.CG = window.CG || {};
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this._keepBlock = false;                  // 死守包·重甲：愚者重开时重置
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
+      this.allies = [];                         // 召唤：愚者重开时清空召唤物
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
@@ -137,6 +138,7 @@ window.CG = window.CG || {};
       this._keepBlock = false;                 // 死守包·重甲：本场格挡回合末是否保留（打出重甲后置 true）
       this._depth = 0;                         // 矿工包：本场挖矿深度
       this._heat = 0;                          // 锻造包：本场热度
+      this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
       this._laststandUsed = false;             // 回光返照：本场一次
       this._holyUsed = false;                  // 圣盾披风：本场一次
       this._oneupUsed = false;                 // 1up：本场一次
@@ -236,8 +238,9 @@ window.CG = window.CG || {};
         else if (kind === 'weak') { this.applyStatus(this.player, 'weak', 2); this.addLog('臭肉：自身虚弱 2。'); }
         else if (kind === 'vuln') { this.applyStatus(this.player, 'vulnerable', 2); this.addLog('烂菜：自身易伤 2。'); }
       });
+      this._allyAttack();                                              // 召唤包：回合末召唤物替你攻击
       this._checkEnd();
-      if (this.phase === 'lost') { this._emit(); return; }             // 腐坏卡可能致死
+      if (this.phase === 'lost' || this.phase === 'won') { this._emit(); return; }   // 腐坏卡可能致死；召唤物可能终结战斗
       this.phase = 'enemy';
       this._emit();
     }
@@ -260,7 +263,12 @@ window.CG = window.CG || {};
         } else if (e.intent) {
           const move = e.intent;
           this.addLog(`${e.name} 使用了 ${move.name}。`);
-          (move.effects || []).forEach(eff => CG.Effects.apply(this, this._scaleEff(eff, e), e, this.player));
+          (move.effects || []).forEach(eff => {
+            const se = this._scaleEff(eff, e);
+            const taunt = se.type === 'damage' ? this._tauntAlly() : null;   // 召唤包·嘲讽：伤害重定向到嘲讽召唤物
+            if (taunt) this._hitAlly(taunt, (se.value || 0) * (se.hits || 1));
+            else CG.Effects.apply(this, se, e, this.player);
+          });
         }
         this._tickStatuses(e);
         this._checkEnd();
@@ -553,6 +561,28 @@ window.CG = window.CG || {};
       const eh = target.hp, eb = target.block;
       this._dealRaw(target, n);
       this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: eh - target.hp, blocked: Math.min(eb, n) });
+    }
+    // ---------- 召唤包：己方召唤物 ----------
+    _tauntAlly() { return (this.allies || []).find(a => a.taunt && a.hp > 0) || null; }   // 嘲讽：吸引敌人火力
+    _reapAllies() { this.allies = (this.allies || []).filter(a => a.hp > 0); }            // 清除阵亡召唤物
+    _hitAlly(ally, dmg) {                                                                 // 敌人攻击被重定向到召唤物（过其格挡→血量）
+      this._dealRaw(ally, dmg);
+      this.addLog(`${ally.name} 替你承受了攻击${ally.hp <= 0 ? '，被击碎。' : `（剩 ${ally.hp} 血）。`}`);
+      this._reapAllies();
+    }
+    _allyAttack() {                                                                       // 回合末：每个召唤物攻击当前敌人 / 图腾给格挡
+      if (!this.allies || !this.allies.length) return;
+      this.allies.forEach(a => {
+        if (a.hp <= 0) return;
+        if (a.giveBlock > 0) this.gainBlock(this.player, a.giveBlock);
+        const tgt = this.currentTarget();
+        if (a.atk > 0 && tgt && tgt.hp > 0) {
+          const before = tgt.hp, bb = tgt.block;
+          this._dealRaw(tgt, a.atk);
+          this._fire('damage', { side: 'enemy', ei: this._idxOf(tgt), hpLoss: before - tgt.hp, blocked: Math.min(bb, a.atk) });
+        }
+      });
+      this.addLog('你的召唤物发起了攻击。');
     }
 
     // ---------- 战斗原语 ----------

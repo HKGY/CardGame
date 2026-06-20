@@ -471,6 +471,17 @@ window.CG = window.CG || {};
     prevPhase = game.phase;
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
     renderPrompt(game);
+    renderAllies(game);
+  }
+
+  // ---------- 召唤包：己方召唤物栏（动态创建，只读展示）----------
+  function renderAllies(game) {
+    let bar = $('allies-bar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'allies-bar'; bar.className = 'allies-bar hidden'; const sb = $('screen-battle'); if (sb) sb.appendChild(bar); }
+    const allies = game.allies || [];
+    if (!allies.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    bar.innerHTML = allies.map(a => `<div class="ally${a.taunt ? ' taunt' : ''}" title="${a.name}${a.taunt ? '（嘲讽）' : ''}">${a.icon} <b>${a.hp}</b>/${a.maxHp}${a.atk ? ` ⚔${a.atk}` : ''}${a.giveBlock ? ` 🛡${a.giveBlock}` : ''}</div>`).join('');
+    bar.classList.remove('hidden');
   }
 
   // ---------- 战斗内浮层：做菜选料（craft）/ 消耗包选牌（pick：燃烧 / 重生）----------

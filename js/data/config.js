@@ -47,9 +47,9 @@ CG.CONFIG = {
   },
   // Booster pack 选包权重 [包id, 权重]：普通层偏「基础包」，精英/首领偏主题包（更聚焦）。
   packW: {
-    monster: [['basic', 6], ['power', 2], ['weaken', 2], ['tempo', 2], ['vitality', 2], ['elements', 1], ['cook', 1], ['exhaust', 1], ['elec', 1], ['bastion', 1], ['produce', 1], ['retain', 1], ['enhance', 1], ['void', 1], ['gadget', 1], ['econ', 1], ['miner', 1], ['forge', 1]],
-    elite:   [['basic', 2], ['power', 3], ['weaken', 3], ['tempo', 3], ['vitality', 3], ['elements', 2], ['cook', 2], ['exhaust', 2], ['elec', 2], ['bastion', 2], ['produce', 2], ['retain', 2], ['enhance', 2], ['void', 2], ['gadget', 2], ['econ', 2], ['miner', 2], ['forge', 2]],
-    boss:    [['basic', 1], ['power', 3], ['weaken', 3], ['tempo', 3], ['vitality', 3], ['elements', 2], ['cook', 2], ['exhaust', 2], ['elec', 2], ['bastion', 2], ['produce', 2], ['retain', 2], ['enhance', 2], ['void', 2], ['gadget', 2], ['econ', 2], ['miner', 2], ['forge', 2]],
+    monster: [['basic', 6], ['power', 2], ['weaken', 2], ['tempo', 2], ['vitality', 2], ['elements', 1], ['cook', 1], ['exhaust', 1], ['elec', 1], ['bastion', 1], ['produce', 1], ['retain', 1], ['enhance', 1], ['void', 1], ['gadget', 1], ['econ', 1], ['miner', 1], ['forge', 1], ['summon', 1]],
+    elite:   [['basic', 2], ['power', 3], ['weaken', 3], ['tempo', 3], ['vitality', 3], ['elements', 2], ['cook', 2], ['exhaust', 2], ['elec', 2], ['bastion', 2], ['produce', 2], ['retain', 2], ['enhance', 2], ['void', 2], ['gadget', 2], ['econ', 2], ['miner', 2], ['forge', 2], ['summon', 2]],
+    boss:    [['basic', 1], ['power', 3], ['weaken', 3], ['tempo', 3], ['vitality', 3], ['elements', 2], ['cook', 2], ['exhaust', 2], ['elec', 2], ['bastion', 2], ['produce', 2], ['retain', 2], ['enhance', 2], ['void', 2], ['gadget', 2], ['econ', 2], ['miner', 2], ['forge', 2], ['summon', 2]],
   },
   // 卡牌奖励 / 商店法杖的孔位数权重（空法杖的价值在于孔位）
   cardLimitW: { monster: [[1, 3], [2, 4], [3, 2]], elite: [[2, 4], [3, 4]], boss: [[2, 2], [3, 5], [4, 3]] },
