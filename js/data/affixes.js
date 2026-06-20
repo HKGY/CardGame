@@ -133,6 +133,12 @@ window.CG = window.CG || {};
     reclaim:  { name: '拾遗', color: '#a0b0a8', score: 4, reclaim: 1, desc: () => `从弃牌堆取回 1 张`, long: () => `打出后：把弃牌堆里指定的 1 张牌加入手牌` },
     dumpster: { name: '倾倒', color: '#b0a070', score: 4, dumpster: 1, desc: n => `+本回合弃牌数×${n}`, long: n => `本牌数值额外 +（本回合已丢弃的牌数 × ${n}）` },
     madness:  { name: '疯狂', color: '#c89060', score: 4, madness: 1, desc: () => `弃光手牌·每张+1力量`, long: () => `打出后丢弃其余所有手牌，每丢 1 张永久 +1 力量` },
+    // === 术士包：凭空造牌/复制/灵视/牌库强化（区别于节奏的「抽既有牌」）===
+    conjure:   { name: '演卡', color: '#b59ad8', score: 3, conjure: 1, desc: n => `临时印 ${1 + n} 张基础牌`, long: n => `打出后临时印 ${1 + n} 张随机「打击/防御」进手牌（仅本场）` },
+    daggers:   { name: '飞刀', color: '#c8b0e0', score: 4, daggers: 1, desc: () => `生成 3 张飞刀`, long: () => `生成 3 张「飞刀」(0 费·造 4·打出即消耗)进手牌` },
+    duplicate: { name: '复制', color: '#a0a0e0', score: 4, duplicate: 1, desc: () => `复制一张手牌`, long: () => `复制手牌中随机 1 张（副本进手牌·本场）` },
+    foresight: { name: '灵视', color: '#9ac0e0', score: 4, foresight: 1, desc: () => `免费打出牌堆顶`, long: () => `立即免费打出抽牌堆顶的 1 张牌` },
+    mindblast: { name: '心灵震慑', color: '#c79ae0', score: 5, mindblast: 1, desc: n => `牌库攻击牌 +${n}`, long: n => `本场永久：牌库(抽/弃/手)里所有攻击牌伤害 +${n}` },
   };
 
   const DEBUFFS = {
@@ -204,6 +210,8 @@ window.CG = window.CG || {};
     // === 弃牌包·负面（复用 clutch / loseEnergy / leak 机制）===
     forget:  { name: '健忘', color: '#7a7a6a', score: -3, debuff: true, clutch: 1,     desc: n => `随机弃 ${n} 张手牌`, long: n => `打出后随机丢弃 ${n} 张手牌` },
     waste:   { name: '浪费', color: '#8a7a5a', score: -2, debuff: true, loseEnergy: 1, desc: n => `能量 -${n}`, long: n => `打出后失去 ${n} 点能量` },
+    // === 术士包·负面（clutter 塞渣滓；recoil/cumbersome 复用）===
+    clutter: { name: '谵妄', color: '#8a7a9a', score: -3, debuff: true, clutter: 1, desc: n => `获得 ${n} 张渣滓`, long: n => `打出后向手牌塞 ${n} 张「渣滓」(1 费·打出即消耗)` },
   };
 
   CG.AFFIXES = Object.assign({}, BUFFS, DEBUFFS);
@@ -316,6 +324,9 @@ window.CG = window.CG || {};
     discard:  { name: '弃牌包', icon: '♻️', color: '#a89878', desc: '主动丢弃换即时收益、按弃牌数爆发、从弃牌堆回收（弃牌会洗回，区别于消耗）。',
                 buffs: ['toss', 'sift', 'reclaim', 'dumpster', 'madness'],
                 debuffs: ['forget', 'waste', 'leak'] },
+    conjure:  { name: '术士包', icon: '🎩', color: '#b59ad8', desc: '凭空造牌/复制/灵视，心灵震慑强化牌库（区别于节奏的抽既有牌）。',
+                buffs: ['conjure', 'daggers', 'duplicate', 'foresight', 'mindblast'],
+                debuffs: ['clutter', 'recoil', 'cumbersome'] },
   };
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
@@ -325,7 +336,7 @@ window.CG = window.CG || {};
    *  当前所有词条都被某主题包收录，故「通用(misc)」组实际为空（仅作未来兜底）。
    *  纯展示用，不影响生成 / 选包。
    * ========================================================================= */
-  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'discard', 'misc'];
+  CG.AFFIX_GROUP_ORDER = ['power', 'weaken', 'tempo', 'vitality', 'elements', 'cook', 'exhaust', 'elec', 'bastion', 'produce', 'retain', 'enhance', 'void', 'gadget', 'econ', 'miner', 'forge', 'summon', 'build', 'discard', 'conjure', 'misc'];
   CG.affixGroupOf = function (id) {
     for (const pid of CG.AFFIX_GROUP_ORDER) {
       if (pid === 'misc') break;

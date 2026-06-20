@@ -628,6 +628,7 @@ window.CG = window.CG || {};
       }
     }
     _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数
+    _addToHand(card) { if (this.hand.length < HAND_LIMIT) this.hand.push(card); else this.discardPile.push(card); }   // 术士包等：造牌进手（满则进弃牌堆）
     _discardRandom(n) { for (let i = 0; i < n && this.hand.length; i++) this._discard(this.hand.splice(Math.floor(Math.random() * this.hand.length), 1)[0]); }
 
     // 遗物字段可为数字或 (game, ctx)=>数字 的条件函数（用于区分相似遗物的触发前提）

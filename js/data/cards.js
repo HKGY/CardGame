@@ -45,10 +45,11 @@ window.CG = window.CG || {};
     rotten_veg:   { name: '烂菜', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'vuln',    icon: '🥬' },
     meal:    { name: '餐点',   cost: 0, type: 'skill',  kind: 'meal', icon: '🍲' },               // 动态：effects 挂在实例 .meal 上
     dross:   { name: '渣滓',   cost: 1, type: 'skill',  kind: 'dross', icon: '🗑️' },              // 消耗包·噩梦塞入：1 费、打出无效果、打出即消耗
+    shiv:    { name: '飞刀',   cost: 0, type: 'attack', kind: 'shiv',  icon: '🗡️' },              // 术士包·生成：0 费、造 4 伤害、打出即消耗
   };
   // 食材分类（随机生成用）
   CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'], cookware: ['cleaver', 'wok', 'stove'] };
-  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'cookware' || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross')); };
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'cookware' || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -128,6 +129,7 @@ window.CG = window.CG || {};
     const summonList = []; let commandN = 0, cullingN = 0, discordN = 0;   // 召唤包（toll 复用 hpLoss）
     const buildList = []; let demolishN = 0, collapseN = 0, subsideN = 0;  // 建造包（hazard 复用 hpLoss）
     let tossN = 0, siftN = 0, madnessN = 0, reclaimN = 0, dumpsterN = 0;   // 弃牌包（forget→clutch、waste→loseEnergy 复用）
+    let conjureN = 0, daggersN = 0, duplicateN = 0, foresightN = 0, mindblastN = 0, clutterN = 0;   // 术士包
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
       if (d.value)     valFlat += d.value * L;
@@ -228,6 +230,8 @@ window.CG = window.CG || {};
       if (d.demolish) demolishN += d.demolish * L; if (d.collapse) collapseN += d.collapse * L; if (d.subside) subsideN += d.subside * L;
       // —— 弃牌包 ——
       if (d.toss) tossN += d.toss * L; if (d.sift) siftN += d.sift * L; if (d.madness) madnessN += d.madness * L; if (d.reclaim) reclaimN += d.reclaim * L; if (d.dumpster) dumpsterN += d.dumpster * L;
+      // —— 术士包 ——
+      if (d.conjure) conjureN += d.conjure * L; if (d.daggers) daggersN += d.daggers * L; if (d.duplicate) duplicateN += d.duplicate * L; if (d.foresight) foresightN += d.foresight * L; if (d.mindblast) mindblastN += d.mindblast * L; if (d.clutter) clutterN += d.clutter * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + L;
@@ -333,6 +337,13 @@ window.CG = window.CG || {};
     if (tossN)    effects.push({ type: 'toss', value: tossN });
     if (siftN)    effects.push({ type: 'sift', value: siftN });
     if (madnessN) effects.push({ type: 'madness', value: madnessN });
+    // === 术士包 ===
+    if (conjureN)   effects.push({ type: 'conjure', value: conjureN });
+    if (daggersN)   effects.push({ type: 'daggers', value: daggersN });
+    if (duplicateN) effects.push({ type: 'duplicate', value: duplicateN });
+    if (foresightN) effects.push({ type: 'foresight', value: foresightN });
+    if (mindblastN) effects.push({ type: 'mindblast', value: mindblastN });
+    if (clutterN)   effects.push({ type: 'clutter', value: clutterN });
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害`,
@@ -455,6 +466,8 @@ window.CG = window.CG || {};
       s.value = meal.value || 0; s.name = s.baseName = meal.name || '餐点'; s.baseText = meal.desc || '';
     } else if (b.kind === 'dross') {
       s.exhaust = true; s.baseText = '渣滓：打出无任何效果，打出即消耗（噩梦塞入）';
+    } else if (b.kind === 'shiv') {
+      s.type = 'attack'; s.value = 4; s.exhaust = true; s.effects = [{ type: 'damage', value: 4 }]; s.baseText = '飞刀：造成 4 点伤害，打出即消耗';
     }
     return s;
   };
