@@ -10,7 +10,9 @@ const D = CG.STRIKE, B = CG.GUARD;   // energy_damage / energy_block
 
 test('原子生成：真资源代价 × 全部价值都存在', () => {
   assert.ok(CG.AFFIXES['energy_damage'] && CG.AFFIXES['hp_damage'] && CG.AFFIXES['gold_block'] && CG.AFFIXES['discard_heal']);
-  assert.ok(CG.AFFIXES['curBlock_damage'] && CG.AFFIXES['depth_block']);   // 条件 × 数值价值
+  assert.ok(CG.AFFIXES['curBlock_damage'] && CG.AFFIXES['curPower_block']);   // 条件 × 数值价值
+  assert.ok(!CG.AFFIXES['depth_block'] && !CG.AFFIXES['heat_damage'] && !CG.AFFIXES['kills_damage'] && !CG.AFFIXES['heldTurns_block']);   // 已删的弃用条件代价
+  assert.ok(CG.PACKS.basic.affixes.includes('curBlock_damage'));   // 条件词条注入基础包
 });
 
 test('空法术基底：0 效果、费 1', () => {

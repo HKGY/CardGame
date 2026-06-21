@@ -105,11 +105,8 @@ window.CG = window.CG || {};
   const COST_COND = {
     curBlock:    { name: '当前格挡', qty: 'curBlock' },
     curPower:    { name: '当前电力', qty: 'curPower' },
-    depth:       { name: '深度', qty: 'depth' },
-    heat:        { name: '热度', qty: 'heat' },
     enemyDebuff: { name: '敌方减益', qty: 'enemyDebuff' },
     exhaustPile: { name: '消耗堆', qty: 'exhaustPile' },
-    heldTurns:   { name: '在手回合', qty: 'heldTurns' },
     handSize:    { name: '手牌数', qty: 'handSize' },
     emptyHand:   { name: '空手程度', qty: 'emptyHand' },
     curGold:     { name: '当前金币', qty: 'curGold' },
@@ -118,7 +115,6 @@ window.CG = window.CG || {};
     hurt:        { name: '本场已受伤', qty: 'hurt', gate: true },
     noBlock:     { name: '无格挡', qty: 'noBlock', gate: true },
     turnNum:     { name: '回合数', qty: 'turnNum' },
-    kills:       { name: '本场击杀数', qty: 'kills' },
     // 自身减益体系：把"自己背的减益"回收成资源（代价回收 → 越惨越强）。
     myDebuff:    { name: '自身减益层数', qty: 'myDebuff' },
   };
@@ -229,6 +225,12 @@ window.CG = window.CG || {};
     p.affixes = []; Object.keys(COST_REAL).forEach(cid => p.values.forEach(vid => { if (A[cid + '_' + vid]) p.affixes.push(cid + '_' + vid); }));
     p.buffs = p.affixes.slice(); p.debuffs = [];
   });
+  // 条件代价词条(借场上资源/越惨越强/时点门)此前不在任何包 → 暂注入基础包，让正常对局可达。
+  {
+    const condIds = Object.keys(A).filter(id => A[id].cost && A[id].cost.cond);
+    CG.PACKS.basic.affixes = CG.PACKS.basic.affixes.concat(condIds);
+    CG.PACKS.basic.buffs = CG.PACKS.basic.affixes.slice();
+  }
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
   /* === 词条分组（调试菜单/百科）=== */
