@@ -238,20 +238,50 @@ window.CG = window.CG || {};
     CODEX_TABS.forEach(t => $('codex-tab-' + t).classList.toggle('active', t === tab));
     let html = '';
     if (tab === 'affix') {
-      // v3：原子才是基本单位——列出所有「代价种类」与「价值种类」（默认 1 能量等值）。
-      //     词条＝随机填入的 (代价, 价值) 分子；首石免代价，等级 1~3 数值 ×1/2/3。
-      const amt = res => Math.max(1, Math.round(6 / (CG.VALUES[res] || 6)));
-      const realCost = Object.entries(CG.COST_REAL || {}).map(([id, c]) =>
-        `<div class="codex-item cv-row"><span class="cv-cost">${c.fmt(amt(id === 'energy' ? 'energy' : id))}</span><span class="cv-tag">真资源</span></div>`).join('');
-      const condCost = Object.entries(CG.COST_COND || {}).map(([id, c]) =>
-        `<div class="codex-item cv-row"><span class="cv-cost">${c.name}</span><span class="cv-tag">条件·令价值=该量×等级</span></div>`).join('');
-      const vals = Object.entries(CG.VALUE_ATOMS || {}).map(([id, va]) => {
-        const u = amt(va.vpRes), txt = va.numeric || ['draw', 'energy', 'power', 'strength', 'tempStr', 'vulnerable', 'weak', 'frail', 'poison'].includes(va.vpRes) ? `${va.name} ${u}` : va.name;
-        return `<div class="codex-item cv-row"><span class="cv-val" style="color:${CG.AFFIXES[Object.keys(CG.AFFIXES).find(k => CG.AFFIXES[k].value && CG.AFFIXES[k].value.atom === id)] ? (CG.AFFIXES[Object.keys(CG.AFFIXES).find(k => CG.AFFIXES[k].value && CG.AFFIXES[k].value.atom === id)].color) : '#ccc'}">${txt}</span></div>`;
-      }).join('');
-      html = '<p class="codex-note"><b>代价</b>与<b>价值</b>是原子，<b>词条＝随机组合的 (代价→价值) 分子</b>。每个原子默认 ≈1 能量等值；真资源代价×任意价值都可组合。等级 1~3 数值 ×1/2/3，<b>首石免代价</b>。</p>' +
-        '<div class="codex-grid"><div class="codex-sub">代价种类</div>' + realCost + condCost +
-        '<div class="codex-sub">价值种类（默认 1 能量等值）</div>' + vals + '</div>';
+      // v3：词条＝随机组合的 (代价→价值) 分子。这里按「原子种类」分组列出，并写明大规则与对偶关系。
+      const V = CG.VALUES || {}, AT = CG.VALUE_ATOMS || {}, A = CG.AFFIXES || {};
+      const amt = res => Math.max(1, Math.floor(6 / (V[res] || 6) + 1e-6));   // 某资源「1 能量等值」数量（同生成器）
+      const colorOf = atom => (A['energy_' + atom] || {}).color || '#9aa6c2';
+      const chip = (label, color) => `<span class="atom" style="--c:${color || '#39405a'}">${label}</span>`;
+      const row = chips => `<div class="atom-row">${chips.join('')}</div>`;
+      const sub = t => `<div class="codex-sub">${t}</div>`;
+
+      // —— 代价分组 —— //
+      const realChip = id => { const c = CG.COST_REAL[id]; return c ? chip(c.fmt(amt(id)), '#c98a8a') : ''; };
+      const condIds = Object.keys(CG.COST_COND || {});
+      const gateIds = condIds.filter(id => CG.COST_COND[id].gate);
+      const magIds = condIds.filter(id => !CG.COST_COND[id].gate);
+      const condChip = id => chip(CG.COST_COND[id].name, '#7a86b0');
+
+      // —— 价值分组（对偶/相似相邻：力量↔临时力量、敌失力量↔临时版）—— //
+      const VG = [
+        ['直接资源', ['damage', 'block', 'heal', 'draw', 'energy', 'power']],
+        ['自身增益（永久 ↔ 临时）', ['strength', 'tempStr']],
+        ['敌方减益（含 永久 ↔ 临时翻倍）', ['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseStrTemp', 'enemyLoseDex', 'enemyLoseDexTemp']],
+        ['元素附着（叠加触发反应）', ['fire', 'water', 'thunder', 'ice']],
+        ['引擎·每回合（= 一次性 ×2）', ['produce_draw', 'produce_block', 'produce_energy']],
+        ['造物 / 牌', ['summon', 'building', 'conjure', 'food_veg', 'food_meat', 'food_season', 'food_ware']],
+      ];
+      const valChip = atom => { const va = AT[atom]; if (!va) return ''; return chip(`${va.name} ${amt(va.vpRes)}`, colorOf(atom)); };
+      const valGroups = VG.map(([t, ids]) => sub(t) + row(ids.map(valChip).filter(Boolean))).join('');
+      // 特殊签名（净正、稀有；汇率非 1）
+      const sig = [['翻倍', '#ff9fc0'], ['斩杀', '#b04050'], ['吸血', '#cf4f6a'], ['狂暴：自易伤2→每回合+1能量', '#e0563a']];
+
+      const rules = `<div class="codex-rules"><b>大规则</b>（词条＝付出「代价」换「价值」，按 1 能量 = 6 价值点计）：
+        <li>· <b>价值 ≤ 代价</b>：每笔交易不亏本；强度来自把"富余/会浪费的"换成"急需的"。</li>
+        <li>· <b>首石免代价</b>：一张牌第一颗宝石只取价值；同种代价<b>均摊</b>（多颗只付最高）。</li>
+        <li>· 等级 <b>1换1 / 2换2 / 3换2</b>（3 级 = 同价值、半代价的高效"稀有"档）。</li>
+        <li>· <b>每回合(递归)价值 = 一次性 ×2</b>：如「2 能量 → 每回合 +1 能量」。</li>
+        <li>· <b>临时(本回合)价值 = 永久的一半 → 数量翻倍</b>：1 份永久 ≈ 2 份临时。</li>
+        <li>· <b>对偶</b>：自身减益既是代价(自残)，也能被「自身减益层数」回收成价值（越惨越强）；给自己 ↔ 给敌人镜像。</li></div>`;
+
+      html = rules +
+        sub('代价 · 真资源（随等级 ×L）') + row(['energy', 'hp', 'gold', 'discard'].map(realChip).filter(Boolean)) +
+        sub('代价 · 自我牺牲（自残/扣属性，可被回收）') + row(['selfVuln', 'selfWeak', 'selfFrail', 'loseStr', 'loseDex'].map(realChip).filter(Boolean)) +
+        sub('代价 · 条件 量型（价值 = 该量 × 等级）') + row(magIds.map(condChip)) +
+        sub('代价 · 条件 门型（达成则给定额）') + row(gateIds.map(condChip)) +
+        valGroups +
+        sub('特殊签名（稀有·净正）') + row(sig.map(([l, c]) => chip(l, c)));
     } else if (tab === 'pack') {
       const names = vals => (vals || []).map(v => { const va = (CG.VALUE_ATOMS || {})[v] || {}; return `<span class="cx-aff">${va.name || v}</span>`; }).join('、');
       const active = (H.getRun && H.getRun() && H.getRun().packs) || null;
