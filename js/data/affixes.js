@@ -19,7 +19,7 @@ window.CG = window.CG || {};
   const V = {
     // 价值原子（排序铁律：治疗 > 格挡 > 伤害；虚弱 > 易伤/脆弱）
     damage: 1.0, block: 1.2, heal: 1.5, draw: 2.5, energy: 6.0, power: 1.0,
-    strength: 4.0, tempStr: 1.5, dexterity: 4.0, tempDex: 1.5,
+    strength: 3.0, tempStr: 1.5, dexterity: 3.0, tempDex: 1.5,
     vulnerable: 1.5, weak: 1.5, frail: 1.5, poison: 1.5,   // 三种敌方减益对称同价（便于条件/代价对称）
     // 敌失力量(减攻)/敏捷(减格挡)，永久；临时版＝半价/层 → 同 VP 下数量翻倍（"临时失去两倍"）
     enemyLoseStr: 3.0, enemyLoseDex: 3.0, enemyLoseStrTemp: 1.5, enemyLoseDexTemp: 1.5,
@@ -32,7 +32,7 @@ window.CG = window.CG || {};
     // 自身减益代价（延迟/风险代价；定价略高于"给敌"价值 1.5，因你几乎一定吃到）→ 2VP/层、1 能量≈3 层
     selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,
     // 扣除自身力量/敏捷作代价（力量/敏捷可为负，故是真代价）；价同其增益价
-    loseStr: 4.0, loseDex: 4.0,
+    loseStr: 3.0, loseDex: 3.0,
     // 条件/机会类代价记机会预算（不扣真资源）
     mult: 6.0, execute: 6.0, lifesteal: 6.0,
   };
