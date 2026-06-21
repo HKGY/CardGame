@@ -17,6 +17,15 @@ test('敌方减益对称同价：虚弱 = 易伤 = 脆弱', () => {
   assert.strictEqual(V.frail, V.vulnerable);
 });
 
+test('力量/敏捷 VP 全对称（回归守卫）', () => {
+  const V = CG.VALUES;
+  assert.strictEqual(V.strength, V.dexterity, '力量=敏捷');
+  assert.strictEqual(V.tempStr, V.tempDex, '临时力量=临时敏捷');
+  assert.strictEqual(V.loseStr, V.loseDex, '失力量=失敏捷');
+  assert.strictEqual(V.enemyLoseStr, V.enemyLoseDex, '敌失力量=敌失敏捷');
+  assert.strictEqual(V.enemyLoseStrTemp, V.enemyLoseDexTemp, '敌临时失力量=敌临时失敏捷');
+});
+
 test('基础卡平衡不变式：5格挡 = 6伤害 = 1能量 = 6VP', () => {
   const V = CG.VALUES;
   assert.strictEqual(5 * V.block, V.energy);

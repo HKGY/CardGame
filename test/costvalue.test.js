@@ -178,16 +178,18 @@ test('自身减益体系：myDebuff 把自己背的减益层数回收成伤害',
 test('敌失力量/敏捷：永久减；临时版量翻倍且下回合复原', () => {
   assert.strictEqual(CG.affixValueText('energy_enemyLoseStr', 1), '敌失力量 2');
   assert.strictEqual(CG.affixValueText('energy_enemyLoseStrTemp', 1), '敌临时失力量 4');   // 临时＝永久 ×2
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseDex', 1), '敌失敏捷 2');           // 力量/敏捷对称：与敌失力量同量
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseDexTemp', 1), '敌临时失敏捷 4');
   // 永久：敌力量 -2
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9; g.applyStatus(g.enemy, 'strength', 5);
   const c = spell([{ id: 'energy_enemyLoseStr', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
   assert.strictEqual(g.enemy.statuses.strength, 3);
-  // 临时：敌敏捷 -6，到你下个回合复原
+  // 临时：敌敏捷 -4，到你下个回合复原
   const g2 = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g2.player.energy = 9; g2.applyStatus(g2.enemy, 'dexterity', 10);
   const c2 = spell([{ id: 'energy_enemyLoseDexTemp', level: 1 }]); g2.hand = [c2]; g2.playCard(c2.uid);
-  assert.strictEqual(g2.enemy.statuses.dexterity, 4);
+  assert.strictEqual(g2.enemy.statuses.dexterity, 6);
   g2._startPlayerTurn();
   assert.strictEqual(g2.enemy.statuses.dexterity, 10);   // 复原
 });
