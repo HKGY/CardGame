@@ -34,7 +34,7 @@ window.CG = window.CG || {};
     // 扣除自身力量/敏捷作代价（力量/敏捷可为负，故是真代价）；价同其增益价
     loseStr: 3.0, loseDex: 3.0,
     // 条件/机会类代价记机会预算（不扣真资源）
-    mult: 12.0, lifesteal: 12.0,   // 翻倍=12VP(≈每回合3能量的×潜力)、吸血=12VP(攻击全转回复)
+    mult: 12.0, lifesteal: 12.0, combo: 6.0,   // 翻倍/吸血=12VP(2能量级)、连击=6VP(每层+1次攻击命中)
   };
   CG.VALUES = V;
   // 某资源「1 能量等值」的数量；用 floor 保证价值 VP ≤ 6（不越界）：如力量(4VP)→1、敏捷(3VP)→2。
@@ -46,7 +46,7 @@ window.CG = window.CG || {};
     fire: '#ff7a4a', water: '#4aa8ff', thunder: '#e8c84a', ice: '#8fe0ec',
     enemyLoseStr: '#3fae62', enemyLoseStrTemp: '#3fae62', enemyLoseDex: '#4a86e0', enemyLoseDexTemp: '#4a86e0',
     food: '#e0a45a', summon: '#b0b0e0', building: '#c0a060', produce: '#b6d36a', conjure: '#b59ad8',
-    mult: '#ff9fc0', lifesteal: '#cf4f6a',
+    mult: '#ff9fc0', lifesteal: '#cf4f6a', combo: '#e89030',
   };
 
   /* —— 价值原子：mech(u)=按数量 u 产出引擎机制字段；numeric=可被条件代价动态缩放 —— */
@@ -83,6 +83,9 @@ window.CG = window.CG || {};
     produce_block: { name: '每回合格挡', vpRes: 'produce_block', mech: u => ({ selfStatus: 'prodBlock', flat: u }) },
     produce_energy:{ name: '每回合能量', vpRes: 'produce_energy', mech: () => ({ selfStatus: 'prodEnergy', flat: 1 }) },
     conjure:  { name: '造牌', vpRes: 'conjure', mech: () => ({ conjure: 1 }) },
+    mult:     { name: '翻倍', vpRes: 'mult', mech: u => ({ potent: u }) },
+    lifesteal:{ name: '吸血', vpRes: 'lifesteal', mech: u => ({ lifesteal: u }) },
+    combo:    { name: '连击', vpRes: 'combo', mech: u => ({ multiHit: u }) },
   };
   // 价值原子的元素色：附元素用元素色，食材/产出用各自色
   const valColor = id => COLOR[(VALUE_ATOMS[id].vpRes)] || COLOR[id] || '#cdd2e2';
@@ -146,9 +149,6 @@ window.CG = window.CG || {};
   Object.keys(COST_REAL).forEach(cid => Object.keys(VALUE_ATOMS).forEach(vid => mk(cid, vid)));
   Object.keys(COST_COND).forEach(cid => numericVals.forEach(vid => mk(cid, vid)));
   // 特殊签名（条件 → 非数值价值）：
-  A.energyZero_mult = { cost: { res: 'energyZero', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 4, allin: 1 };
-  A.play_mult       = { cost: { res: 'play', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 5, potent: 1 };
-  A.hit_lifesteal   = { cost: { res: 'hit', cond: true }, value: { res: 'lifesteal', atom: 'lifesteal' }, color: COLOR.lifesteal, score: 4, lifesteal: 1.0 };
   //   "有界代价换永久递归价值"的旗舰；flat-VP 量不了递归引擎，故作签名(净正、不入越界守卫)。
 
   // 等级规则：1级 1换1、2级 2换2、3级 1换2（3 级是高效"稀有"档：价值×2、代价×1 → 汇率 2）。
@@ -176,6 +176,7 @@ window.CG = window.CG || {};
     const a = A[id]; if (!a) return '';
     const v = a.value, vL = CG.lvVal(level);
     const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ mult: '翻倍', lifesteal: '吸血' }[v.atom]) || v.res;
+    if (v.atom === 'combo') return '攻击命中 +' + vL + ' 次';
     if (v.atom === 'mult') return `数值 ×${1 + vL}`;
     if (v.atom === 'lifesteal') return '吸血 100%';
     if (a.condBonus && a.condBonus.gate) return `${nm} ${(a.condBonus.base || 6) * vL}（${condName(a.cost.res)}时）`;   // 门：达成则给定额
@@ -209,19 +210,19 @@ window.CG = window.CG || {};
   const P = (name, icon, color, desc, values) => ({ name, icon, color, desc, values });
   CG.PACKS = {
     basic:    P('基础包', '🎴', '#cdd2e2', '伤害 / 格挡（空法术两条基本式）。', ['damage', 'block']),
-    power:    P('强攻包', '⚔️', '#e89030', '伤害与穿击。', ['damage']),
+    power:    P('强攻包', '⚔️', '#e89030', '伤害 / 连击（多段命中）。', ['damage', 'combo']),
     weaken:   P('弱化包', '☠️', '#8ab84a', '敌方减益（含敌失力量/敏捷，及其临时翻倍版）。', ['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseDex', 'enemyLoseStrTemp', 'enemyLoseDexTemp']),
     tempo:    P('节奏包', '🌀', '#4fb8ee', '抽牌 / 能量。', ['draw', 'energy']),
-    vitality: P('生机包', '🌿', '#7fd6a0', '治疗 / 力量。', ['heal', 'strength']),
+    vitality: P('生机包', '🌿', '#7fd6a0', '治疗 / 力量 / 敏捷。', ['heal', 'strength', 'dexterity']),
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发反应。', ['fire', 'water', 'thunder', 'ice']),
     cook:     P('厨艺包', '🍳', '#e0a45a', '食材（合成餐点）。', ['food_veg', 'food_meat', 'food_season', 'food_ware']),
-    bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡 / 临时力量。', ['block', 'tempStr']),
+    bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡 / 临时力量 / 临时敏捷。', ['block', 'tempStr', 'tempDex']),
     elec:     P('电力包', '⚡', '#f0d040', '电力。', ['power']),
-    produce:  P('生产包', '🌾', '#b6d36a', '每回合产出。', ['produce_draw', 'produce_block']),
+    produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（抽/格挡/能量）。', ['produce_draw', 'produce_block', 'produce_energy']),
     summon:   P('召唤包', '👻', '#b0b0e0', '召唤物。', ['summon']),
     build:    P('建造包', '🏗️', '#c0a060', '建筑。', ['building']),
     conjure:  P('术士包', '🎩', '#b59ad8', '造牌。', ['conjure']),
-    amplify:  P('放大包', '✦', '#ff9fc0', '力量 / 临时力量。', ['strength', 'tempStr']),
+    amplify:  P('放大包', '✦', '#ff9fc0', '翻倍 / 吸血（放大本牌）。', ['mult', 'lifesteal']),
   };
   // 兼容旧字段：把每个包展开成它的「真资源代价 × 主题价值」组合 id 列表（rollGem/fusion 读取）。
   Object.keys(CG.PACKS).forEach(k => {

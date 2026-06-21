@@ -509,7 +509,15 @@ window.CG = window.CG || {};
         });
         if (this.player.hp <= 0 || this.aliveEnemies().length === 0) break;
       }
-      // 吸血：按对主目标造成的伤害回血
+      // 强攻包·连击：本牌「伤害」效果额外命中 multiHit 次（仅伤害，不重复格挡/治疗/状态）
+      for (let k = 0; k < (s.multiHit || 0) && this.aliveEnemies().length > 0; k++) {
+        (s.effects || []).forEach(eff => {
+          if (eff.type !== 'damage') return;
+          CG.Effects.apply(this, eff, this.player, target);
+          extra.forEach(t => { if (t.hp > 0) CG.Effects.apply(this, eff, this.player, t); });
+        });
+      }
+      // 吸血：按对主目标造成的伤害回血（含连击多段）
       if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
       // 元素结算（新模型：敌人至多 1 种 1 层）：有反应→消耗敌方元素并触发一次；附两层(elemLv≥2)则反应后再附 1 层新的；无反应→取代为本元素 1 层。
       if (elem && elemLv > 0) {

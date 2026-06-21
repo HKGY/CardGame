@@ -136,6 +136,7 @@ window.CG = window.CG || {};
     let conjureN = 0, daggersN = 0, duplicateN = 0, foresightN = 0, mindblastN = 0, clutterN = 0;   // 术士包
     let preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
     let vigorN = 0, innateN = 0, inspireN = 0, allinN = 0, surplusN = 0, rewindN = 0;   // 律动包（innate/allin/surplus 由 game/playCard 读取）
+    let multiHitN = 0;   // 强攻包·连击：每层+1次攻击命中
     let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
     all.forEach(({ def: d, level: rawL }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -253,6 +254,7 @@ window.CG = window.CG || {};
       // —— 律动包 ——
       if (d.vigor) vigorN += d.vigor * L; if (d.innate) innateN += d.innate * L; if (d.inspire) inspireN += d.inspire * L; if (d.allin) allinN += d.allin * L; if (d.surplus) surplusN += d.surplus * L; if (d.rewind) rewindN += d.rewind * L;
       // —— 放大包 ——
+      if (d.multiHit) multiHitN += d.multiHit * L;
       if (d.potent) potentN += d.potent * L; if (d.amppain) amppainN += d.amppain * L; if (d.ampgain) ampgainN += d.ampgain * L; if (d.boon) boonN += d.boon * L; if (d.polarize) polarizeN += d.polarize * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
@@ -441,7 +443,7 @@ window.CG = window.CG || {};
       reclaim: reclaimN, dumpster: dumpsterN, discardCost: clutchN,                                     // 弃牌包（reclaim 选牌队列、dumpster playCard 加成）
       prey: preyN, insight: insightN,                                             // 猎杀包（playCard 加成）
       innate: innateN, allin: allinN, surplus: surplusN,                          // 律动包（innate=开局抽序、allin/surplus=playCard）
-      potent: potentN,                                                            // 放大包（playCard 加成）
+      potent: potentN, multiHit: multiHitN,                                       // 放大包(potent)+强攻包(连击 multiHit) playCard 加成
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -520,7 +522,7 @@ window.CG = window.CG || {};
       reclaim: 0, dumpster: 0,                          // 弃牌包默认
       prey: 0, insight: 0,                              // 猎杀包默认
       innate: 0, allin: 0, surplus: 0,                  // 律动包默认
-      potent: 0,                                        // 放大包默认
+      potent: 0, multiHit: 0,                           // 放大/连击默认
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };

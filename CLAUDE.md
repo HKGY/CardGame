@@ -14,6 +14,7 @@
 > - **一颗宝石 = 1 个词条（1 颗分子）**（`rollGem` 只出 1 词条）。**代价均摊**：同一张牌上若多颗宝石「代价种类」相同，只付最高的一个（`cardStats` 的 `costMax` 取 max 而非 sum）。卡面：首石用 `[价值]` 方括号（免代价）、其余宝石写出 `(代价 价值)`；宝石/卡面不再出现「代价」字样标签、空法术无 baseText。
 > - **基底卡 = 唯一空法术 `spell`**（`base:0`、渲染法杖）；取消攻击/防御/能力，统称**法术**。`CG.STRIKE/GUARD/HEAL`＝`energy_damage/energy_block/energy_heal`。**战斗掉落卡 ≥1 随机宝石**。
 > - **包＝一组价值原子**（`CG.PACKS[id].values`，代价随机自由组合）；`p.affixes` 是「真资源代价×主题价值」展开（rollGem/fusion 用）。**无独立减益**（代价侧即下行风险，`DEBUFF_ORDER=[]`）。
+> - **实际只有 14 个价值原子包**（basic/power/weaken/tempo/vitality/elements/cook/bastion/elec/produce/summon/build/conjure/amplify）；条件代价/专属机制词条不在任何包、只调试可达（与他处"25 主题"叙述脱节）。**放大本牌特殊价值已转正式价值原子**：`mult`翻倍(12VP,potent×(1+L))、`lifesteal`吸血(12VP,攻击全转回复 1.0)→**放大包**；`combo`连击(6VP,`multiHit`=伤害效果额外命中 N 次，playCard 在 repeatTimes 后加段)→**强攻包**(damage+combo)；生成器自动定价 energy_mult/lifesteal=2费、energy_combo=1费。**斩杀已删**。`dexterity/tempDex/produce_energy` 入包(生机+敏捷/死守+临时敏捷/生产+每回合能量)、不再孤儿。
 > - 展示：`CG.affixCostText/affixValueText(id,L)`。**百科「词条」页改列原子**（所有代价种类 + 所有价值种类，不再逐条列分子）。`cardStats` 伤害/格挡来自价值池 `d.dmg`/`d.blk`、力量 `d.addStr`、金币代价 `loseGold`；`base.kind` 已废。
 > - **净化(purify)** 改为「**去掉一颗宝石的代价**」（`gem.purified=true`，`CG.gemRemoveCost`；`cardStats` 代价环跳过、卡面/宝石面显示免代价方括号）；**祭坛**与**商店**都提供（`run.buyPurify`/`shop.purifyBase/Step`）。**卸载宝石仅商店**（`buyUninstall`，已不附 debuff）。`purified` 经 `cloneGem`/`cloneCard` 保留。
 > - **时点型条件原子**（借鉴 StS 遗物）：`COST_COND` 加 `firstTurn`/`hurt`/`noBlock`（门 gate，达成给 1 能量等值，`condBonus.gate/base`）+ `turnNum`/`kills`（量）；`game.js` 加 `_hurtThisCombat`/`_killsThisCombat`，`playCard` 的 `condBonus` 环分门/量求值。
