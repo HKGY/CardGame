@@ -43,6 +43,19 @@ window.CG = window.CG || {};
 
   // ---------- 卡牌贴图（占据卡牌上半张） ----------
   const CARD_ART = {
+    // v2 唯一基底＝空法术：法杖（顶端宝石孔，效果由镶嵌宝石决定）
+    spell: `<svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" class="art">
+      <g transform="rotate(36 50 30)">
+        <rect x="46.5" y="14" width="7" height="42" rx="3.5" fill="#8a6a3a" stroke="#5e4424" stroke-width="1.4"/>
+        <rect x="47.4" y="14" width="2" height="42" fill="#caa05a" opacity=".6"/>
+        <circle cx="50" cy="12" r="10" fill="none" stroke="#caa24a" stroke-width="2.4"/>
+        <circle cx="50" cy="12" r="6.6" fill="#b59ad8" stroke="#e8d8ff" stroke-width="1.6"/>
+        <circle cx="47.6" cy="9.6" r="2.2" fill="#fff" opacity=".8"/>
+      </g>
+      <g stroke="#e8d8ff" stroke-width="2" opacity=".5" stroke-linecap="round">
+        <line x1="74" y1="14" x2="80" y2="14"/><line x1="77" y1="11" x2="77" y2="17"/>
+        <line x1="20" y1="44" x2="25" y2="44"/><line x1="22.5" y1="41.5" x2="22.5" y2="46.5"/></g>
+    </svg>`,
     // 打击：斜挥的剑 + 红色斩击弧
     strike: `<svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" class="art">
       <path d="M8 50 Q50 2 96 20" stroke="#ff5a4e" stroke-width="6.5" fill="none" stroke-linecap="round" opacity=".92"/>
@@ -351,10 +364,11 @@ window.CG = window.CG || {};
   // 宝石贴面（背包 / 商店 / 奖励 / 工作台 / 选择器复用）。
   // opts: { clickable, dim, selected, data:{k:v}, tagLabel }
   function gemFace(gem, opts = {}) {
-    const affs = (gem.affixes || []).map(a => { const d = CG.AFFIXES[a.id]; return { name: CG.affixDisplayName(a.id, a.level), color: d.color, desc: d.desc(a.level, 'strike'), debuff: !!d.debuff }; });
-    const ordered = affs.filter(a => !a.debuff).concat(affs.filter(a => a.debuff));
-    const title = ordered.map(a => `<span class="aff" style="color:${a.color}">${a.name}</span>`).join('<span class="aff-plus">+</span>') || '空宝石';
-    const lines = ordered.map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>');
+    // v2：宝石＝代价→价值。标题用价值文字；说明分列「代价 / 价值」。
+    const affs = (gem.affixes || []).map(a => { const d = CG.AFFIXES[a.id] || {}; return { val: CG.affixValueText(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: d.color || '#9aa0b5' }; });
+    const ordered = affs;
+    const title = ordered.map(a => `<span class="aff" style="color:${a.color}">${a.val}</span>`).join('<span class="aff-plus">+</span>') || '空宝石';
+    const lines = ordered.map(a => `<span class="affix-line" style="color:${a.color}"><span class="cv-cost">代价 ${a.cost}</span> <span class="cv-arrow">→</span> <span class="cv-val">${a.val}</span></span>`).join('<span class="affix-sep">·</span>');
     const cls = ['gem', opts.clickable ? 'clickable' : 'static', opts.dim ? 'disabled' : '', opts.selected ? 'selected' : ''].join(' ');
     const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
     return `<div class="${cls}" ${data} style="--gem:${CG.gemPrimaryColor(gem)}">

@@ -117,9 +117,10 @@ test('皇帝塔罗：直达本层首领并开战', () => {
 
 test('安装免费：installGemInv 把背包宝石装进空孔', () => {
   const run = newRun();
-  const gem = CG.makeGem([{ id: 'multi', level: 1 }]);
+  const gem = CG.makeGem([{ id: 'strike', level: 1 }]);
   run.gems.push(gem);
-  const target = run.deck.find(c => CG.cardEmptySockets(c) > 0);
+  const target = run.deck[0];
+  CG.addSocket(target);                                   // v2 起手牌都是单孔满镶，先加一个空孔
   const before = target.sockets.length;
   run.installGemInv(gem.uid, target.uid);
   assert.equal(run.gems.length, 0);
@@ -136,17 +137,14 @@ test('加孔：buyAddSocket 花钱给卡 +1 孔', () => {
   assert.equal(run.gold, gold0 - run.socketPrice());
 });
 
-test('卸下宝石：花钱 + 宝石随机加 debuff，回到背包', () => {
+test('卸下宝石：花钱，回到背包（v2 无独立减益，不再附 debuff）', () => {
   const run = newRun();
   run.gold = 999;
   const card = run.deck.find(c => c.sockets.length);     // 预镶嵌的卡
-  const gem = card.sockets[0], affs0 = gem.affixes.length;
   const gold0 = run.gold;
   run.buyUninstall(card.uid, 0);
   assert.equal(card.sockets.length, 0);
   assert.equal(run.gems.length, 1);
-  assert.equal(run.gems[0].affixes.length, affs0 + 1);   // 多了一个 debuff
-  assert.equal(CG.gemHasDebuff(run.gems[0]), true);
   assert.ok(run.gold < gold0);
   assert.equal(run.uninstallCount, 1);
 });
@@ -166,8 +164,8 @@ test('商店：买宝石 / 买法杖', () => {
   const run = newRun();
   run.gold = 1000;
   run.pending = {
-    gems: [{ gem: CG.makeGem([{ id: 'multi', level: 1 }]), price: 30, bought: false }],
-    cards: [{ base: 'strike', limit: 2, gems: [], price: 40, bought: false }],
+    gems: [{ gem: CG.makeGem([{ id: 'strike', level: 1 }]), price: 30, bought: false }],
+    cards: [{ base: 'spell', limit: 2, gems: [], price: 40, bought: false }],
     tarot: [],
   };
   run.buyGem(0);
@@ -189,10 +187,10 @@ test('事件祭坛可用性判定', () => {
   assert.equal(run.altarUsable('setting'), false);                // 背包没宝石
   assert.equal(run.altarUsable('purify'), false);                 // 没有带 debuff 的宝石
 
-  run.gems.push(CG.makeGem([{ id: 'multi', level: 1 }]));
+  run.gems.push(CG.makeGem([{ id: 'strike', level: 1 }]));
+  CG.addSocket(run.deck[0]);                          // v2 起手牌满镶，先腾一个空孔
   assert.equal(run.altarUsable('setting'), true);
-  run.gems.push(CG.makeGem([{ id: 'multi', level: 1 }, { id: 'cumbersome', level: 1 }]));
-  assert.equal(run.altarUsable('purify'), true);
+  assert.equal(run.altarUsable('purify'), false);   // v2：无独立减益，净化恒不可用（待重设计）
 });
 
 test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）', () => {
@@ -378,12 +376,12 @@ test('整局推进：领奖励 + 镶嵌 + 逛遍房型（覆盖宝石/法杖/商
 test('调试：debugAddGem 把自定义词条宝石加入背包（夹等级 1~3、滤非法、空则不加）', () => {
   const run = newRun('debug-gem');
   const n0 = run.gems.length;
-  const gem = run.debugAddGem([{ id: 'overload', level: 5 }, { id: 'cumbersome', level: 1 }, { id: 'not_real', level: 2 }]);
+  const gem = run.debugAddGem([{ id: 'strike', level: 5 }, { id: 'guard', level: 1 }, { id: 'not_real', level: 2 }]);
   assert.ok(gem);
   assert.equal(run.gems.length, n0 + 1);
   assert.equal(run.gems[run.gems.length - 1], gem);
   assert.equal(gem.affixes.length, 2, '非法词条被过滤');
-  assert.equal(gem.affixes.find(a => a.id === 'overload').level, 3, '等级夹到 1~3');
+  assert.equal(gem.affixes.find(a => a.id === 'strike').level, 3, '等级夹到 1~3');
   // 空 / 全非法 → 不加、返回 null
   assert.equal(run.debugAddGem([]), null);
   assert.equal(run.debugAddGem([{ id: 'nope' }]), null);

@@ -125,11 +125,10 @@ window.CG = window.CG || {};
   // ---------- 奖励 / 商店 ----------
   function rollGold(tier, act) { const [lo, hi] = C().gold[tier]; return Math.round(ri(lo, hi) * (C().goldMult[act] || 1)); }
 
-  // 一张空法杖奖励（真实卡对象，价值在于孔位）：按档位决定孔位数
+  // 一张法术奖励：v2 掉落卡至少带 1 颗随机宝石（按档位决定孔位数）。
   function rollCardReward(tier) {
-    const base = pick(['strike', 'defend']);
     const limit = Math.max(1, weighted((C().cardLimitW && C().cardLimitW[tier]) || [[1, 1]]));
-    return CG.makeCard(base, limit, []);
+    return CG.makeCard('spell', limit, [CG.rollGem({ tier: tier || 'monster' })]);
   }
   // 商店货架：宝石 + 法杖 + 塔罗
   function rollShopStock(mult, run) {
@@ -143,7 +142,7 @@ window.CG = window.CG || {};
     }
     const cards = [];
     for (let i = 0; i < C().shop.cardCount; i++) {
-      const base = pick(['strike', 'defend']);
+      const base = 'spell';
       const limit = i === 0 ? 1 : weighted([[2, 3], [3, 2]]);     // 一张单孔 + 一张多孔法杖
       const probe = CG.makeCard(base, limit, []);
       cards.push({ base, limit, gems: [], price: Math.floor(CG.cardPrice(probe) * mult), bought: false });
@@ -243,7 +242,7 @@ window.CG = window.CG || {};
     allGems() {                                 // 全部宝石（背包 + 已镶嵌），带位置信息
       const out = this.gems.map(g => ({ gem: g, uid: g.uid, loc: 'inv', label: '背包' }));
       this.deck.forEach(c => (c.sockets || []).forEach((g, si) =>
-        out.push({ gem: g, uid: g.uid, loc: 'card', card: c, idx: si, label: CG.BASE_CARDS[c.base].name })));
+        out.push({ gem: g, uid: g.uid, loc: 'card', card: c, idx: si, label: (CG.BASE_CARDS[c.base] || {}).name || '法术' })));
       return out;
     }
     findGem(uid) { return this.allGems().find(x => x.uid === uid) || null; }
@@ -316,7 +315,7 @@ window.CG = window.CG || {};
         || (c === 'relic' && CG.RELIC_IDS.some(id => !this.hasRelic(id))));
       const cat = pick(cats.length ? cats : ['gem']);
       if (cat === 'gem') { const pack = CG.pickPack('elite'); const g = CG.rollGem({ tier: 'elite', pack, minLevel: this.forgeMinLevel() }); this.gems.push(g); return { type: 'gem', gem: g, pack }; }
-      if (cat === 'card') { const base = pick(['strike', 'defend']); const c = CG.makeCard(base, weighted([[2, 3], [3, 2]]), []); this.deck.push(c); return { type: 'card', card: c }; }
+      if (cat === 'card') { const c = CG.makeCard('spell', weighted([[2, 3], [3, 2]]), [CG.rollGem({ tier: 'monster' })]); this.deck.push(c); return { type: 'card', card: c }; }
       if (cat === 'tarot') { const id = pick(CG.TAROT_IDS); this.tarot.push(id); return { type: 'tarot', id }; }
       const got = this._dropRelics(1); return got.length ? { type: 'relic', id: got[0] } : { type: 'gold', gold: (this.gold += 40, 40) };
     }

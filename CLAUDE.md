@@ -6,6 +6,16 @@
 > **本文件即本项目的「记忆」。** 所有需要跨会话记住的偏好 / 约定 / 事实都写在这里，
 > **不使用单独的 memory 系统、也不依赖它**。每当出现新的持久事实或用户偏好，更新本文件即可。
 
+> ## ⚠️ 词条系统已重写为 v2「代价-价值」（资源置换模型）
+> **完整设计见 `DESIGN-resource-exchange.md`。下文中大量关于旧词条/包/基底卡的描述已过时，按以下要点为准：**
+> - **每条词条 = 一笔置换**：付出「代价(cost)」→ 获得「价值(value)」，软目标 价值 ≤ 代价（VP 见 `js/data/affix-vp.js` 的 `CG.VALUES`）。词条**不再有名字**，卡面/百科只显示「代价」「价值」两栏。
+> - **基底卡 = 唯一空法术 `spell`**（`base:0`、无效果、渲染成法杖）；取消攻击/防御/能力之分，统称**法术**。`打击=spell+首石〔伤害6〕`、`防御=spell+首石〔格挡5〕`。
+> - **首石免代价**：一张牌第一颗宝石无视其代价（在 `cardStats` 的 socket 代价环按下标 0 跳过）。等级 L：价值 ×L；真资源代价 ×L，**条件/机会类代价不随等级**。
+> - **战斗掉落卡 ≥1 随机宝石**（`run.js` rollCardReward/事件 card）。
+> - **词条表 `CG.AFFIXES`**（`affixes.js`）：每条 `{cost:{res,amt,cond}, value:{res,amt,sub}, color, score, ...mech}`；mech 字段（apply/shieldBash/summon/give/element…）仍复用旧引擎管线。**无独立减益**（`DEBUFF_ORDER=[]`，代价侧即下行风险）。包缩水成签名兑换（`CG.PACKS[id].affixes`）。
+> - 展示：`CG.affixCostText(id,L)` / `CG.affixValueText(id,L)`。`cardStats` 里伤害/格挡来自宝石价值池（`d.dmg`/`d.blk`），`base.kind` 已废。
+> - 连带未重设计的旧功能：卸宝石不再附 debuff、祭坛「净化」恒不可用（待重做）。测试：`test/costvalue.test.js` + `test/affix-vp.test.js`（旧 25 包逐包测试已删）。
+
 ## 改动前：先通读全项目
 
 - **同一个 session 内，做任何改动之前，必须已通读项目里的每一个文件**（不止要改的那个），先建立全局理解再下手。**例外：`bench/` 目录下的文件不需要读**（离线评测台、单独维护，见下「bench（离线评测台）维护」）。

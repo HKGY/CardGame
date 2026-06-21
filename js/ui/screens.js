@@ -172,8 +172,8 @@ window.CG = window.CG || {};
         const levels = [1, 2, 3].map(n =>
           `<button class="dbg-lvl ${cur === n ? 'on' : ''}" data-affix="${id}" data-level="${n}">${n}</button>`).join('');
         return `<div class="debug-affix ${cur ? 'sel' : ''}">
-            <span class="debug-affix-name" style="color:${a.color}">${a.name}${CG.isDebuff(id) ? '<small>减益</small>' : ''}</span>
-            <span class="debug-affix-desc">${(a.desc)(cur || 1, 'strike')}</span>
+            <span class="debug-affix-name" style="color:${a.color}">${CG.affixValueText(id, cur || 1)}</span>
+            <span class="debug-affix-desc">代价 ${CG.affixCostText(id, cur || 1)}</span>
             <span class="debug-levels">${levels}</span>
           </div>`;
       }).join('');
@@ -240,23 +240,22 @@ window.CG = window.CG || {};
     if (tab === 'affix') {
       const row = id => {
         const a = CG.AFFIXES[id];
-        const detail = (a.long || a.desc)(1, 'strike');
-        return `<div class="codex-item"><span class="codex-name" style="color:${a.color}">${a.name}</span>` +
-               `<span class="codex-tag">${a.score > 0 ? '+' + a.score : a.score}</span>` +
-               `<span class="codex-desc">${detail}</span></div>`;
+        return `<div class="codex-item cv-row">` +
+               `<span class="cv-cost">${CG.affixCostText(id, 1)}</span>` +
+               `<span class="cv-arrow">→</span>` +
+               `<span class="cv-val" style="color:${a.color}">${CG.affixValueText(id, 1)}</span></div>`;
       };
-      html = '<p class="codex-note">效果来自<b>宝石</b>（镶进卡牌孔位生效）；分数越高越稀有，词条 1~3 级数值 ×1/2/3。</p>' +
-        '<div class="codex-grid"><div class="codex-sub">增益</div>' + (CG.BUFF_ORDER || []).map(row).join('') +
-        '<div class="codex-sub">减益</div>' + (CG.DEBUFF_ORDER || []).map(row).join('') + '</div>';
+      html = '<p class="codex-note">每条词条＝一笔置换：付出<b>代价</b>→获得<b>价值</b>（价值 ≤ 代价）。1~3 级数值 ×1/2/3（条件类代价不随等级）；<b>首石免代价</b>。</p>' +
+        '<div class="codex-grid"><div class="codex-sub">代价　→　价值</div>' + (CG.AFFIX_ORDER || []).map(row).join('') + '</div>';
     } else if (tab === 'pack') {
-      const names = ids => (ids || []).map(a => `<span class="cx-aff" style="color:${CG.AFFIXES[a].color}">${CG.AFFIXES[a].name}</span>`).join('');
+      const names = ids => (ids || []).map(a => `<span class="cx-aff" style="color:${(CG.AFFIXES[a] || {}).color}">${CG.affixValueText(a, 1)}</span>`).join('、');
       const active = (H.getRun && H.getRun() && H.getRun().packs) || null;
       const card = id => {
         const p = CG.PACKS[id], on = !active || active.includes(id);
         return `<div class="codex-pack${on ? '' : ' off'}">` +
           `<div class="codex-pack-head" style="color:${p.color}">${p.icon} ${p.name}${active && on ? ' <span class="cx-on">本局</span>' : ''}</div>` +
           `<div class="codex-desc">${p.desc}</div>` +
-          `<div class="cx-affs"><b>增</b>${names(p.buffs)} <b>减</b>${names(p.debuffs)}</div></div>`;
+          `<div class="cx-affs">${names(p.affixes)}</div></div>`;
       };
       html = '<p class="codex-note">每个词条属于一个<b>主题</b>；开局选定的主题<b>融合成一个「🌀 融合包」</b>，本局产出的宝石都从其混合池里抽。' +
         (active ? `当前融合 ${active.length} 个：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' ')}` : '') + '</p>' +

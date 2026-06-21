@@ -21,11 +21,8 @@ window.CG = window.CG || {};
   CG.nextUid = () => ++_uid;
 
   CG.BASE_CARDS = {
-    strike:     { name: '打击', cost: 1, type: 'attack', kind: 'damage',   base: 6 },
-    defend:     { name: '防御', cost: 1, type: 'skill',  kind: 'block',    base: 5 },
-    shieldbash: { name: '盾击', cost: 1, type: 'attack', kind: 'damage',   base: 3, block: 2 },  // 盾兵专属：造成伤害并获得格挡
-    heal:       { name: '治疗', cost: 1, type: 'skill',  kind: 'heal',     base: 2 },             // 牧师：回复生命
-    pray:       { name: '祈祷', cost: 1, type: 'power',  kind: 'randbuff', base: 1 },             // 牧师：获得随机增益
+    // v2：唯一基底＝空法术（法杖）。无攻防之分、本身 0 效果，效果全来自镶嵌的宝石「价值」。
+    spell:      { name: '法术', cost: 1, base: 0 },
 
     // ===== 厨艺包·食材卡（不走宝石聚合，cardStats 转交 foodStats；仅本场战斗、进手牌）=====
     tomato:  { name: '番茄',   cost: 0, type: 'skill',  food: 'veg',  level: 1, icon: '🍅' },
@@ -91,7 +88,7 @@ window.CG = window.CG || {};
     const b = CG.BASE_CARDS[inst.base];
     if (CG.isFood(inst.base)) return CG.foodStats(inst);   // 厨艺食材：固定效果卡，不走宝石聚合
     const order = id => CG.AFFIX_ORDER.indexOf(id);
-    const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, debuff: !!def.debuff, name: CG.affixDisplayName(a.id, a.level), color: def.color, desc: def.desc(a.level, inst.base) }; };
+    const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, debuff: false, name: CG.affixValueText(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: def.color, desc: CG.affixValueText(a.id, a.level) }; };
     const bySort = (x, y) => order(x.id) - order(y.id);
     const sockets = inst.sockets || [];
 
@@ -107,7 +104,8 @@ window.CG = window.CG || {};
     let valFlat = 0, valPct = 0, hitsD = 0, repeatX = 0, windfury = 0, energy = 0,
         drawN = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
         costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false,
-        blockFlat = 0, freeNextN = 0, comboN = 0;
+        blockFlat = 0, freeNextN = 0, comboN = 0,
+        dmgPool = 0, blkPool = 0;   // v2：空法术无基础数值，伤害/格挡全来自宝石「价值」
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
@@ -135,7 +133,7 @@ window.CG = window.CG || {};
     let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
     all.forEach(({ def: d, level: L }) => {
       score += (d.score || 0) * L;
-      if (d.value)     valFlat += d.value * L;
+      // 注：v2 里 d.value / d.cost 是「代价-价值」描述对象，不再是旧的数值机制字段（已删）。
       if (d.valuePct)  valPct  += d.valuePct * L;
       if (d.hits)      hitsD   += d.hits * L;
       if (d.repeat)    repeatX += d.repeat * L;
@@ -146,7 +144,7 @@ window.CG = window.CG || {};
       if (d.prepare)   prepare += d.prepare * L;
       if (d.sapStr)    sapStr  += d.sapStr * L;
       if (d.sapDex)    sapDex  += d.sapDex * L;
-      if (d.cost)      costD   += d.cost * L;         // 速记 / 笨重
+      // 能量代价改由「首石免代价」环按 def.cost.res 结算（见下方 socket 代价环）
       if (d.nextEnergy) nextE  += d.nextEnergy * L;   // 透支
       if (d.hpLoss)    hpLoss  += d.hpLoss * L;        // 反噬
       if (d.heal)      healAmt += d.heal * L;          // 回春
@@ -154,6 +152,8 @@ window.CG = window.CG || {};
       if (d.silence)   silenceLv = L;                  // 沉默：按等级削减敌人力量
       if (d.pierce)    pierceN  += d.pierce * L;        // 穿刺：额外命中右侧敌人
       if (d.block)     blockFlat += d.block * L;        // 壁垒：附加格挡
+      if (d.dmg)       dmgPool += d.dmg * L;            // v2 价值·伤害（strike 等）
+      if (d.blk)       blkPool += d.blk * L;            // v2 价值·格挡（guard 等）
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.element) { elementId = d.element; elementLevel = (d.elementBase || 1) * L; }   // 元素附着：附 (base×L) 层（放电=2×L）
@@ -247,20 +247,38 @@ window.CG = window.CG || {};
     });
     if (statuses.frozen) statuses.frozen = 1;        // 冰封不随等级叠加：固定跳过 1 次行动
 
-    // === 留置包 + 强化包 ===：holdCost(待发/滞涩) 与 costDown(淬火) 共同改费；heldBonus(蓄势)/growth(锤炼/觉醒)/resonance(共鸣) 共同增值；overforge(过锻) 成长过载碎裂
+    // === v2 首石免代价 ===：第一颗宝石(socket 0)无视其代价；第二颗起按真资源代价（能量/生命/弃牌）扣。
+    //   条件类代价(curBlock/emptyHand…)无真资源消耗，不在此扣（其约束体现在 playCard 求值）。
+    (sockets || []).forEach((g, si) => {
+      if (si === 0) return;                          // 首石：代价全免
+      (g.affixes || []).forEach(a => {
+        const def = CG.AFFIXES[a.id]; if (!def || !def.cost || def.cost.cond) return;
+        const amt = (def.cost.amt || 1) * (a.level || 1);
+        if (def.cost.res === 'energy')  costD  += amt;
+        else if (def.cost.res === 'hp') hpLoss += amt;
+        else if (def.cost.res === 'discard') clutchN += amt;   // 复用随机弃牌
+      });
+    });
+
     const socketCount = sockets.length;
-    const cost = Math.max(0, b.cost + costD + (inst.holdCost || 0) - (inst.costDown || 0));
-    const value = Math.max(0, Math.floor((b.base + valFlat + (inst.heldBonus || 0)) * (1 + valPct / 100)) * valueMult + (inst.growth || 0) + socketCount * resonanceN);
+    const cost = Math.max(0, (b.cost || 0) + costD + (inst.holdCost || 0) - (inst.costDown || 0));
+    // v2：伤害/格挡来自宝石价值池（+ 强化成长）。base.base 恒 0。
+    const dmgVal = Math.max(0, (dmgPool + valFlat + (inst.growth || 0) + (inst.heldBonus || 0)) * valueMult);
+    const blkVal = Math.max(0, (blkPool + blockFlat) * valueMult);
     if (overforge && (inst.growth || 0) >= 6) exhaust = true;
     const hits = 1 + hitsD;
     const limit = inst.limit == null ? sockets.length : inst.limit;
     const emptySockets = Math.max(0, limit - sockets.length);
 
+    // 主效果类型：有伤害（含条件型伤害加成）→ damage；否则 block / heal / skill。
+    const condDmg = shieldBashN || arcN || prospectN || ashesN || preyN || emptyMindN || heldStrikeN || lastStandN || hoardN || dumpsterN || windfallN || emberN;
+    const kind = (dmgVal > 0 || condDmg) ? 'damage' : (blkVal > 0 || quarryN || coolantN) ? 'block' : healAmt > 0 ? 'heal' : 'skill';
+    const value = dmgVal || blkVal || healAmt || 0;
+
     // 结算效果
-    const KIND_TYPE = { damage: 'damage', block: 'block', heal: 'heal', randbuff: 'randbuff' };
-    const effects = [{ type: KIND_TYPE[b.kind] || 'block', value, hits }];
-    const flatBlock = (b.block || 0) + blockFlat;                   // 盾击固定格挡 + 壁垒附加格挡
-    if (flatBlock > 0) effects.push({ type: 'block', value: flatBlock });
+    const effects = [];
+    if (dmgVal > 0 || condDmg) effects.push({ type: 'damage', value: dmgVal, hits });
+    if (blkVal > 0 || quarryN || coolantN) effects.push({ type: 'block', value: blkVal });
     for (const k in statuses) effects.push({ type: k, value: statuses[k] });               // 给敌人
     for (const k in selfStatuses) effects.push({ type: 'selfStatus', status: k, value: selfStatuses[k] });
     if (energy)  effects.push({ type: 'energy', value: energy });
@@ -372,15 +390,14 @@ window.CG = window.CG || {};
       damage:   `造成 ${value} 点伤害`,
       block:    `获得 ${value} 点格挡`,
       heal:     `回复 ${value} 点生命`,
-      randbuff: `获得 ${value} 层随机增益`,
-    }[b.kind] || `获得 ${value} 点格挡`) + (hits > 1 ? ` ×${hits}` : '') + (b.block ? `，获得 ${b.block} 点格挡` : '') + '。';
+    }[kind] || '空法术（效果由宝石决定）') + (hits > 1 ? ` ×${hits}` : '') + '。';
 
-    // 卡名：基底 + 各宝石分组 (增益+减益) + 空孔 ◇
+    // 卡名：法术 + 各宝石「价值」文字 + 空孔 ◇
     const gemText = gemViews.map(g => '(' + g.buffs.concat(g.debuffs).map(a => a.name).join('+') + ')').join('');
-    const name = b.name + gemText + '◇'.repeat(emptySockets);
+    const name = (b.name || '法术') + gemText + '◇'.repeat(emptySockets);
 
     return {
-      base: inst.base, baseName: b.name, cost, type: b.type, kind: b.kind, limit, emptySockets, score,
+      base: inst.base, baseName: b.name, cost, type: 'spell', kind, limit, emptySockets, score,
       value, hits, effects, buffs, debuffs, gemViews, baseText,
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
@@ -647,18 +664,16 @@ window.CG = window.CG || {};
   // ---------- 职业 / 初始牌组 ----------
   CG.CLASS_IDS = ['warrior', 'shield', 'priest'];
   CG.CLASSES = {
-    warrior: { name: '战士', icon: '⚔️', desc: '5 打击 + 5 防御，各预镶嵌一颗小宝石；攻守均衡。', shopCard: 'defend' },
-    shield:  { name: '盾兵', icon: '🛡️', desc: '4 打击 + 4 防御 + 2 盾击（造成 3 伤害并获得 2 格挡）。', shopCard: 'shieldbash' },
-    priest:  { name: '牧师', icon: '✚',  desc: '3 打击 + 3 防御 + 2 治疗 + 2 祈祷。', shopCard: 'pray' },
+    warrior: { name: '战士', icon: '⚔️', desc: '5 攻击法术 + 5 格挡法术；攻守均衡。', shopCard: 'spell' },
+    shield:  { name: '盾兵', icon: '🛡️', desc: '4 攻击 + 6 格挡法术；侧重防守。', shopCard: 'spell' },
+    priest:  { name: '牧师', icon: '✚',  desc: '4 攻击 + 4 格挡 + 2 治疗法术；续航流。', shopCard: 'spell' },
   };
-  // 按职业构建初始牌组：每张卡 1 个孔；少量预镶嵌小宝石作早期手感
+  // 按职业构建初始牌组：每张卡＝空法术 + 一颗「无代价首石」（攻击/格挡/治疗），1 个孔。
   CG.buildDeck = function (cls) {
-    const blank = base => CG.makeCard(base, 1, []);
-    const gemmed = (base, buffId) => CG.makeCard(base, 1, [CG.makeGem([{ id: buffId, level: 1 }])]);
-    const rep = (base, n) => Array.from({ length: n }, () => blank(base));
-    if (cls === 'shield') return [...rep('strike', 4), ...rep('defend', 4), ...rep('shieldbash', 2)];
-    if (cls === 'priest') return [...rep('strike', 3), ...rep('defend', 3), ...rep('heal', 2), ...rep('pray', 2)];
-    // warrior（默认）：5 打击 + 5 防御；其中各一张预镶小宝石（压制 / 准备）
-    return [gemmed('strike', 'suppress'), ...rep('strike', 4), gemmed('defend', 'prepare'), ...rep('defend', 4)];
+    const gemmed = valId => CG.makeCard('spell', 1, [CG.makeGem([{ id: valId, level: 1 }])]);
+    const rep = (valId, n) => Array.from({ length: n }, () => gemmed(valId));
+    if (cls === 'shield') return [...rep('strike', 4), ...rep('guard', 6)];
+    if (cls === 'priest') return [...rep('strike', 4), ...rep('guard', 4), ...rep('v_heal', 2)];
+    return [...rep('strike', 5), ...rep('guard', 5)];   // warrior（默认）
   };
 })(window.CG);
