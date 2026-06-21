@@ -182,7 +182,7 @@ window.CG = window.CG || {};
       this.turn += 1;
       this.phase = 'player';
       if (this._rewindSnap) { this._restore(this._rewindSnap); this._rewindSnap = null; this.addLog('回溯：时间倒流，敌人这一回合被抹去。'); }   // 律动·回溯：回滚到打出回溯时的双方状态
-      if (this._keepBlock > 0) this._keepBlock--; else this.player.block = 0;   // 死守包·重甲：接下来 N 回合不清空格挡（计数器）
+      if (this._keepBlock > 0) { this._keepBlock--; this.player.block = Math.floor((this.player.block || 0) * 0.5); } else this.player.block = 0;   // 死守包·重甲：接下来 N 回合格挡减半保留（计数器；不再无限累积）
       let energyBonus = 0, drawBonus = 0;          // 癌症/无神论者：每回合额外能量/抽牌
       this.relics.forEach(id => { const r = CG.RELICS[id]; energyBonus += r.turnEnergy || 0; drawBonus += r.turnDraw || 0; });
       this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)) + energyBonus;
@@ -316,7 +316,7 @@ window.CG = window.CG || {};
       const oc = s.overclock || 0;
       const free = oc ? false : (this.freeCards || 0) > 0;             // 回响：本张免费打出（超频时不适用）
       let payCost = oc ? 0 : (free ? 0 : s.cost);
-      if (!oc && !free && s.surplus > 0 && this.player.energy >= Math.max(2, 5 - s.surplus)) payCost = 0;   // 律动·余裕：能量充裕时本牌免费
+      if (!oc && !free && s.surplus > 0 && this.player.energy >= Math.max(2, 4 - s.surplus)) payCost = 0;   // 律动·余裕：能量充裕时本牌免费
       const payPower = oc ? s.cost * oc : 0;
       if (oc && payPower > (this.player.power || 0)) { this.addLog('电力不足。'); this._emit(); return; }
       if (!oc && payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
@@ -334,7 +334,7 @@ window.CG = window.CG || {};
       }
       // 灰烬：本牌数值额外 +（消耗堆牌数 × 等级）
       if (s.ashes > 0) {
-        const bonus = s.ashes * this.exhaustPile.length;
+        const bonus = s.ashes * (this.exhaustPile.length + 8);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // 电弧：本牌数值额外 +（当前电力 × 等级）
@@ -359,7 +359,7 @@ window.CG = window.CG || {};
       }
       // === 市场/矿工/锻造：随资源动态加成（仿电弧，读打出前的资源）===
       if (s.windfall > 0) {   // 暴富：数值 +（当前金币 ÷10 × 等级）
-        const bonus = Math.floor(((this.run && this.run.gold) || 0) / 10) * s.windfall;
+        const bonus = Math.floor(((this.run && this.run.gold) || 0) / 22) * s.windfall;
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       if (s.prospect > 0) {   // 寻脉：伤害 +（当前深度 × 等级）
@@ -380,7 +380,7 @@ window.CG = window.CG || {};
       }
       if (s.prey > 0) {       // 猎杀包·猎物：伤害 +（目标减益层数总和 × 等级）
         const t = this.currentTarget();
-        const bonus = t ? s.prey * 4 * this._enemyDebuffLayers(t) : 0;
+        const bonus = t ? s.prey * 5 * this._enemyDebuffLayers(t) : 0;
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       if (s.insight > 0) {    // 猎杀包·洞察：敌意图攻击时本牌伤害 ×(1+等级)
@@ -475,6 +475,7 @@ window.CG = window.CG || {};
         } else {
           const cur = this._auraOf(target) === elem ? (target.statuses[elem] || 0) : 0;
           this._setAura(target, elem, cur + elemLv);                // 同元素叠加 / 异元素附着（上限 3）
+          if (elemLv > 0 && target.hp > 0) this._reactionBurst(target, elemLv);   // 元素附着·无反应：附着层数＝直接穿透伤害（给元素一个不依赖连招的伤害底）
         }
       }
       // 透支：累计下回合能量惩罚
@@ -487,7 +488,7 @@ window.CG = window.CG || {};
       if (s.temper > 0) card.growth = (card.growth || 0) + s.temper;     // 锤炼：本牌数值永久 +L
       if (s.awaken > 0) {                                                // 觉醒：累计打出 3 次后跳变 +5×L（仅一次）
         card.plays = (card.plays || 0) + 1;
-        if (card.plays >= 3 && !card.awakened) { card.growth = (card.growth || 0) + 5 * s.awaken; card.awakened = true; this.addLog(`觉醒：${s.name} 数值大幅提升！`); }
+        if (card.plays >= 2 && !card.awakened) { card.growth = (card.growth || 0) + 8 * s.awaken; card.awakened = true; this.addLog(`觉醒：${s.name} 数值大幅提升！`); }
       }
 
       // 风怒：本回合前 N 次打出后回到手牌（销毁优先，不回手）
@@ -747,7 +748,7 @@ window.CG = window.CG || {};
     }
     heal(n) {                                   // 战斗内治疗（滋养：每层 +50% 治疗效率；人寿保险可过量储存）
       const nour = this.player.statuses.nourish || 0;
-      if (nour > 0 && n > 0) n = Math.floor(n * (1 + 0.5 * nour));
+      if (nour > 0 && n > 0) n = Math.floor(n * (1 + 0.25 * nour));
       const before = this.player.hp;
       if (this.run && this.relics.includes('insurance')) {
         this.player.hp += n;

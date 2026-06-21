@@ -12,12 +12,12 @@ test('召唤包存在且词条齐全', () => {
   ['toll', 'culling', 'discord'].forEach(id => { assert.ok(CG.PACKS.summon.debuffs.includes(id)); assert.ok(CG.AFFIXES[id].debuff); });
 });
 
-test('唤骷髅：召出 3血/1攻 随从，回合末攻击敌人', () => {
+test('唤骷髅：召出 2血/1攻 随从，回合末攻击敌人', () => {
   const b = CG.makeBattle();
   b.hand = [gemCard('strike', ['skeleton'])];
   b.playCard(b.hand[0].uid);
   assert.equal(b.allies.length, 1);
-  assert.equal(b.allies[0].hp, 3); assert.equal(b.allies[0].atk, 1);
+  assert.equal(b.allies[0].hp, 2); assert.equal(b.allies[0].atk, 1);
   const hp = b.enemies[0].hp;                 // 已含打击的 6 点
   b.endTurn();
   assert.equal(b.enemies[0].hp, hp - 1);      // 回合末召唤物 +1 伤害

@@ -46,9 +46,9 @@ test('cardStats：宝石词条聚合到卡', () => {
   assert.equal(s.hits, 2);
   assert.equal(s.name, '打击(多重)');
 
-  // 过载 → 数值 +100%
+  // 过载 → 数值 +65%
   s = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'overload', level: 1 }])]));
-  assert.equal(s.value, 12);
+  assert.equal(s.value, 9);
 
   // 笨重（减益）→ 耗能 +1
   s = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'cumbersome', level: 1 }])]));
@@ -69,7 +69,7 @@ test('cardStats：多颗宝石分组显示 + 空孔 ◇', () => {
   assert.equal(s.gemViews.length, 2);
   assert.equal(s.cost, 2);                            // 笨重 +1
   assert.equal(s.hits, 2);                            // 多重 +1
-  assert.equal(s.value, 12);                          // 过载 ×2
+  assert.equal(s.value, 9);                           // 过载 +65%
 });
 
 test('准备(prepare)：本回合力量 +等级（任意基底，走 tempStrength）', () => {
@@ -167,7 +167,7 @@ test('gemName 显示格式：增益(减益)', () => {
   assert.equal(CG.gemName(CG.makeGem([{ id: 'overload', level: 2 }, { id: 'cumbersome', level: 1 }])), '更过载(笨重)');
 });
 
-test('回春：cardStats 产出 heal = 2×等级', () => {
+test('回春：cardStats 产出 heal = 1×等级', () => {
   const s = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'recover', level: 3 }])]));
-  assert.equal(eff(s, 'heal').value, 6);   // 2×3
+  assert.equal(eff(s, 'heal').value, 3);   // 1×3
 });

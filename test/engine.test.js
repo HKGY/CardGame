@@ -45,7 +45,7 @@ test('宝石词条在战斗中生效：淬毒 / 多重 / 过载', () => {
   b = CG.makeBattle({ deck: deckOf(10, { id: 'overload', level: 1 }) });
   hp0 = b.enemies[0].hp;
   b.playCard(b.hand[0].uid);
-  assert.equal(b.enemies[0].hp, hp0 - 12);   // 6 ×(1+100%)
+  assert.equal(b.enemies[0].hp, hp0 - 9);    // 6 ×(1+65%) = 9
 });
 
 test('易伤 / 虚弱 的伤害修正', () => {
@@ -187,7 +187,7 @@ test('壁垒：攻击牌打出后也获得格挡', () => {
   const b = CG.makeBattle({ deck: deckOf(8, { id: 'bulwark', level: 1 }) });
   assert.equal(b.player.block, 0);
   b.playCard(b.hand[0].uid);
-  assert.equal(b.player.block, 2);         // 壁垒 2×1，攻击牌也生效
+  assert.equal(b.player.block, 1);         // 壁垒 1×1，攻击牌也生效
 });
 
 // 元素反应：用受控手牌（直接赋 b.hand）打出指定元素牌
@@ -202,32 +202,32 @@ test('元素·附着：命中给主目标挂元素，至多 1 种（再附会替
   assert.equal(CG.ELEMENT_IDS.filter(id => e.statuses[id]).length, 1);   // 只有 1 种元素
 });
 
-test('元素·蒸发：水→火，火击伤害 ×1.5，并清空双方元素', () => {
+test('元素·蒸发：水→火，火击伤害 ×2，并清空双方元素', () => {
   const b = elemBattle(), e = b.enemies[0], hp0 = e.hp;
   const w = elemStrike('aqua'), f = elemStrike('flame'); b.hand = [w, f];
   b.playCard(w.uid);
-  assert.equal(e.hp, hp0 - 6);             // 水击 6，附水
+  assert.equal(e.hp, hp0 - 7);             // 水击 6 + 无反应附着穿透 1 = 7，附水
   assert.equal(e.statuses.water, 1);
-  b.playCard(f.uid);                       // 火 onto 水 → 蒸发，火击 floor(6×1.5)=9
-  assert.equal(e.hp, hp0 - 6 - 9);
+  b.playCard(f.uid);                       // 火 onto 水 → 蒸发，火击 floor(6×2)=12
+  assert.equal(e.hp, hp0 - 7 - 12);
   assert.ok(!e.statuses.water && !e.statuses.fire, '反应后清空双方');
 });
 
-test('元素·感电：雷→水 给敌人 3 层中毒（转化型）', () => {
+test('元素·感电：雷→水 给敌人 5 层中毒（转化型）', () => {
   const b = elemBattle(), e = b.enemies[0];
   const v = elemStrike('volt'), w = elemStrike('aqua'); b.hand = [v, w];
   b.playCard(v.uid); b.playCard(w.uid);
-  assert.equal(e.statuses.poison, 3);
+  assert.equal(e.statuses.poison, 5);
   assert.ok(!e.statuses.thunder && !e.statuses.water);
 });
 
-test('元素·超载：火→雷 造成 10 点穿透伤害（无视格挡）', () => {
+test('元素·超载：火→雷 造成 20 点穿透伤害（无视格挡）', () => {
   const b = elemBattle(), e = b.enemies[0]; e.block = 100; const hp0 = e.hp;
   const f = elemStrike('flame'), v = elemStrike('volt'); b.hand = [f, v];
-  b.playCard(f.uid);
-  assert.equal(e.hp, hp0);                 // 火击 6 被格挡吸收
-  b.playCard(v.uid);                       // 超载：雷击 6 仍被挡，但爆发 10 无视格挡
-  assert.equal(e.hp, hp0 - 10);
+  b.playCard(f.uid);                       // 火击 6 被挡，但无反应附着穿透 1 无视格挡
+  assert.equal(e.hp, hp0 - 1);
+  b.playCard(v.uid);                       // 超载：雷击 6 仍被挡，但爆发 20 无视格挡
+  assert.equal(e.hp, hp0 - 1 - 20);
   assert.ok(!e.statuses.fire && !e.statuses.thunder);
 });
 
@@ -254,30 +254,31 @@ test('元素·多级附着：同元素叠加，封顶 3 层', () => {
   assert.equal(e.statuses.fire, 3);        // 2 + 2 → 封顶 3
 });
 
-test('元素·多级蒸发：水2→火3 消耗 2 级，伤害 ×1.5^2，余火 1 层', () => {
-  const b = elemBattle(), e = b.enemies[0], hp0 = e.hp;
+test('元素·多级蒸发：水2→火3 消耗 2 级，伤害 ×2^2，余火 1 层', () => {
+  const b = elemBattle(), e = b.enemies[0]; e.maxHp = 300; e.hp = 300; const hp0 = e.hp;
   const w = elemStrikeLv('aqua', 2), f = elemStrikeLv('flame', 3); b.hand = [w, f];
   b.playCard(w.uid);
+  assert.equal(e.hp, hp0 - 8);             // 水击 6 + 无反应附着穿透 2 = 8
   assert.equal(e.statuses.water, 2);
-  b.playCard(f.uid);                       // consumed=min(2,3)=2 → ×2.25 → floor(6×2.25)=13
-  assert.equal(e.hp, hp0 - 6 - 13);
+  b.playCard(f.uid);                       // consumed=min(2,3)=2 → ×2^2=×4 → floor(6×4)=24
+  assert.equal(e.hp, hp0 - 8 - 24);
   assert.equal(e.statuses.fire, 1);        // 余 3-2=1 层火
   assert.ok(!e.statuses.water);
 });
 
-test('元素·多级感电：雷3→水2 消耗 2 级，感电生效 2 次（中毒 6），余雷 1 层', () => {
+test('元素·多级感电：雷3→水2 消耗 2 级，感电生效 2 次（中毒 10），余雷 1 层', () => {
   const b = elemBattle(), e = b.enemies[0];
   const v = elemStrikeLv('volt', 3), w = elemStrikeLv('aqua', 2); b.hand = [v, w];
   b.playCard(v.uid); b.playCard(w.uid);
-  assert.equal(e.statuses.poison, 6);      // 3 × 2 次
+  assert.equal(e.statuses.poison, 10);     // 5 × 2 次
   assert.equal(e.statuses.thunder, 1);     // 余 3-2=1 层雷
   assert.ok(!e.statuses.water);
 });
 
-test('元素·等量抵消：水2→火2 全消耗、双方清空，伤害 ×1.5^2', () => {
-  const b = elemBattle(), e = b.enemies[0], hp0 = e.hp;
+test('元素·等量抵消：水2→火2 全消耗、双方清空，伤害 ×2^2', () => {
+  const b = elemBattle(), e = b.enemies[0]; e.maxHp = 300; e.hp = 300; const hp0 = e.hp;
   const w = elemStrikeLv('aqua', 2), f = elemStrikeLv('flame', 2); b.hand = [w, f];
-  b.playCard(w.uid); b.playCard(f.uid);
-  assert.equal(e.hp, hp0 - 6 - 13);        // floor(6×2.25)=13
+  b.playCard(w.uid); b.playCard(f.uid);    // 水击 6 + 附着穿透 2 = 8；火蒸发 consumed=2 → ×4 → 24
+  assert.equal(e.hp, hp0 - 8 - 24);        // floor(6×4)=24
   assert.ok(!e.statuses.fire && !e.statuses.water);
 });

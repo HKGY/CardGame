@@ -17,9 +17,9 @@ test('发电：获得电力；电力战斗内跨回合保留', () => {
   const b = CG.makeBattle();
   b.hand = [gemCard('strike', ['generate'])];
   b.playCard(b.hand[0].uid);
-  assert.equal(b.player.power, 2);                             // 发电2
+  assert.equal(b.player.power, 5);                             // 发电5
   b.endTurn(); b.runEnemyTurn();                              // 进入下一回合
-  assert.equal(b.player.power, 2);                            // 电力不随回合清零（能量才回满）
+  assert.equal(b.player.power, 5);                            // 电力不随回合清零（能量才回满）
 });
 
 test('改造(超频)：改用电力付费(耗能×N)、数值×N、能量不变；电力不足打不出', () => {
@@ -84,15 +84,15 @@ test('感电：给自己附 2 层雷（自身元素光环）', () => {
   assert.equal(b.player.statuses.thunder, 2);
 });
 
-test('麻痹：本回合最左 3 张无法打出，下回合解除', () => {
+test('麻痹：本回合最左 1 张无法打出，下回合解除', () => {
   const b = CG.makeBattle();
   const card = gemCard('strike', ['paralyze']);
   const a = CG.makeCard('strike'), c2 = CG.makeCard('strike'), c3 = CG.makeCard('strike'), c4 = CG.makeCard('strike');
   b.hand = [card, a, c2, c3, c4];
   b.playCard(card.uid);                                      // 打出麻痹牌本身（此刻 _paralyze 仍为 0）
-  assert.equal(b._paralyze, 3);
+  assert.equal(b._paralyze, 1);
   const len = b.hand.length;                                 // 现手牌 [a,c2,c3,c4]
-  b.playCard(a.uid);                                         // a 在 idx0 < 3 → 锁住
+  b.playCard(a.uid);                                         // a 在 idx0 < 1 → 锁住
   assert.equal(b.hand.length, len, '最左牌被麻痹，打不出');
   b.playCard(c4.uid);                                        // c4 在 idx3 → 可打
   assert.equal(b.hand.length, len - 1);

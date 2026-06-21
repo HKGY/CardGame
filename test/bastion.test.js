@@ -19,7 +19,7 @@ test('死守包存在且词条齐全（含复用 bulwark / cumbersome）', () =>
   });
 });
 
-test('重甲：打出后 _keepBlock=true，_startPlayerTurn 不清空格挡', () => {
+test('重甲：打出后 _keepBlock=true，_startPlayerTurn 格挡减半保留', () => {
   const b = CG.makeBattle();
   // 普通情况：未打重甲 → 回合开始清格挡
   b.player.block = 10;
@@ -32,7 +32,7 @@ test('重甲：打出后 _keepBlock=true，_startPlayerTurn 不清空格挡', ()
   assert.equal(b2._keepBlock, 1, '打出重甲(1级)后 _keepBlock=1（剩余保留回合数）');
   b2.player.block = 12;                       // 手动设格挡再触发下一个玩家回合
   b2._startPlayerTurn();
-  assert.equal(b2.player.block, 12, '重甲后回合开始保留格挡');
+  assert.equal(b2.player.block, 6, '重甲后回合开始格挡减半保留 floor(12×0.5)=6');
 });
 
 test('盾击：伤害 = 基础 +（当前格挡 × 等级）', () => {
@@ -71,14 +71,14 @@ test('死战：残血时本牌伤害 +floor(已损失比例 × 5 × 等级)', ()
   assert.equal(b2.enemies[0].hp, h0 - 6);                     // 满血只有基础 6
 });
 
-test('严阵：获得格挡 2×等级 + 本回合力量 等级', () => {
+test('严阵：获得格挡 1×等级 + 本回合力量 等级', () => {
   const b = CG.makeBattle();
   b.player.block = 0;
   const card = gemCard('strike', [{ id: 'brace', level: 2 }]);
   const hp0 = b.enemies[0].hp;
   b.hand = [card];
   b.playCard(card.uid);
-  assert.equal(b.player.block, 4, '格挡 2×2');
+  assert.equal(b.player.block, 2, '格挡 1×2');
   assert.equal(b.player.statuses.strength, 2, '本回合力量 +2');
   assert.equal(b.enemies[0].hp, hp0 - 6, '基础伤害先于严阵力量结算，仍为 6');
 });
@@ -117,15 +117,15 @@ test('cardStats / foodStats 透出 shieldBash / lastStand（食材默认 0）', 
   assert.equal(food.lastStand, 0);
 });
 
-test('重甲随等级 N：接下来 N 回合不清空格挡，到期恢复清空', () => {
+test('重甲随等级 N：接下来 N 回合格挡减半保留，到期恢复清空', () => {
   const b = CG.makeBattle();
   b.hand = [gemCard('strike', [{ id: 'barricade', level: 2 }])];
   b.playCard(b.hand[0].uid);
   assert.equal(b._keepBlock, 2);
-  b.player.block = 10; b._startPlayerTurn();                  // 回合1：保留，计数 2→1
-  assert.equal(b.player.block, 10); assert.equal(b._keepBlock, 1);
-  b.player.block = 8; b._startPlayerTurn();                   // 回合2：保留，计数 1→0
-  assert.equal(b.player.block, 8); assert.equal(b._keepBlock, 0);
+  b.player.block = 10; b._startPlayerTurn();                  // 回合1：减半保留 floor(10×0.5)=5，计数 2→1
+  assert.equal(b.player.block, 5); assert.equal(b._keepBlock, 1);
+  b.player.block = 8; b._startPlayerTurn();                   // 回合2：减半保留 floor(8×0.5)=4，计数 1→0
+  assert.equal(b.player.block, 4); assert.equal(b._keepBlock, 0);
   b.player.block = 7; b._startPlayerTurn();                   // 回合3：到期 → 清空
   assert.equal(b.player.block, 0);
 });

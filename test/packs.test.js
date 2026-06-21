@@ -70,15 +70,15 @@ test('回响：cardStats.freeNext == 等级', () => {
   assert.equal(CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'echo', level: 3 }])])).freeNext, 3);
 });
 
-test('壁垒：任意基底都附加 2×等级 点格挡', () => {
+test('壁垒：任意基底都附加 1×等级 点格挡', () => {
   // 攻击牌：基底不带格挡 → 仅壁垒的格挡
   const onStrike = CG.cardStats(CG.makeCard('strike', 1, [CG.makeGem([{ id: 'bulwark', level: 2 }])]));
-  assert.equal(eff(onStrike, 'block').value, 4);     // 2×2
+  assert.equal(eff(onStrike, 'block').value, 2);     // 1×2
   assert.equal(onStrike.value, 6);                    // 伤害不受影响
-  // 防御牌：基底 5 格挡 + 壁垒 2 → 首个效果(基底)5、再附加一个 block 2
+  // 防御牌：基底 5 格挡 + 壁垒 1 → 首个效果(基底)5、再附加一个 block 1
   const onDefend = CG.cardStats(CG.makeCard('defend', 1, [CG.makeGem([{ id: 'bulwark', level: 1 }])]));
   const blocks = onDefend.effects.filter(e => e.type === 'block');
-  assert.equal(blocks.reduce((s, e) => s + e.value, 0), 7);   // 5 + 2
+  assert.equal(blocks.reduce((s, e) => s + e.value, 0), 6);   // 5 + 1
 });
 
 test('连击：cardStats.combo == 等级（实际加成在打出时按已出牌数结算）', () => {

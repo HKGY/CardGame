@@ -284,7 +284,7 @@ window.CG = window.CG || {};
     if (paralyzeN) effects.push({ type: 'paralyze', value: paralyzeN });                      // 麻痹
     // === 死守包 ===
     if (keepBlockN)  effects.push({ type: 'keepBlock', value: keepBlockN });                  // 重甲：接下来 N 回合格挡不清空
-    if (braceN)    { effects.push({ type: 'block', value: 2 * braceN }); effects.push({ type: 'tempStrength', value: braceN }); }   // 严阵：格挡 + 本回合力量
+    if (braceN)    { effects.push({ type: 'block', value: braceN }); effects.push({ type: 'tempStrength', value: braceN }); }   // 严阵：格挡 + 本回合力量
     if (loseEnergyN) effects.push({ type: 'loseEnergy', value: loseEnergyN });                // 龟缩：失去能量
     if (loseBlockN)  effects.push({ type: 'loseBlock', value: loseBlockN });                  // 负重：失去格挡
     // === 生产包 ===
@@ -438,10 +438,10 @@ window.CG = window.CG || {};
       const meat = CG.BASE_CARDS[meatBase];
       kind = (CG.RECIPE[meatBase] && CG.RECIPE[meatBase][vegBase]) || 'heal';
       label = RECIPE_LABEL[kind];
-      value = veg.level * meat.level * 2;                 // 高级原料数值相乘 ×2
+      value = veg.level * meat.level * 4;                 // 高级原料数值相乘 ×4
       name = `${veg.name}炖${meat.name}`;
     } else {
-      kind = 'heal'; label = '回复'; value = veg.level;   // 只放素菜 = 清炒，回复其等级
+      kind = 'heal'; label = '回复'; value = veg.level * 2;   // 只放素菜 = 清炒，回复其等级 ×2
       name = `清炒${veg.name}`;
     }
     let repeatTimes = 1, tag = '', nourish = 0;
@@ -482,9 +482,9 @@ window.CG = window.CG || {};
     else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（做菜时可当荤菜）`; }
     else if (b.food === 'season') { s.kind = 'season'; s.noPlay = true; const m = { salt: '过载1', soy: '滋养1', pepper: '重复1' }; s.baseText = `调味料·不能单独吃；做菜时让餐点获得「${m[b.season]}」`; }
     else if (b.kind === 'cookware') {
-      if (b.cook === 'cleaver') { s.type = 'attack'; s.value = 5; s.effects = [{ type: 'damage', value: 5 }]; s.baseText = '造成 5 点伤害（厨具·可当武器）'; }
-      else if (b.cook === 'wok') { s.value = 4; s.effects = [{ type: 'block', value: 4 }]; s.baseText = '获得 4 点格挡（厨具·可当武器）'; }
-      else if (b.cook === 'stove') { s.type = 'attack'; s.element = 'fire'; s.elementLevel = 2; s.baseText = '给敌人附火 2 层（厨具·可当武器）'; }
+      if (b.cook === 'cleaver') { s.type = 'attack'; s.value = 10; s.effects = [{ type: 'damage', value: 10 }]; s.baseText = '造成 10 点伤害（厨具·可当武器）'; }
+      else if (b.cook === 'wok') { s.value = 8; s.effects = [{ type: 'block', value: 8 }]; s.baseText = '获得 8 点格挡（厨具·可当武器）'; }
+      else if (b.cook === 'stove') { s.type = 'attack'; s.element = 'fire'; s.elementLevel = 3; s.baseText = '给敌人附火 3 层（厨具·可当武器）'; }
     } else if (b.kind === 'spoiled') {
       s.noPlay = true;
       const m = { selfdmg: '回合结束失去 2 生命', weak: '回合结束自身虚弱 2', vuln: '回合结束自身易伤 2' };

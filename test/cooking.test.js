@@ -21,30 +21,30 @@ test('foodStats：素菜/荤菜/调味料/厨具/腐坏 的固定效果', () => 
   assert.equal(meat.kind, 'meat'); assert.equal(eff(meat, 'heal').value, 3);           // 牛肉回复3
   assert.equal(CG.cardStats(CG.makeFoodCard('salt')).noPlay, true);                    // 调味料不能单独吃
   const cleaver = CG.cardStats(CG.makeFoodCard('cleaver'));
-  assert.equal(eff(cleaver, 'damage').value, 5);                                       // 菜刀攻击5
+  assert.equal(eff(cleaver, 'damage').value, 10);                                      // 菜刀攻击10
   assert.equal(cleaver.cost, 0);                                                       // 厨具 0 费
   assert.equal(CG.cardStats(CG.makeFoodCard('stove')).cost, 0);
-  assert.equal(eff(CG.cardStats(CG.makeFoodCard('wok')), 'block').value, 4);           // 铁锅防御4
+  assert.equal(eff(CG.cardStats(CG.makeFoodCard('wok')), 'block').value, 8);           // 铁锅防御8
   const stove = CG.cardStats(CG.makeFoodCard('stove'));
-  assert.equal(stove.element, 'fire'); assert.equal(stove.elementLevel, 2);            // 火炉附火2
+  assert.equal(stove.element, 'fire'); assert.equal(stove.elementLevel, 3);            // 火炉附火3
   assert.equal(CG.cardStats(CG.makeFoodCard('spoiled_rice')).noPlay, true);            // 腐坏不能打出
 });
 
-test('菜谱 buildMeal：素菜单做=回复其等级；素菜炖荤菜=等级相乘×2 + 矩阵效果；调味料修正', () => {
+test('菜谱 buildMeal：素菜单做=回复其等级×2；素菜炖荤菜=等级相乘×4 + 矩阵效果；调味料修正', () => {
   let m = CG.buildMeal('tomato', null, null);
-  assert.equal(eff(m, 'heal').value, 1);                                   // 清炒番茄 = 回复1
-  m = CG.buildMeal('carrot', 'beef', null);                                // 牛肉×胡萝卜 → 回响, 3×3×2=18
-  assert.equal(m.effects[0].type, 'freeNext'); assert.equal(m.effects[0].value, 18);
-  m = CG.buildMeal('potato', 'chicken', null);                            // 鸡肉×土豆 → 壁垒(block), 2×2×2=8
-  assert.equal(m.effects[0].type, 'block'); assert.equal(m.effects[0].value, 8);
-  m = CG.buildMeal('tomato', 'fish', 'salt');                             // 鱼肉×番茄→回复 1×1×2=2，盐(过载)×2=4
-  assert.equal(eff(m, 'heal').value, 4);
-  m = CG.buildMeal('carrot', 'fish', 'soy');                              // 鱼肉×胡萝卜→荆棘 1×3×2=6；酱油→餐点附带滋养1
+  assert.equal(eff(m, 'heal').value, 2);                                   // 清炒番茄 = 回复 1×2=2
+  m = CG.buildMeal('carrot', 'beef', null);                                // 牛肉×胡萝卜 → 回响, 3×3×4=36
+  assert.equal(m.effects[0].type, 'freeNext'); assert.equal(m.effects[0].value, 36);
+  m = CG.buildMeal('potato', 'chicken', null);                            // 鸡肉×土豆 → 壁垒(block), 2×2×4=16
+  assert.equal(m.effects[0].type, 'block'); assert.equal(m.effects[0].value, 16);
+  m = CG.buildMeal('tomato', 'fish', 'salt');                             // 鱼肉×番茄→回复 1×1×4=4，盐(过载)×2=8
+  assert.equal(eff(m, 'heal').value, 8);
+  m = CG.buildMeal('carrot', 'fish', 'soy');                              // 鱼肉×胡萝卜→荆棘 1×3×4=12；酱油→餐点附带滋养1
   const th = m.effects.find(e => e.status === 'thorns');
-  assert.ok(th && th.value === 6);
+  assert.ok(th && th.value === 12);
   assert.ok(m.effects.find(e => e.status === 'nourish'), '酱油 → 餐点含滋养效果');
-  m = CG.buildMeal('potato', 'beef', 'pepper');                           // 牛肉×土豆→明亮 2×3×2=12，胡椒=重复2次
-  assert.equal(m.effects[0].type, 'energy'); assert.equal(m.effects[0].value, 12); assert.equal(m.repeatTimes, 2);
+  m = CG.buildMeal('potato', 'beef', 'pepper');                           // 牛肉×土豆→明亮 2×3×4=24，胡椒=重复2次
+  assert.equal(m.effects[0].type, 'energy'); assert.equal(m.effects[0].value, 24); assert.equal(m.repeatTimes, 2);
 });
 
 test('做菜流程：打出素菜→选荤菜→选调味料→餐点进手牌；原料被消耗；打出餐点生效', () => {
@@ -61,13 +61,13 @@ test('做菜流程：打出素菜→选荤菜→选调味料→餐点进手牌�
   assert.ok(meal, '餐点进手牌');
   assert.equal(b.hand.filter(c => ['tomato', 'fish', 'salt'].includes(c.base)).length, 0, '原料已消耗');
   assert.equal(b.exhaustPile.filter(c => ['tomato', 'fish', 'salt'].includes(c.base)).length, 3);
-  // 鱼肉×番茄→回复 2，盐×2 = 4；打出餐点回血 4 并消耗
+  // 鱼肉×番茄→回复 4，盐×2 = 8；打出餐点回血 8 并消耗
   const s = CG.cardStats(meal);
   assert.equal(s.cost, 0); assert.equal(s.exhaust, true);
-  assert.equal(eff(s, 'heal').value, 4);
+  assert.equal(eff(s, 'heal').value, 8);
   b.player.maxHp = 50; b.player.hp = 10;
   b.playCard(meal.uid);
-  assert.equal(b.player.hp, 14);
+  assert.equal(b.player.hp, 18);
   assert.ok(b.exhaustPile.some(c => c.base === 'meal'), '餐点打出后消耗');
 });
 
@@ -80,7 +80,7 @@ test('做菜可跳过荤菜与调味料：只放素菜=清炒回复', () => {
   b.craftChoose(null);   // 跳过调味料
   const meal = b.hand.find(c => c.base === 'meal');
   assert.ok(meal);
-  assert.equal(eff(CG.cardStats(meal), 'heal').value, 2);   // 清炒土豆 = 回复2
+  assert.equal(eff(CG.cardStats(meal), 'heal').value, 4);   // 清炒土豆 = 回复 2×2=4
 });
 
 test('give 词条：打出带「农场」的卡获得 1 张随机素菜（不按词条等级翻倍）', () => {
@@ -94,18 +94,18 @@ test('give 词条：打出带「农场」的卡获得 1 张随机素菜（不按
   assert.equal(vegs.length, 1, '农场 → 1 张随机素菜');
 });
 
-test('滋养：生机包含「滋养」词条；治疗 +50%/层；酱油餐点附带滋养且本餐治疗也加成', () => {
+test('滋养：生机包含「滋养」词条；治疗 +25%/层；酱油餐点附带滋养且本餐治疗也加成', () => {
   assert.ok(CG.PACKS.vitality.buffs.includes('nourish'), '生机包含滋养');
   assert.equal(CG.AFFIXES.nourish.selfStatus, 'nourish');
-  // 打出带滋养的卡 → 玩家获得滋养，之后治疗 ×1.5
+  // 打出带滋养的卡 → 玩家获得滋养，之后治疗 ×1.25
   const b = CG.makeBattle();
   b.hand = [CG.makeCard('defend', 1, [CG.makeGem([{ id: 'nourish', level: 1 }])])];
   b.playCard(b.hand[0].uid);
   assert.equal(b.player.statuses.nourish, 1);
   b.player.maxHp = 50; b.player.hp = 10;
   b.heal(4);
-  assert.equal(b.player.hp, 16);                       // 4 ×1.5 = 6
-  // 酱油餐点：先附滋养1，再回复 → 本餐治疗也 +50%
+  assert.equal(b.player.hp, 15);                       // floor(4 ×1.25) = 5
+  // 酱油餐点：先附滋养1，再回复 → 本餐治疗也 +25%
   const b2 = CG.makeBattle();
   b2.player.maxHp = 50; b2.player.hp = 10;
   b2.hand = [CG.makeFoodCard('tomato'), CG.makeFoodCard('fish'), CG.makeFoodCard('soy')];
@@ -113,7 +113,7 @@ test('滋养：生机包含「滋养」词条；治疗 +50%/层；酱油餐点�
   b2.playCard(veg.uid); b2.craftChoose(fish.uid); b2.craftChoose(soy.uid);
   b2.playCard(b2.hand.find(c => c.base === 'meal').uid);
   assert.equal(b2.player.statuses.nourish, 1);
-  assert.equal(b2.player.hp, 13);                      // 番茄×鱼肉=回复2 → 滋养先生效 → floor(2×1.5)=3
+  assert.equal(b2.player.hp, 15);                      // 番茄×鱼肉=回复 1×1×4=4 → 滋养先生效 → floor(4×1.25)=5
 });
 
 test('腐坏卡：回合结束自伤/减益后消耗', () => {

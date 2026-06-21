@@ -35,7 +35,7 @@ test('倍益：本回合获得的增益翻倍', () => {
 test('激赏：临时力量（回合末清除）；极化：当前力量翻倍', () => {
   let b = CG.makeBattle();
   b.hand = [gemCard('strike', [{ id: 'boon', level: 2 }])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.player.statuses.strength, 4); assert.equal(b._tempStrength, 4);   // 2×2 临时
+  assert.equal(b.player.statuses.strength, 2); assert.equal(b._tempStrength, 2);   // 1×2 临时
   b = CG.makeBattle(); b.player.statuses.strength = 3;
   b.hand = [gemCard('strike', ['polarize'])]; b.playCard(b.hand[0].uid);
   assert.equal(b.player.statuses.strength, 6);        // 3 → 翻倍 6

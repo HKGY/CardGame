@@ -22,22 +22,22 @@ window.CG = window.CG || {};
     draw:       { name: '抽取', color: '#efe9da', score: 3, draw: 1,    desc: n => `抽 ${n} 张` },
     multi:      { name: '多重', color: '#e89030', score: 4, hits: 1,    desc: n => `+${n} 次攻击` },
     windfury:   { name: '风怒', color: '#b06fd6', score: 4, windfury: 1, desc: n => `回手 ${n} 次`, long: n => `打出后回到手牌（每回合最多 ${n} 次）` },
-    overload:   { name: '过载', color: '#4fb8ee', score: 5, valuePct: 100, desc: n => `数值 +${100 * n}%` },
+    overload:   { name: '过载', color: '#4fb8ee', score: 5, valuePct: 65, desc: n => `数值 +${65 * n}%` },
     repeat:     { name: '重复', color: '#ee82b8', score: 5, repeat: 1,  desc: n => `打出 ${1 + n} 次` },
     bright:     { name: '明亮', color: '#f0c850', score: 6, energy: 1,  desc: n => `+${n} 能量` },
     // —— 借鉴《炉石传说》《宝可梦》——
-    lifesteal:  { name: '吸血', color: '#cf4f6a', score: 5, lifesteal: 0.5, damageOnly: true, desc: n => `吸血 ${50 * n}%`, long: n => `对敌人造成伤害的 ${50 * n}% 转化为治疗` },
+    lifesteal:  { name: '吸血', color: '#cf4f6a', score: 5, lifesteal: 0.2, damageOnly: true, desc: n => `吸血 ${20 * n}%`, long: n => `对敌人造成伤害的 ${20 * n}% 转化为治疗` },
     poison:     { name: '淬毒', color: '#8ab84a', score: 4, apply: { poison: 1 },  desc: n => `中毒 ${n}`, long: n => `给敌人 ${n} 层中毒（每回合受等量伤害，逐回合 -1）` },
     freeze:     { name: '冰封', color: '#6cc6e0', score: 3, apply: { frozen: 1 },  desc: () => `冰冻 1 回合`, long: () => `冰冻敌人跳过其下一次行动（每场战斗仅第一次打出生效）` },
     silence:    { name: '沉默', color: '#aab0c4', score: 4, silence: 1,            desc: n => `力量归零 -${n}`, long: n => `移除敌人当前力量，并使其力量 -${n}（永久）` },
-    recover:    { name: '回春', color: '#e89ab8', score: 3, heal: 2,    desc: n => `回复 ${2 * n}` },
+    recover:    { name: '回春', color: '#e89ab8', score: 3, heal: 1,    desc: n => `回复 ${n}` },
     thrift:     { name: '速记', color: '#bcd17a', score: 5, cost: -1,   desc: n => `耗能 -${n}` },
     pierce:     { name: '穿刺', color: '#e0a83a', score: 4, pierce: 1, damageOnly: true, desc: n => `穿刺 ${n}`, long: n => `攻击额外命中右侧相邻的 ${n} 个敌人` },
-    regen:      { name: '再生', color: '#7fd6a0', score: 3, selfStatus: 'regen',  desc: n => `再生 ${n}`,  long: n => `每回合开始回复 ${n} 点生命（逐回合 -1）` },
-    barbs:      { name: '荆棘', color: '#c98a5a', score: 3, selfStatus: 'thorns', desc: n => `荆棘 ${n}`,  long: n => `本场战斗中，受到攻击时反弹 ${n} 点伤害` },
+    regen:      { name: '再生', color: '#7fd6a0', score: 3, selfStatus: 'regen', cap: 2,  desc: n => `再生 ${Math.min(2, n)}`,  long: n => `每回合开始回复 ${Math.min(2, n)} 点生命（逐回合 -1）` },
+    barbs:      { name: '荆棘', color: '#c98a5a', score: 3, selfStatus: 'thorns', cap: 2, desc: n => `荆棘 ${Math.min(2, n)}`,  long: n => `本场战斗中，受到攻击时反弹 ${Math.min(2, n)} 点伤害` },
     // —— 新增（booster pack 主题词条）——
     echo:       { name: '回响', color: '#58c8d8', score: 5, freeNext: 1, desc: n => `下一张免费 ×${n}`, long: n => `打出后，本回合接下来 ${n} 张牌耗能为 0（可连锁）` },
-    bulwark:    { name: '壁垒', color: '#7fa8c8', score: 3, block: 2,     desc: n => `格挡 +${2 * n}`,   long: n => `打出时额外获得 ${2 * n} 点格挡（任意卡均生效）` },
+    bulwark:    { name: '壁垒', color: '#7fa8c8', score: 3, block: 1,     desc: n => `格挡 +${n}`,   long: n => `打出时额外获得 ${n} 点格挡（任意卡均生效）` },
     combo:      { name: '连击', color: '#e0563a', score: 4, combo: 1, damageOnly: true, desc: n => `连击 +${n}`, long: n => `本回合你每打出过一张牌，本牌伤害 +${n}（打出顺序越靠后越强）` },
     // —— 元素附着（元素包）：命中时给敌人附一种元素；与已有元素叠加触发反应 ——
     flame:      { name: '附火', color: '#ff7a4a', score: 4, element: 'fire',    desc: n => `附火 ${n} 层`, long: n => `命中给敌人附 ${n} 层🔥（至多 3）；与水/冰→蒸发/融化（本击每消耗 1 层 ×1.5），与雷→超载` },
@@ -57,15 +57,15 @@ window.CG = window.CG || {};
     undying: { name: '不坏', color: '#c2c6d6', score: 5, undying: 1,    desc: n => `被消耗时生成 ${n} 副本`, long: n => `这张牌被消耗时，生成 ${n} 张相同副本进手牌` },
     reborn:  { name: '重生', color: '#7fd0a0', score: 4, reborn: 1,     desc: n => `从消耗堆取回 ${n} 张`, long: n => `打出后：把消耗堆里指定的 ${n} 张牌加入手牌` },
     // —— 电力包：用「电力」代替能量（电力战斗内跨回合保留，显示在能量下方）——
-    generate:  { name: '发电', color: '#f0d850', score: 3, gainPower: 2, desc: n => `获得电力 ${2 * n}`, long: n => `打出后获得 ${2 * n} 点电力（战斗内跨回合保留）` },
+    generate:  { name: '发电', color: '#f0d850', score: 3, gainPower: 5, desc: n => `获得电力 ${5 * n}`, long: n => `打出后获得 ${5 * n} 点电力（战斗内跨回合保留）` },
     overclock: { name: '改造', color: '#e0a040', score: 5, overclock: 1, desc: n => `电力付费·数值 ×${n}`, long: n => `本牌改为消耗电力（＝耗能 ×${n}）而非能量，且数值 ×${n}` },
     arc:       { name: '电弧', color: '#f0e060', score: 4, arc: 1,       desc: n => `+当前电力 ×${n}`, long: n => `本牌数值额外 +（当前电力 × ${n}）` },
     discharge: { name: '放电', color: '#e8c84a', score: 4, element: 'thunder', elementBase: 2, desc: n => `附雷 ${2 * n}`, long: n => `命中给敌人附 ${2 * n} 层⚡（叠加触发元素反应）` },
     charge:    { name: '充电', color: '#f0e8a0', score: 3, charge: 1,    desc: n => `电力→能量 ×${n}`, long: n => `打出后消耗至多 ${n} 点电力，转化为等量能量` },
     // === 死守包 ===（把「格挡」当核心资源：保留它、用它打人、残血加伤；bulwark 壁垒复用现有词条）
-    barricade: { name: '重甲', color: '#9ab0c8', score: 5, keepBlock: 1, desc: n => `接下来 ${n} 回合格挡不清空`, long: n => `打出后，接下来 ${n} 个回合结束时不再清空格挡（持续累积）` },
+    barricade: { name: '重甲', color: '#9ab0c8', score: 5, keepBlock: 1, desc: n => `接下来 ${n} 回合格挡减半保留`, long: n => `打出后，接下来 ${n} 个回合结束时格挡不清空、改为减半保留（不再无限累积）` },
     shieldbash:{ name: '盾击', color: '#c8a060', score: 4, shieldBash: 1, damageOnly: true, desc: n => `伤害+当前格挡×${n}`, long: n => `本牌伤害额外 +（当前格挡 × ${n}）` },
-    brace:     { name: '严阵', color: '#7fb0a8', score: 4, brace: 1, desc: n => `格挡 ${2 * n} + 本回合力量 ${n}`, long: n => `打出后获得 ${2 * n} 点格挡，本回合 +${n} 力量` },
+    brace:     { name: '严阵', color: '#7fb0a8', score: 4, brace: 1, desc: n => `格挡 ${n} + 本回合力量 ${n}`, long: n => `打出后获得 ${n} 点格挡，本回合 +${n} 力量` },
     laststand: { name: '死战', color: '#d08070', score: 4, lastStand: 1, damageOnly: true, desc: n => `残血加伤×${n}`, long: n => `本牌伤害额外 +（已损失生命比例 × 5 × ${n}）` },
     // === 生产包 ===（复利引擎：每回合开始被动产出；产出层数常驻不衰减）
     farming:   { name: '耕作', color: '#9ad05a', score: 4, selfStatus: 'prodDraw', flat: 1,  desc: () => `每回合多抽 1`,   long: () => `获得 1 层「耕作」：此后每回合开始额外抽 1 张（无视等级、可叠加）` },
@@ -81,8 +81,8 @@ window.CG = window.CG || {};
     primed:     { name: '待发', color: '#a8c0d0', score: 4, retain: true, primed: 1,   desc: n => `每留 1 回合 -${n} 费`, long: n => `保留在手；每经过 1 个回合本牌耗能 -${n}（越攒越便宜）` },
     // —— 强化包：卡牌实例「本场永久成长」（成长/降费/觉醒计数挂在战斗克隆实例上，不写回牌组）——
     temper:    { name: '锤炼', color: '#e0b0e0', score: 5, temper: 1,    desc: n => `打出后本牌永久 +${n}`, long: n => `本牌每被打出 1 次，其数值永久 +${n}（仅本场战斗）` },
-    whet:      { name: '磨砺', color: '#d8a8e0', score: 3, whet: 1,      desc: n => `随机一张手牌 +${n}`, long: n => `打出后随机一张手牌数值永久 +${n}（仅本场战斗）` },
-    awaken:    { name: '觉醒', color: '#caa0e8', score: 4, awaken: 1,    desc: n => `打出 3 次后 +${5 * n}`, long: n => `本牌累计被打出 3 次后觉醒：数值永久 +${5 * n}（仅一次，仅本场）` },
+    whet:      { name: '磨砺', color: '#d8a8e0', score: 3, whet: 2,      desc: n => `随机一张手牌 +${2 * n}`, long: n => `打出后随机一张手牌数值永久 +${2 * n}（仅本场战斗）` },
+    awaken:    { name: '觉醒', color: '#caa0e8', score: 4, awaken: 1,    desc: n => `打出 3 次后 +${8 * n}`, long: n => `本牌累计被打出 3 次后觉醒：数值永久 +${8 * n}（仅一次，仅本场）` },
     quench:    { name: '淬火', color: '#e0a8d0', score: 4, quench: 1,    desc: () => `随机一张手牌永久降费`, long: () => `打出后随机一张手牌耗能永久 -1（仅本场战斗）` },
     resonance: { name: '共鸣', color: '#d0b0e0', score: 3, resonance: 1, desc: n => `每镶嵌宝石 +${n}`, long: n => `本牌数值额外 +（本牌已镶嵌宝石数 × ${n}）` },
     // === 虚无包 ===（牺牲与空：手牌越空、献祭越多越强）
@@ -95,13 +95,13 @@ window.CG = window.CG || {};
     dice:     { name: '掷骰', color: '#c8a0e0', score: 4, dice: 1,     desc: n => `随机 ${n}~${6 * n} 伤害`, long: n => `掷 ${n} 颗骰子：对当前目标造成 ${n}~${6 * n} 点伤害（每颗 1~6）` },
     coinflip: { name: '抛硬币', color: '#d0b0e8', score: 3, coin: 1,    desc: n => `50% 造成 ${8 * n} 伤害`, long: n => `抛硬币：50% 概率造成 ${8 * n} 点伤害，否则毫无效果` },
     grabbag:  { name: '百宝箱', color: '#b890d8', score: 3, randbuff: 1, desc: n => `获得 ${n} 层随机增益`, long: n => `打出后随机获得 ${n} 层力量或敏捷` },
-    jackpot:  { name: '头奖', color: '#d8b0f0', score: 5, jackpot: 1,   desc: n => `三选一：${12 * n} 伤害/格挡/抽3`, long: n => `等概率三选一：造成 ${12 * n} 点伤害 / 获得 ${12 * n} 点格挡 / 抽 3 张` },
-    slots:    { name: '老虎机', color: '#c0a0e0', score: 5, slots: 1,   desc: n => `每 3 次打出爆出 ${20 * n} 伤害`, long: n => `本场战斗中，每打出第 3 张含「老虎机」的牌，造成 ${20 * n} 点伤害（计数器随后归零）` },
+    jackpot:  { name: '头奖', color: '#d8b0f0', score: 5, jackpot: 1,   desc: n => `三选一：${10 * n} 伤害/格挡/抽3`, long: n => `等概率三选一：造成 ${10 * n} 点伤害 / 获得 ${10 * n} 点格挡 / 抽 3 张` },
+    slots:    { name: '老虎机', color: '#c0a0e0', score: 5, slots: 1,   desc: n => `每 3 次打出爆出 ${16 * n} 伤害`, long: n => `本场战斗中，每打出第 3 张含「老虎机」的牌，造成 ${16 * n} 点伤害（计数器随后归零）` },
     // === 市场包：金币当战斗资源（花钱换强度 / 打牌生金；金币＝跑图通用货币 run.gold）===
-    invest:   { name: '投资', color: '#e8c84a', score: 4, invest: 1, damageOnly: true, desc: n => `花至多 ${3 * n} 金币·造等量伤害`, long: n => `打出后花至多 ${3 * n} 金币，对当前敌人造成（花掉金币）点伤害` },
+    invest:   { name: '投资', color: '#e8c84a', score: 4, invest: 1, damageOnly: true, desc: n => `花至多 ${2 * n} 金币·造等量伤害`, long: n => `打出后花至多 ${2 * n} 金币，对当前敌人造成（花掉金币）点伤害` },
     income:   { name: '进账', color: '#d8b84a', score: 3, income: 1, desc: n => `获得金币 ${3 * n}`, long: n => `打出后获得 ${3 * n} 金币` },
     trade:    { name: '贸易', color: '#c8d86a', score: 3, trade: 1,  desc: n => `抽1·金币 ${2 * n}`, long: n => `打出后抽 1 张牌并获得 ${2 * n} 金币` },
-    windfall: { name: '暴富', color: '#f0e070', score: 4, windfall: 1, desc: n => `+当前金币/10 ×${n}`, long: n => `本牌数值额外 +（当前金币 ÷10 × ${n}）` },
+    windfall: { name: '暴富', color: '#f0e070', score: 4, windfall: 1, desc: n => `+当前金币/22 ×${n}`, long: n => `本牌数值额外 +（当前金币 ÷22 × ${n}）` },
     hire:     { name: '雇佣', color: '#e0c068', score: 4, hire: 1,   desc: n => `花 ${5 * n} 金币·力量 ${n}`, long: n => `打出后花 ${5 * n} 金币（足够则）永久 +${n} 力量` },
     // === 矿工包：挖矿攒「深度」(本场)，深度换伤害/格挡，越挖越掘出金币/宝石 ===
     mine:     { name: '开采', color: '#b08a5a', score: 4, mine: 1,   desc: n => `深度 +${2 * n}`, long: n => `深度 +${2 * n}；每跨过 5 深度掘出一份产出（有跑图则得金币，否则得格挡）` },
@@ -116,11 +116,11 @@ window.CG = window.CG || {};
     coolant:  { name: '淬炼', color: '#d09850', score: 4, coolant: 1, desc: n => `烧光热度·换等量×${n}格挡`, long: n => `获得（当前热度 × ${n}）点格挡，随后热度清零` },
     whitehot: { name: '白热', color: '#f0a040', score: 4, whitehot: 1, desc: n => `热度 +${3 * n}·伤害 ${3 * n}`, long: n => `热度 +${3 * n}，并对当前敌人造成 ${3 * n} 点伤害` },
     // === 召唤包：己方召唤物（有血量、回合末替你攻击、可被敌人攻击、嘲讽可吸引火力）===
-    skeleton: { name: '唤骷髅', color: '#c8c8d0', score: 4, summon: 'skeleton', desc: n => `召唤 ${3 * n}血/${n}攻 骷髅`, long: n => `召唤一个 ${3 * n} 血、${n} 攻的骷髅，每回合末攻击当前敌人` },
+    skeleton: { name: '唤骷髅', color: '#c8c8d0', score: 4, summon: 'skeleton', desc: n => `召唤 ${2 * n}血/${n}攻 骷髅`, long: n => `召唤一个 ${2 * n} 血、${n} 攻的骷髅，每回合末攻击当前敌人` },
     swarm:    { name: '群召', color: '#b0c0e0', score: 4, summon: 'swarm', desc: n => `召唤 ${n} 个 1 攻小灵`, long: n => `召唤 ${n} 个 1 血、1 攻的小灵` },
     totem:    { name: '立图腾', color: '#9ac0a0', score: 4, summon: 'totem', desc: n => `召唤图腾·每回合末+${n}格挡`, long: n => `召唤一个 ${3 * n} 血的图腾：不攻击，每回合末给你 ${n} 点格挡` },
     command:  { name: '督战', color: '#e0a060', score: 5, command: 1, desc: n => `随机召唤物 +${n}攻并攻击`, long: n => `随机一个召唤物攻击力 +${n}，并立即发动一次攻击` },
-    guardian: { name: '守护灵', color: '#8ab0d0', score: 5, summon: 'guardian', desc: n => `召唤 ${4 * n}血/${n}攻 嘲讽`, long: n => `召唤一个 ${4 * n} 血、${n} 攻、带「嘲讽」的守护灵（敌人优先攻击它）` },
+    guardian: { name: '守护灵', color: '#8ab0d0', score: 5, summon: 'guardian', desc: n => `召唤 ${2 * n}血/${n}攻 嘲讽`, long: n => `召唤一个 ${2 * n} 血、${n} 攻、带「嘲讽」的守护灵（敌人优先攻击它）` },
     // === 建造包：在有限槽位摆放「建筑」(game.buildings)，每回合开始自动触发；工坊增幅、拆解一次兑现 ===
     arrowtower: { name: '箭塔', color: '#c0a060', score: 4, build: 'arrowtower', desc: n => `建造·每回合打 ${2 * n}`, long: n => `建造箭塔：每回合开始对随机敌人造成 ${2 * n}（受工坊增幅）` },
     rampart:    { name: '路障', color: '#8aa0b8', score: 4, build: 'rampart', desc: n => `建造·每回合 +${2 * n} 格挡`, long: n => `建造路障：每回合开始获得 ${2 * n} 点格挡（受工坊增幅）` },
@@ -142,21 +142,21 @@ window.CG = window.CG || {};
     // === 猎杀包：借敌人虚弱爆发/处决/击杀回报（区别于强攻裸数值、弱化上 debuff）===
     execute: { name: '处决', color: '#b04050', score: 5, execute: 1, desc: n => `敌≤${10 * n}% 斩杀`, long: n => `若当前敌人生命 ≤ 最大生命的 ${10 * n}%，直接斩杀` },
     prey:    { name: '猎物', color: '#c06050', score: 4, prey: 1, damageOnly: true, desc: n => `伤害+敌减益×${4 * n}`, long: n => `本牌伤害额外 +（目标减益层数总和 × ${4 * n}）` },
-    exploit: { name: '弱点爆破', color: '#d05040', score: 4, exploit: 1, desc: n => `引爆敌减益·每层 ${8 * n}`, long: n => `消耗目标全部减益，每消耗 1 层对其造成 ${8 * n} 伤害` },
+    exploit: { name: '弱点爆破', color: '#d05040', score: 4, exploit: 1, desc: n => `引爆敌减益·每层 ${12 * n}`, long: n => `消耗目标全部减益，每消耗 1 层对其造成 ${12 * n} 伤害` },
     insight: { name: '洞察', color: '#a07060', score: 4, insight: 1, damageOnly: true, desc: n => `敌意图攻击时×${1 + n}`, long: n => `若敌人本回合意图为攻击，本牌伤害 ×${1 + n}` },
-    reaping: { name: '收割', color: '#c08040', score: 5, reaping: 1, desc: n => `每击杀+${2 * n}力量`, long: n => `本场战斗每击杀 1 个敌人，永久 +${2 * n} 力量` },
+    reaping: { name: '收割', color: '#c08040', score: 5, reaping: 1, desc: n => `每击杀+${3 * n}力量`, long: n => `本场战斗每击杀 1 个敌人，永久 +${3 * n} 力量` },
     // === 律动包：条件触发 & 能量博弈 & 活力（区别于连击的「打过几张」、明亮的回能）===
-    vigor:   { name: '活力', color: '#f0d090', score: 4, vigor: 1, desc: n => `下一张牌 +${3 * n}`, long: n => `打出后：你打出的下一张牌数值 +${3 * n}（跨回合保留至用掉）` },
+    vigor:   { name: '活力', color: '#f0d090', score: 4, vigor: 1, desc: n => `下一张牌 +${4 * n}`, long: n => `打出后：你打出的下一张牌数值 +${4 * n}（跨回合保留至用掉）` },
     innate:  { name: '固有', color: '#d0c090', score: 3, innate: 1, desc: () => `开局在手`, long: () => `这张牌必定出现在开局手牌中` },
-    inspire: { name: '灵感', color: '#c0d0a0', score: 4, inspire: 1, desc: n => `本回合抽牌各+${n}格挡`, long: n => `本回合你每抽到一张牌就获得 ${n} 点格挡` },
+    inspire: { name: '灵感', color: '#c0d0a0', score: 4, inspire: 1, desc: n => `本回合抽牌各+${3 * n}格挡`, long: n => `本回合你每抽到一张牌就获得 ${3 * n} 点格挡` },
     allin:   { name: '全力', color: '#e0a070', score: 4, allin: 1, desc: n => `能量清零时×${1 + n}`, long: n => `若打出本牌后能量恰好归零，本牌数值 ×${1 + n}` },
-    surplus: { name: '余裕', color: '#a0c0d0', score: 4, surplus: 1, desc: () => `能量充裕则免费`, long: n => `若当前能量 ≥ ${Math.max(2, 5 - n)}，本牌不消耗能量` },
+    surplus: { name: '余裕', color: '#a0c0d0', score: 4, surplus: 1, desc: () => `能量充裕则免费`, long: n => `若当前能量 ≥ ${Math.max(2, 4 - n)}，本牌不消耗能量` },
     rewind:  { name: '回溯', color: '#b0e0e0', score: 5, rewind: 1, desc: () => `回滚敌方回合`, long: () => `打出后拍下完整战斗快照；到你下个回合开始时，你与所有敌人的生命/格挡/状态回滚到此刻（仿佛敌人这个回合从未发生）` },
     // === 放大包：翻倍（区别于过载的加法 valuePct、重复的再结算）===
     potent:   { name: '强效', color: '#ff9fc0', score: 5, potent: 1, desc: n => `本牌数值 ×${1 + n}`, long: n => `本牌的伤害/格挡/治疗 ×${1 + n}` },
     amppain:  { name: '倍损', color: '#ff7090', score: 4, amppain: 1, desc: () => `本回合敌减益翻倍`, long: () => `本回合内，你施加给敌人的减益（易伤/虚弱/脆弱/中毒/灼伤）层数翻倍` },
     ampgain:  { name: '倍益', color: '#ffb0a0', score: 4, ampgain: 1, desc: () => `本回合自身增益翻倍`, long: () => `本回合内，你获得的增益（力量/敏捷/再生/荆棘/滋养）层数翻倍` },
-    boon:     { name: '激赏', color: '#ffc090', score: 4, boon: 1, desc: n => `临时力量 +${2 * n}`, long: n => `获得 ${2 * n} 点力量，仅持续到本回合结束` },
+    boon:     { name: '激赏', color: '#ffc090', score: 4, boon: 1, desc: n => `临时力量 +${n}`, long: n => `获得 ${n} 点力量，仅持续到本回合结束` },
     polarize: { name: '极化', color: '#ff90b0', score: 4, polarize: 1, desc: () => `当前力量翻倍`, long: () => `立即将你当前的力量翻倍` },
   };
 
@@ -177,11 +177,11 @@ window.CG = window.CG || {};
     mold:  { name: '发霉', color: '#6a8a5a', score: -3, debuff: true, give: 'rotten_veg', desc: () => `获得烂菜`, long: () => `打出后获得「烂菜」（不能打出，回合结束自身易伤 2）` },
     // —— 消耗包·负面 ——
     detonate: { name: '爆燃', color: '#c75450', score: -4, debuff: true, burnAll: 1,   desc: () => `消耗其余手牌`, long: () => `打出后消耗你其余所有手牌` },
-    onfire:   { name: '着火', color: '#e0703a', score: -3, debuff: true, selfBurn: 2,  desc: n => `自身灼伤 ${2 * n}`, long: n => `打出后给自己上 ${2 * n} 层「灼伤」（每回合受等量伤害、逐回合 -1，但可被格挡）` },
+    onfire:   { name: '着火', color: '#e0703a', score: -3, debuff: true, selfBurn: 1,  desc: n => `自身灼伤 ${n}`, long: n => `打出后给自己上 ${n} 层「灼伤」（每回合受等量伤害、逐回合 -1，但可被格挡）` },
     nightmare:{ name: '噩梦', color: '#6a5a8a', score: -4, debuff: true, nightmare: 1, desc: () => `渣滓塞满手牌`, long: () => `打出后用「渣滓」(1 费·打出即消耗) 塞满你的手牌（上限 10 张）` },
     // —— 电力包·负面 ——
     shock:    { name: '感电', color: '#c8b84a', score: -2, debuff: true, selfThunder: 2, desc: n => `自身附雷 ${2 * n}`, long: n => `打出后给自己附 ${2 * n} 层⚡（为「会给玩家附元素的敌人」埋雷；当前无即时副作用）` },
-    paralyze: { name: '麻痹', color: '#8a8a5a', score: -4, debuff: true, paralyze: 3,   desc: n => `锁住左 ${3 * n} 张`, long: n => `本回合你手牌最左侧 ${3 * n} 张无法打出` },
+    paralyze: { name: '麻痹', color: '#8a8a5a', score: -4, debuff: true, paralyze: 1,   desc: n => `锁住左 ${n} 张`, long: n => `本回合你手牌最左侧 ${n} 张无法打出` },
     drain:    { name: '漏电', color: '#9a8a4a', score: -2, debuff: true, losePower: 1,  desc: n => `失去电力 ${n}`, long: n => `打出后失去 ${n} 点电力` },
     // === 死守包·负面 ===（cumbersome 笨重复用现有词条）
     cower:  { name: '龟缩', color: '#7a8a9a', score: -3, debuff: true, loseEnergy: 1, desc: n => `能量 -${n}`,        long: n => `打出后立即失去 ${n} 点能量` },
@@ -257,12 +257,12 @@ window.CG = window.CG || {};
     ice:     { name: '冰', icon: '❄️', color: '#8fe0ec' },
   };
   const RX = {
-    'fire+water':    { name: '蒸发', icon: '💨', type: 'amplify', amplify: 1.5, desc: '本次攻击伤害 ×1.5' },
-    'fire+ice':      { name: '融化', icon: '🫠', type: 'amplify', amplify: 1.5, desc: '本次攻击伤害 ×1.5' },
-    'fire+thunder':  { name: '超载', icon: '💥', type: 'effect', desc: '立即造成 10 点穿透伤害（无视格挡）', apply: (g, s, t) => g._reactionBurst(t, 10) },
-    'thunder+water': { name: '感电', icon: '⚡', type: 'effect', desc: '给敌人附加 3 层中毒', apply: (g, s, t) => g.applyStatus(t, 'poison', 3) },
+    'fire+water':    { name: '蒸发', icon: '💨', type: 'amplify', amplify: 2.0, desc: '本次攻击伤害 ×2' },
+    'fire+ice':      { name: '融化', icon: '🫠', type: 'amplify', amplify: 2.0, desc: '本次攻击伤害 ×2' },
+    'fire+thunder':  { name: '超载', icon: '💥', type: 'effect', desc: '立即造成 20 点穿透伤害（无视格挡）', apply: (g, s, t) => g._reactionBurst(t, 20) },
+    'thunder+water': { name: '感电', icon: '⚡', type: 'effect', desc: '给敌人附加 5 层中毒', apply: (g, s, t) => g.applyStatus(t, 'poison', 5) },
     'ice+water':     { name: '冻结', icon: '🧊', type: 'effect', desc: '冰冻：跳过其下一次行动', apply: (g, s, t) => g.applyStatus(t, 'frozen', 1) },
-    'ice+thunder':   { name: '超导', icon: '🔻', type: 'effect', desc: '给敌人施加 2 层易伤', apply: (g, s, t) => g.applyStatus(t, 'vulnerable', 2) },
+    'ice+thunder':   { name: '超导', icon: '🔻', type: 'effect', desc: '给敌人施加 4 层易伤', apply: (g, s, t) => g.applyStatus(t, 'vulnerable', 4) },
   };
   CG.REACTIONS = RX;
   CG.reactionFor = (a, b) => RX[[a, b].sort().join('+')] || null;

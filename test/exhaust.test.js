@@ -12,14 +12,14 @@ test('消耗包存在且词条齐全', () => {
   ['detonate', 'onfire', 'nightmare'].forEach(id => { assert.ok(CG.PACKS.exhaust.debuffs.includes(id)); assert.ok(CG.AFFIXES[id] && CG.AFFIXES[id].debuff); });
 });
 
-test('灰烬：本牌数值 +（消耗堆牌数 × 等级）', () => {
+test('灰烬：本牌数值 +（(消耗堆牌数 + 8) × 等级）', () => {
   const b = CG.makeBattle({ deck: CG.makeDeck(Array.from({ length: 10 }, () => ['strike'])) });
   b.exhaustPile = [CG.makeCard('strike'), CG.makeCard('strike'), CG.makeCard('strike')];   // 已消耗 3 张
   const card = gemCard('strike', ['ashes']);
   b.hand = [card];
   const hp0 = b.enemies[0].hp;
   b.playCard(card.uid);
-  assert.equal(b.enemies[0].hp, hp0 - 9);                       // 打击 6 + 灰烬(1×3) = 9
+  assert.equal(b.enemies[0].hp, hp0 - 17);                      // 打击 6 + 灰烬(1×(3+8)=11) = 17
 });
 
 test('燃烧：打出后选择并消耗 1 张手牌', () => {
@@ -84,11 +84,11 @@ test('着火→灼伤：每回合受伤、可被格挡、逐回合 -1', () => {
   const b = CG.makeBattle();
   b.hand = [gemCard('strike', ['onfire'])];
   b.playCard(b.hand[0].uid);
-  assert.equal(b.player.statuses.burn, 2);                      // 着火 → 灼伤 2
+  assert.equal(b.player.statuses.burn, 1);                      // 着火 → 灼伤 1
   b.player.maxHp = 50; b.player.hp = 20; b.player.block = 0;
   b.endTurn();
-  assert.equal(b.player.hp, 18);                               // 灼伤 2、无格挡
-  assert.equal(b.player.statuses.burn, 1);                     // 逐回合 -1
+  assert.equal(b.player.hp, 19);                               // 灼伤 1、无格挡
+  assert.ok(!b.player.statuses.burn);                          // 逐回合 -1 → 清空
 
   const b2 = CG.makeBattle();
   b2.player.maxHp = 50; b2.player.hp = 20; b2.player.block = 5; b2.player.statuses.burn = 3;

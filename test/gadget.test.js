@@ -123,32 +123,32 @@ test('百宝箱：随机获得力量或敏捷 L 层（复用 randbuff，两种�
 });
 
 // ---- 头奖：等概率三选一（伤害 / 格挡 / 抽 3）----
-test('头奖：三分支（12L 伤害 / 12L 格挡 / 抽 3）各能命中', () => {
+test('头奖：三分支（10L 伤害 / 10L 格挡 / 抽 3）各能命中', () => {
   // 宿主用 strike（基础伤害 6、不给格挡）以便分别隔离：
-  //   伤害分支 enemyDelta = 6 + 12 = 18；格挡分支 player.block = 12；抽牌分支 drawPile -3
+  //   伤害分支 enemyDelta = 6 + 10 = 16；格挡分支 player.block = 10；抽牌分支 drawPile -3
   // 伤害
   let b = fresh(); let c = gemCard('strike', ['jackpot']); b.hand = [c];
   let hp0 = b.enemies[0].hp; playSeeded(b, c, 't10');
-  assert.equal(hp0 - b.enemies[0].hp, 18, '头奖·伤害分支应造成 6+12=18');
+  assert.equal(hp0 - b.enemies[0].hp, 16, '头奖·伤害分支应造成 6+10=16');
   assert.equal(b.player.block, 0);
   // 格挡
   b = fresh(); c = gemCard('strike', ['jackpot']); b.hand = [c];
   hp0 = b.enemies[0].hp; playSeeded(b, c, 't0');
-  assert.equal(b.player.block, 12, '头奖·格挡分支应得 12 格挡');
+  assert.equal(b.player.block, 10, '头奖·格挡分支应得 10 格挡');
   assert.equal(hp0 - b.enemies[0].hp, 6, '此分支只有打击的 6 点基础伤害');
   // 抽牌
   b = fresh(); c = gemCard('strike', ['jackpot']); b.hand = [c];
   const dp0 = b.drawPile.length; playSeeded(b, c, 't2');
   assert.equal(dp0 - b.drawPile.length, 3, '头奖·抽牌分支应抽 3 张');
   assert.equal(b.hand.length, 3, '抽到手牌 3 张（头奖牌已打出离手）');
-  // L=2：伤害分支 6 + 24 = 30
+  // L=2：伤害分支 6 + 20 = 26
   b = fresh(); c = gemCard('strike', [{ id: 'jackpot', level: 2 }]); b.hand = [c];
   hp0 = b.enemies[0].hp; playSeeded(b, c, 't10');
-  assert.equal(hp0 - b.enemies[0].hp, 30, '头奖 L2·伤害分支应 6+24=30');
+  assert.equal(hp0 - b.enemies[0].hp, 26, '头奖 L2·伤害分支应 6+20=26');
 });
 
 // ---- 老虎机：每第 3 次打出爆出 20L 伤害（伪随机保底，无 RNG）----
-test('老虎机：第 3 次打出造成 20×等级 伤害并把计数清零（不依赖随机）', () => {
+test('老虎机：第 3 次打出造成 16×等级 伤害并把计数清零（不依赖随机）', () => {
   const b = fresh();
   const play = lvl => {
     const c = gemCard('defend', [{ id: 'slots', level: lvl }]); b.hand = [c];
@@ -156,11 +156,11 @@ test('老虎机：第 3 次打出造成 20×等级 伤害并把计数清零（�
   };
   assert.equal(play(1), 0); assert.equal(b._slots, 1);
   assert.equal(play(1), 0); assert.equal(b._slots, 2);
-  assert.equal(play(1), 20, '第 3 次应爆出 20'); assert.equal(b._slots, 0, '随后清零');
+  assert.equal(play(1), 16, '第 3 次应爆出 16'); assert.equal(b._slots, 0, '随后清零');
   assert.equal(play(1), 0); assert.equal(b._slots, 1, '计数从头再来');
-  // 等级影响数值：再连打两张到第 3 张（L=3 → 60）
+  // 等级影响数值：再连打两张到第 3 张（L=3 → 48）
   assert.equal(play(1), 0); assert.equal(b._slots, 2);
-  assert.equal(play(3), 60, '第 3 次按本张等级 ×20'); assert.equal(b._slots, 0);
+  assert.equal(play(3), 48, '第 3 次按本张等级 ×16'); assert.equal(b._slots, 0);
 });
 
 // ---- 哑火：25% 失去 3L 生命（直接扣 hp、过格挡）----

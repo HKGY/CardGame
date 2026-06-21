@@ -160,13 +160,13 @@ window.CG = window.CG || {};
     },
     jackpot(game, eff, source, target) {                                 // 头奖：等概率三选一（伤害 / 格挡 / 抽牌）
       const r = Math.floor(Math.random() * 3);
-      if (r === 0) game.dealAttackDamage(source, target, 12 * eff.value);
-      else if (r === 1) game.gainBlock(source, 12 * eff.value);
+      if (r === 0) game.dealAttackDamage(source, target, 10 * eff.value);
+      else if (r === 1) game.gainBlock(source, 10 * eff.value);
       else game.drawCards(3);
     },
     slots(game, eff, source, target) {                                   // 老虎机：每打出第 3 张爆出 20×等级 伤害（伪随机保底）
       game._slots = (game._slots || 0) + 1;
-      if (game._slots >= 3) { game._slots = 0; game.dealAttackDamage(source, target, 20 * eff.value); }
+      if (game._slots >= 3) { game._slots = 0; game.dealAttackDamage(source, target, 16 * eff.value); }
     },
     misfire(game, eff) {                                                  // 哑火：25% 炸膛，玩家直接失去 3×等级 生命（过格挡）
       if (Math.random() < 0.25) {
@@ -189,7 +189,7 @@ window.CG = window.CG || {};
       }
     },
     // === 市场包 ===（金币＝run.gold；无跑图时金币操作安全跳过）
-    invest(game, eff, source, target) { const r = game.run; if (!r) return; const spend = Math.min(r.gold || 0, 3 * eff.value); if (spend > 0) { r.gold -= spend; if (target && target.hp > 0) game.dealAttackDamage(source, target, spend); } },   // 投资：花至多 3L 金币·造等量(×1)伤害
+    invest(game, eff, source, target) { const r = game.run; if (!r) return; const spend = Math.min(r.gold || 0, 2 * eff.value); if (spend > 0) { r.gold -= spend; if (target && target.hp > 0) game.dealAttackDamage(source, target, spend); } },   // 投资：花至多 2L 金币·造等量(×1)伤害
     income(game, eff) { if (game.run) game.run.gold = (game.run.gold || 0) + 3 * eff.value; },                       // 进账
     trade(game, eff)  { game.drawCards(1); if (game.run) game.run.gold = (game.run.gold || 0) + 2 * eff.value; },    // 贸易
     hire(game, eff)   { const r = game.run; if (r && (r.gold || 0) >= 5 * eff.value) { r.gold -= 5 * eff.value; game.applyStatus(game.player, 'strength', eff.value); } },  // 雇佣
@@ -215,13 +215,13 @@ window.CG = window.CG || {};
     summon(game, eff) {
       const L = eff.value, A = (game.allies = game.allies || []);
       const mk = (name, icon, hp, atk, opts) => Object.assign({ name, icon, hp, maxHp: hp, atk, taunt: false, giveBlock: 0 }, opts || {});
-      const add = a => { if (A.length < 6) A.push(a); };   // 召唤物上限 6
-      if (eff.what === 'skeleton') add(mk('骷髅', '💀', 3 * L, L));
-      else if (eff.what === 'guardian') add(mk('守护灵', '🛡️', 4 * L, L, { taunt: true }));
+      const add = a => { if (A.length < 3) A.push(a); };   // 召唤物上限 3
+      if (eff.what === 'skeleton') add(mk('骷髅', '💀', 2 * L, L));
+      else if (eff.what === 'guardian') add(mk('守护灵', '🛡️', 2 * L, L, { taunt: true }));
       else if (eff.what === 'totem') add(mk('图腾', '🗿', 3 * L, 0, { giveBlock: L }));
       else if (eff.what === 'swarm') for (let i = 0; i < L; i++) add(mk('小灵', '👻', 1, 1));
     },
-    command(game, eff) { const A = game.allies || []; if (A.length) A[Math.floor(Math.random() * A.length)].atk += eff.value; if (game._allyAttack) game._allyAttack(); },   // 督战：随机一个召唤物 +攻并立即攻击
+    command(game, eff) { const A = game.allies || []; if (!A.length) return; const a = A[Math.floor(Math.random() * A.length)]; a.atk += eff.value; const t = game.currentTarget && game.currentTarget(); if (a.atk > 0 && t && t.hp > 0) { const before = t.hp, bb = t.block; game._dealRaw(t, a.atk); game._fire('damage', { side: 'enemy', ei: game._idxOf(t), hpLoss: before - t.hp, blocked: Math.min(bb, a.atk) }); } },   // 督战：随机一个召唤物 +攻并立即由它单独攻击一次（不再让全体多攻一轮）
     culling(game, eff) { const A = game.allies || []; for (let i = 0; i < eff.value && A.length; i++) A.splice(Math.floor(Math.random() * A.length), 1); },  // 折损
     discord(game, eff) { (game.allies || []).forEach(a => { a.hp -= eff.value; }); if (game._reapAllies) game._reapAllies(); },   // 内讧
     // === 建造包 ===（建筑 game.buildings；每回合开始由 _buildingsTick 触发）
@@ -247,17 +247,17 @@ window.CG = window.CG || {};
     clutter(game, eff) { for (let i = 0; i < eff.value; i++) game._addToHand(CG.makeFoodCard('dross')); },                          // 谵妄：塞渣滓
     // === 猎杀包 ===（处决/引爆减益/收割；prey/insight 是 playCard 加成）
     execute(game, eff, source, target) { if (target && target.hp > 0 && target.hp <= target.maxHp * 0.1 * eff.value) { target.hp = 0; game.addLog(`处决：${target.name} 被斩杀！`); game._checkEnd(); } },
-    exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 8 * eff.value); },
-    reaping(game, eff) { game._reaping = (game._reaping || 0) + 2 * eff.value; },
+    exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 12 * eff.value); },
+    reaping(game, eff) { game._reaping = (game._reaping || 0) + 3 * eff.value; },
     // === 律动包 ===（活力滚到下一张、灵感本回合抽牌给盾；innate/allin/surplus 在 cardStats/playCard/_startBattle 处理）
-    vigor(game, eff) { game._vigor = (game._vigor || 0) + 3 * eff.value; },
-    inspire(game, eff) { game._inspire = (game._inspire || 0) + eff.value; },
+    vigor(game, eff) { game._vigor = (game._vigor || 0) + 4 * eff.value; },
+    inspire(game, eff) { game._inspire = (game._inspire || 0) + 3 * eff.value; },
     rewind(game) { game._rewindSnap = game._snapshot(); },   // 回溯：拍下完整战斗快照，下回合开始时回滚
 
     // === 放大包 ===（potent 是 playCard 加成；boon 复用 addTempStrength；倍损/倍益设本回合翻倍标志）
     amppain(game, eff) { game._ampDebuff = (game._ampDebuff || 0) + eff.value; },
     ampgain(game, eff) { game._ampBuff = (game._ampBuff || 0) + eff.value; },
-    boon(game, eff) { game.addTempStrength(2 * eff.value); },
+    boon(game, eff) { game.addTempStrength(eff.value); },
     polarize(game) { const s = game.player.statuses.strength || 0; if (s > 0) game.applyStatus(game.player, 'strength', s); },
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }

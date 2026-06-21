@@ -25,22 +25,22 @@ test('进账 +3 / 赋税 -4 / 通胀 ×0.8 改变 run.gold', () => {
   assert.equal(b.run.gold, 80);
 });
 
-test('投资：花 3 金币造 3 伤害；雇佣：花 5 金币 +1 力量', () => {
+test('投资：花 2 金币造 2 伤害；雇佣：花 5 金币 +1 力量', () => {
   let b = CG.makeBattle({ run: { gold: 100, gems: [] } });
   let hp0 = b.enemies[0].hp;
   b.hand = [gemCard('strike', ['invest'])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.run.gold, 97);
-  assert.equal(b.enemies[0].hp, hp0 - 9);             // 打击 6 + 投资 3
+  assert.equal(b.run.gold, 98);
+  assert.equal(b.enemies[0].hp, hp0 - 8);             // 打击 6 + 投资 2
   b = CG.makeBattle({ run: { gold: 100, gems: [] } });
   b.hand = [gemCard('strike', ['hire'])]; b.playCard(b.hand[0].uid);
   assert.equal(b.run.gold, 95); assert.equal(b.player.statuses.strength, 1);
 });
 
-test('暴富：数值 +（当前金币 ÷10）；贸易：抽牌 + 金币', () => {
+test('暴富：数值 +（当前金币 ÷22）；贸易：抽牌 + 金币', () => {
   const b = CG.makeBattle({ run: { gold: 100, gems: [] } });
   const hp0 = b.enemies[0].hp;
   b.hand = [gemCard('strike', ['windfall'])]; b.playCard(b.hand[0].uid);
-  assert.equal(b.enemies[0].hp, hp0 - 16);            // 6 + 100/10
+  assert.equal(b.enemies[0].hp, hp0 - 10);            // 6 + floor(100/22)=6+4
   const t = CG.makeBattle({ run: { gold: 0, gems: [] } });
   const hb = t.hand.length;
   t.hand.push(gemCard('strike', ['trade'])); t.playCard(t.hand[t.hand.length - 1].uid);

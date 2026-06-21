@@ -42,31 +42,32 @@ test('锤炼：打出后本牌成长永久 +L，再次取数数值更高', () =>
   assert.equal(CG.cardStats(card).value, v0 + 4);
 });
 
-test('磨砺：随机一张手牌成长 +L（出牌后只剩目标牌 → 必中它）', () => {
+test('磨砺：随机一张手牌成长 +2×L（出牌后只剩目标牌 → 必中它）', () => {
   const b = CG.makeBattle();
   const whet = gemCard('strike', [{ id: 'whet', level: 2 }]);
   const target = CG.makeCard('defend');                          // 唯一的另一张手牌
   b.hand = [whet, target];
   b.playCard(whet.uid);                                          // 打出后手牌仅剩 target
-  assert.equal(target.growth, 2, '另一张手牌成长 +2');
+  assert.equal(target.growth, 4, '另一张手牌成长 +2×2=4');
   assert.equal((whet.growth || 0), 0, '磨砺牌自身不长（升的是别人）');
 });
 
-test('觉醒：累计打出 3 次后跳变 +5×L（仅一次）', () => {
+test('觉醒：累计打出 2 次后跳变 +8×L（仅一次）', () => {
   const b = CG.makeBattle();
   const card = gemCard('strike', [{ id: 'awaken', level: 1 }]);
   const v0 = CG.cardStats(card).value;
-  for (let i = 0; i < 2; i++) { b.hand = [card]; b.playCard(card.uid); }
-  assert.equal(card.plays, 2);
-  assert.ok(!card.awakened, '前两次未觉醒');
+  b.hand = [card]; b.playCard(card.uid);                        // 第 1 次：未觉醒
+  assert.equal(card.plays, 1);
+  assert.ok(!card.awakened, '第一次未觉醒');
   assert.equal(CG.cardStats(card).value, v0, '未觉醒时数值不变');
-  b.hand = [card]; b.playCard(card.uid);                        // 第 3 次 → 觉醒
-  assert.equal(card.plays, 3);
+  b.hand = [card]; b.playCard(card.uid);                        // 第 2 次 → 觉醒
+  assert.equal(card.plays, 2);
   assert.equal(card.awakened, true);
-  assert.equal(card.growth, 5, '觉醒 +5×1');
-  assert.equal(CG.cardStats(card).value, v0 + 5);
-  b.hand = [card]; b.playCard(card.uid);                        // 第 4 次：不再二次觉醒
-  assert.equal(card.growth, 5, '觉醒只触发一次');
+  assert.equal(card.growth, 8, '觉醒 +8×1');
+  assert.equal(CG.cardStats(card).value, v0 + 8);
+  b.hand = [card]; b.playCard(card.uid);                        // 第 3 次：不再二次觉醒
+  assert.equal(card.plays, 3);
+  assert.equal(card.growth, 8, '觉醒只触发一次');
 });
 
 test('淬火：随机一张手牌耗能永久 -1', () => {

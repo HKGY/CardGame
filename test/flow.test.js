@@ -10,14 +10,14 @@ test('律动包存在且词条齐全', () => {
   ['vigor', 'innate', 'inspire', 'allin', 'surplus'].forEach(id => { assert.ok(CG.PACKS.flow.buffs.includes(id)); assert.ok(CG.AFFIXES[id]); });
 });
 
-test('活力：下一张牌 +3×等级（不加给本张）', () => {
+test('活力：下一张牌 +4×等级（不加给本张）', () => {
   const b = CG.makeBattle(); b.player.energy = 5;
   b.hand = [gemCard('defend', ['vigor']), gemCard('strike', ['draw'])];   // 第二张随便带个增益占位
-  b.playCard(b.hand[0].uid);                          // 活力卡：_vigor=3
-  assert.equal(b._vigor, 3);
+  b.playCard(b.hand[0].uid);                          // 活力卡：_vigor=4
+  assert.equal(b._vigor, 4);
   const hp = b.enemies[0].hp;
   b.playCard(b.hand.find(c => c.base === 'strike').uid);
-  assert.equal(b.enemies[0].hp, hp - 9);             // 打击 6 + 活力 3
+  assert.equal(b.enemies[0].hp, hp - 10);            // 打击 6 + 活力 4
   assert.equal(b._vigor, 0);                         // 用掉
 });
 
@@ -31,9 +31,9 @@ test('灵感：本回合每抽到一张牌 +格挡', () => {
   const b = CG.makeBattle(); b.player.block = 0;
   b.hand = [gemCard('strike', [{ id: 'inspire', level: 2 }])];
   b.drawPile = [CG.makeCard('strike'), CG.makeCard('strike')];
-  b.playCard(b.hand[0].uid);                          // _inspire=2
+  b.playCard(b.hand[0].uid);                          // _inspire=3×2=6
   b.drawCards(2);
-  assert.equal(b.player.block, 4);                   // 2 张 × 2
+  assert.equal(b.player.block, 12);                  // 2 张 × 6
 });
 
 test('全力：能量恰好归零时 ×2；余裕：能量充裕则免费', () => {
