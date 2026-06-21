@@ -112,6 +112,7 @@ window.CG = window.CG || {};
       this.allies = [];                         // 召唤：愚者重开时清空召唤物
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
+      this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
       this._vigor = 0; this._inspire = 0;        // 律动：活力(下一张加成,跨回合保留)/灵感(本回合抽牌给格挡)
       this._ampDebuff = 0; this._ampBuff = 0;    // 放大：本回合 倍损/倍益（applyStatus 翻倍）
       this._rewindSnap = null;                   // 律动·回溯：待恢复的战斗快照
@@ -152,6 +153,7 @@ window.CG = window.CG || {};
       this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
+      this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
       this._vigor = 0; this._inspire = 0;       // 律动包：活力(下一张牌加成)/灵感(本回合抽牌给格挡)
       this._ampDebuff = 0; this._ampBuff = 0;   // 放大包：本回合 倍损/倍益
       this._rewindSnap = null;                  // 律动·回溯：待恢复的战斗快照
@@ -348,11 +350,22 @@ window.CG = window.CG || {};
             case 'handSize':    return Math.max(0, handAfter);
             case 'emptyHand':   return Math.max(0, 5 - handAfter);
             case 'curGold':     return this.run ? Math.floor((this.run.gold || 0) / 6) : 0;
+            case 'turnNum':     return this.turn || 0;
+            case 'kills':       return this._killsThisCombat || 0;
             default:            return 0;
           }
         };
+        const gateMet = q => {                      // 门(gate)：达成 → 给「1 能量等值」(cb.base)
+          switch (q) {
+            case 'firstTurn': return this.turn === 1;
+            case 'hurt':      return !!this._hurtThisCombat;
+            case 'noBlock':   return (this.player.block || 0) === 0;
+            default:          return false;
+          }
+        };
         s.condBonus.forEach(cb => {
-          const bonus = qtyOf(cb.qty) * (cb.level || 1);
+          const q = cb.gate ? (gateMet(cb.qty) ? (cb.base || 6) : 0) : qtyOf(cb.qty);
+          const bonus = q * (cb.level || 1);
           if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === cb.vtype ? Object.assign({}, e, { value: e.value + bonus }) : e) });
         });
       }
@@ -754,7 +767,7 @@ window.CG = window.CG || {};
       }
       if (dmg > 0) {
         target.hp = Math.max(0, target.hp - dmg);
-        if (target === this.player) this._playerDamaged();
+        if (target === this.player) { this._hurtThisCombat = true; this._playerDamaged(); }
       }
     }
     _playerDamaged() {
@@ -827,7 +840,7 @@ window.CG = window.CG || {};
     }
 
     _checkEnd() {
-      this.enemies.forEach(e => { if (e.alive && e.hp <= 0) { e.alive = false; e.block = 0; this.addLog(`${e.name} 被击败了。`); if (this._reaping) this.applyStatus(this.player, 'strength', this._reaping); } });   // 猎杀·收割：击杀给永久力量
+      this.enemies.forEach(e => { if (e.alive && e.hp <= 0) { e.alive = false; e.block = 0; this._killsThisCombat = (this._killsThisCombat || 0) + 1; this.addLog(`${e.name} 被击败了。`); if (this._reaping) this.applyStatus(this.player, 'strength', this._reaping); } });   // 猎杀·收割：击杀给永久力量
       this._refreshTarget();
       if (this.aliveEnemies().length === 0) { this.phase = 'won'; this.addLog('胜利！'); return; }
       if (this.player.hp <= 0) {

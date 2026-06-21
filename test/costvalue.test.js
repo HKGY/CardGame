@@ -110,6 +110,27 @@ test('战斗：条件「当前格挡→伤害」按当前格挡造伤', () => {
   assert.strictEqual(g.enemy.hp, hp0 - 7);   // 伤害 = 当前格挡 7 × 1
 });
 
+// ===== 新条件原子（借鉴 StS 遗物）=====
+test('门条件 首回合→伤害：仅首回合给 1 能量等值(6)', () => {
+  assert.ok(CG.AFFIXES.firstTurn_damage && CG.AFFIXES.hurt_block && CG.AFFIXES.noBlock_damage);
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9; const hp0 = g.enemy.hp;
+  const c = spell([{ id: 'firstTurn_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.enemy.hp, hp0 - 6);   // 首回合(turn 1)达成 → 定额 6
+});
+
+test('量条件 回合数→伤害：随回合数增长', () => {
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9; const hp0 = g.enemy.hp;
+  const c = spell([{ id: 'turnNum_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.enemy.hp, hp0 - 1);   // 第 1 回合 → 1
+});
+
+test('遗物·代价→价值：棱镜核心 敌人开局 +1 力量', () => {
+  const g = CG.makeBattle({ relics: ['prismcore'], deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  assert.ok((g.enemy.statuses.strength || 0) >= 1);
+});
+
 // ===== 完整性 =====
 test('每个包的价值原子都在 VALUE_ATOMS / 组合存在于 AFFIXES', () => {
   for (const pid of CG.PACK_IDS) {

@@ -159,7 +159,7 @@ window.CG = window.CG || {};
       if (d.dmg)       dmgPool += d.dmg * L;            // v2 价值·伤害（strike 等）
       if (d.blk)       blkPool += d.blk * L;            // v2 价值·格挡（guard 等）
       if (d.addStr)    addStrN += d.addStr * L;         // v3 价值·力量
-      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, vtype: d.condBonus.vtype, level: L });   // v3 条件代价
+      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, vtype: d.condBonus.vtype, gate: d.condBonus.gate, base: d.condBonus.base, level: L });   // v3 条件代价
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.element) { elementId = d.element; elementLevel = (d.elementBase || 1) * L; }   // 元素附着：附 (base×L) 层（放电=2×L）

@@ -89,6 +89,12 @@ window.CG = window.CG || {};
     handSize:    { name: '手牌数', qty: 'handSize' },
     emptyHand:   { name: '空手程度', qty: 'emptyHand' },
     curGold:     { name: '当前金币', qty: 'curGold' },
+    // —— 时点型条件（借鉴 StS 遗物：首回合/受伤/无格挡＝门(gate，达成则给 1 能量等值)；回合数/击杀数＝量(随之增长) ——
+    firstTurn:   { name: '首回合', qty: 'firstTurn', gate: true },
+    hurt:        { name: '本场已受伤', qty: 'hurt', gate: true },
+    noBlock:     { name: '无格挡', qty: 'noBlock', gate: true },
+    turnNum:     { name: '回合数', qty: 'turnNum' },
+    kills:       { name: '本场击杀数', qty: 'kills' },
   };
   CG.COST_REAL = COST_REAL; CG.COST_COND = COST_COND; CG.VALUE_ATOMS = VALUE_ATOMS;
   CG.isCondCost = res => !!COST_COND[res];
@@ -105,7 +111,8 @@ window.CG = window.CG || {};
       value: { res: va.vpRes, sub: valId, atom: valId, amt: cond ? null : u },
       color: valColor(valId), score: 4,
     }, extra || {});
-    if (cond) def.condBonus = { qty: COST_COND[costId].qty, vtype: valId };   // 条件：动态缩放数值价值
+    if (cond) { def.condBonus = { qty: COST_COND[costId].qty, vtype: valId };   // 条件：动态缩放数值价值
+      if (COST_COND[costId].gate) { def.condBonus.gate = true; def.condBonus.base = u; } }   // 门(gate)：达成则给 1 能量等值
     else Object.assign(def, va.mech(u));                                       // 真资源：固定产出机制
     A[costId + '_' + valId] = def;
     return def;
@@ -142,7 +149,8 @@ window.CG = window.CG || {};
     if (v.atom === 'mult') return `数值 ×${1 + L}`;
     if (v.atom === 'lifesteal') return `吸血 ${Math.round(0.3 * 100 * L)}%`;
     if (v.atom === 'execute') return `斩杀（敌残血）`;
-    if (v.amt == null) return `${nm}＝${condName(a.cost.res)}×${L}`;   // 条件：动态量
+    if (a.condBonus && a.condBonus.gate) return `${nm} ${(a.condBonus.base || 6) * L}（${condName(a.cost.res)}时）`;   // 门：达成则给定额
+    if (v.amt == null) return `${nm}＝${condName(a.cost.res)}×${L}`;   // 量：随条件当前量
     return `${nm} ${v.amt * L}`;
   };
   CG.affixDisplayName = (id, level) => CG.affixValueText(id, level);
