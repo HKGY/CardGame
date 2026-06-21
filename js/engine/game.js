@@ -622,7 +622,7 @@ window.CG = window.CG || {};
     giveFoodCard(what, count) {                   // 获得食材卡（进手牌；满则进弃牌堆）
       count = count || 1;
       for (let k = 0; k < count; k++) {
-        const base = (what === 'veg' || what === 'meat' || what === 'season' || what === 'cookware') ? CG.randomFood(what) : what;
+        const base = (what === 'veg' || what === 'meat' || what === 'season') ? CG.randomFood(what) : what;
         const c = CG.makeFoodCard(base);
         if (this.hand.length < HAND_LIMIT) this.hand.push(c); else this.discardPile.push(c);
       }

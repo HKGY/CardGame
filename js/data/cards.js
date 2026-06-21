@@ -34,9 +34,6 @@ window.CG = window.CG || {};
     salt:    { name: '盐',     cost: 0, type: 'skill',  food: 'season', season: 'salt',   icon: '🧂' },
     soy:     { name: '酱油',   cost: 0, type: 'skill',  food: 'season', season: 'soy',    icon: '🍶' },
     pepper:  { name: '胡椒',   cost: 0, type: 'skill',  food: 'season', season: 'pepper', icon: '🌶️' },
-    cleaver: { name: '菜刀',   cost: 0, type: 'attack', kind: 'cookware', cook: 'cleaver', icon: '🔪' },
-    wok:     { name: '铁锅',   cost: 0, type: 'skill',  kind: 'cookware', cook: 'wok',     icon: '🍳' },
-    stove:   { name: '火炉',   cost: 0, type: 'attack', kind: 'cookware', cook: 'stove',   icon: '🔥' },
     spoiled_rice: { name: '馊饭', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'selfdmg', icon: '🍚' },
     stinky_meat:  { name: '臭肉', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'weak',    icon: '🥓' },
     rotten_veg:   { name: '烂菜', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'vuln',    icon: '🥬' },
@@ -45,8 +42,8 @@ window.CG = window.CG || {};
     shiv:    { name: '飞刀',   cost: 0, type: 'attack', kind: 'shiv',  icon: '🗡️' },              // 术士包·生成：0 费、造 4 伤害、打出即消耗
   };
   // 食材分类（随机生成用）
-  CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'], cookware: ['cleaver', 'wok', 'stove'] };
-  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'cookware' || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv')); };
+  CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'] };
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -529,11 +526,7 @@ window.CG = window.CG || {};
     if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选荤菜/调料做成餐点（不选则＝回复 ${b.level}）`; }
     else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（做菜时可当荤菜）`; }
     else if (b.food === 'season') { s.kind = 'season'; s.noPlay = true; const m = { salt: '过载1', soy: '滋养1', pepper: '重复1' }; s.baseText = `调味料·不能单独吃；做菜时让餐点获得「${m[b.season]}」`; }
-    else if (b.kind === 'cookware') {
-      if (b.cook === 'cleaver') { s.type = 'attack'; s.value = 10; s.effects = [{ type: 'damage', value: 10 }]; s.baseText = '造成 10 点伤害（厨具·可当武器）'; }
-      else if (b.cook === 'wok') { s.value = 8; s.effects = [{ type: 'block', value: 8 }]; s.baseText = '获得 8 点格挡（厨具·可当武器）'; }
-      else if (b.cook === 'stove') { s.type = 'attack'; s.element = 'fire'; s.elementLevel = 3; s.baseText = '给敌人附火 3 层（厨具·可当武器）'; }
-    } else if (b.kind === 'spoiled') {
+    if (b.kind === 'spoiled') {
       s.noPlay = true;
       const m = { selfdmg: '回合结束失去 2 生命', weak: '回合结束自身虚弱 2', vuln: '回合结束自身易伤 2' };
       s.baseText = `腐坏·不能打出；${m[b.spoiled]}`;
