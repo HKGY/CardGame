@@ -34,7 +34,7 @@ window.CG = window.CG || {};
   // 事件祭坛 —— 全部围绕宝石系统
   CG.ALTARS = {
     setting: { name: '镶嵌祭坛', icon: '💠', desc: '把背包里的一颗宝石免费镶嵌进一张卡的空孔。' },
-    purify:  { name: '净化祭坛', icon: '🧼', desc: '移除一颗宝石上的一个减益词条。' },
+    purify:  { name: '净化祭坛', icon: '🧼', desc: '去掉一颗宝石的代价（打出时不再支付它）。' },
     bore:    { name: '拓孔祭坛', icon: '🔩', desc: '为一张卡增加一个孔位（上限 5）。' },
     findgem: { name: '寻宝祭坛', icon: '🔍', desc: '获得一颗随机宝石（放入背包）。' },
     recut:   { name: '重铸祭坛', icon: '♻️', desc: '重掷一颗宝石的全部词条（数量不变）。' },
@@ -344,13 +344,13 @@ window.CG = window.CG || {};
     altarUsable(id) {
       if (id === 'findgem') return true;
       if (id === 'setting') return this.gems.length > 0 && this.cardsWithEmptySocket().length > 0;
-      if (id === 'purify')  return this.allGems().some(x => CG.gemHasDebuff(x.gem));
+      if (id === 'purify')  return this.allGems().some(x => CG.gemHasCost(x.gem));
       if (id === 'bore')    return this.deck.some(c => (c.limit || 0) < CG.MAX_SOCKETS);
       if (id === 'recut')   return this.allGems().length > 0;
       return true;
     }
     altarInstall(gemUid, cardUid) { this._doInstall(gemUid, cardUid); this._advance(); }
-    altarPurify(gemUid)  { const f = this.findGem(gemUid); if (f) CG.gemRemoveOneDebuff(f.gem); this._advance(); }
+    altarPurify(gemUid)  { const f = this.findGem(gemUid); if (f) CG.gemRemoveCost(f.gem); this._advance(); }
     altarBore(cardUid)   { const c = this.deck.find(x => x.uid === cardUid); if (c) CG.addSocket(c); this._advance(); }
     altarFindGem()       { this.gems.push(CG.rollGem({ tier: 'monster', minLevel: this.forgeMinLevel() })); this._advance(); }
     altarRecut(gemUid)   { const f = this.findGem(gemUid); if (f) CG.recutGem(f.gem); this._advance(); }
@@ -481,7 +481,17 @@ window.CG = window.CG || {};
       if (this.gold < this.uninstallPrice() || !card || !(card.sockets || [])[idx]) return;
       this.gold -= this.uninstallPrice();
       this.uninstallCount = (this.uninstallCount || 0) + 1;
-      this.gems.push(CG.uninstallGem(card, idx));     // 取出宝石并随机加 debuff
+      this.gems.push(CG.uninstallGem(card, idx));     // 取出宝石回背包（v3 无减益惩罚）
+      this._emit();
+    }
+    // 净化：去掉一颗宝石（背包或已镶嵌）的代价（可重复、逐次涨价）
+    purifyPrice() { return Math.floor((C().shop.purifyBase + C().shop.purifyStep * (this.purifyCount || 0)) * this.shopMult()); }
+    buyPurify(gemUid) {
+      const f = this.findGem(gemUid);
+      if (!f || this.gold < this.purifyPrice() || !CG.gemHasCost(f.gem)) return;
+      this.gold -= this.purifyPrice();
+      this.purifyCount = (this.purifyCount || 0) + 1;
+      CG.gemRemoveCost(f.gem);
       this._emit();
     }
     // 加孔：给一张卡 +1 孔位（每次定价）

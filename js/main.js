@@ -189,6 +189,7 @@ window.CG = window.CG || {};
       onTakePackGem:  (i, gemUid) => run.takePackGem(i, gemUid),
       onBuyRemove:    uid => run.buyRemove(uid),
       onBuyUninstall: (cardUid, idx) => run.buyUninstall(cardUid, idx),
+      onBuyPurify:    gemUid => run.buyPurify(gemUid),
       onBuyAddSocket: uid => run.buyAddSocket(uid),
       onBuyHeal:      () => run.buyHeal(),
       onLeaveShop:    () => run.leaveShop(),

@@ -185,12 +185,28 @@ test('事件祭坛可用性判定', () => {
   assert.equal(run.altarUsable('bore'), true);                    // 有卡可加孔
   assert.equal(run.altarUsable('recut'), true);                   // 有预镶宝石
   assert.equal(run.altarUsable('setting'), false);                // 背包没宝石
-  assert.equal(run.altarUsable('purify'), false);                 // 没有带 debuff 的宝石
+  assert.equal(run.altarUsable('purify'), true);                  // v3：起手宝石都带代价 → 可净化
 
   run.gems.push(CG.makeGem([{ id: 'energy_damage', level: 1 }]));
   CG.addSocket(run.deck[0]);                          // v2 起手牌满镶，先腾一个空孔
   assert.equal(run.altarUsable('setting'), true);
-  assert.equal(run.altarUsable('purify'), false);   // v2：无独立减益，净化恒不可用（待重设计）
+  // 净化掉所有带代价的宝石后，purify 不再可用
+  run.allGems().forEach(x => CG.gemRemoveCost(x.gem));
+  assert.equal(run.altarUsable('purify'), false);
+});
+
+test('净化：去掉宝石代价 → 打出时不再支付（商店 buyPurify）', () => {
+  const run = newRun();
+  run.gold = 999;
+  const g2 = CG.makeGem([{ id: 'energy_damage', level: 1 }]);
+  run.gems.push(g2);
+  const before = run.purifyPrice();
+  run.buyPurify(g2.uid);
+  assert.equal(g2.purified, true);
+  assert.ok(run.gold < 999 && run.purifyPrice() > before);   // 扣钱、逐次涨价
+  // 净化后的宝石作非首石镶嵌：不付代价
+  const card = CG.makeCard('spell', 2, [CG.makeGem([{ id: 'energy_damage', level: 1 }]), g2]);
+  assert.equal(CG.cardStats(card).cost, 1);   // 首石免 + 第二颗已净化 → 仅基底 1
 });
 
 test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）', () => {

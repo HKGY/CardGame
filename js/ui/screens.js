@@ -613,8 +613,9 @@ window.CG = window.CG || {};
       </div>`;
     }).join('');
     const healAmt = Math.ceil(run.maxHp * cfg.healPct);
-    const rmPrice = run.removePrice(), unPrice = run.uninstallPrice(), skPrice = run.socketPrice(), hlPrice = run.healCost();
+    const rmPrice = run.removePrice(), unPrice = run.uninstallPrice(), skPrice = run.socketPrice(), hlPrice = run.healCost(), pfPrice = run.purifyPrice();
     const hasSocketed = run.allGems().some(x => x.loc === 'card');
+    const hasCostGem = run.allGems().some(x => CG.gemHasCost(x.gem));
     const canSocket = run.deck.some(c => (c.limit || 0) < CG.MAX_SOCKETS);
     $('screen-shop').innerHTML = `
       <div class="panel shop-panel">
@@ -640,7 +641,8 @@ window.CG = window.CG || {};
             <div class="shop-section-title">服务</div>
             <div class="shop-services">
               <button class="big-btn" data-act="bench">💎 镶嵌宝石（免费）</button>
-              <button class="big-btn" data-act="uninstall" ${(run.gold < unPrice || !hasSocketed) ? 'disabled' : ''}>卸下宝石（💰 ${unPrice}）<br><small>宝石将随机多一个减益</small></button>
+              <button class="big-btn" data-act="uninstall" ${(run.gold < unPrice || !hasSocketed) ? 'disabled' : ''}>卸下宝石（💰 ${unPrice}）<br><small>取回背包</small></button>
+              <button class="big-btn" data-act="purify" ${(run.gold < pfPrice || !hasCostGem) ? 'disabled' : ''}>🧼 净化宝石（💰 ${pfPrice}）<br><small>去掉它的代价</small></button>
               <button class="big-btn" data-act="socket" ${(run.gold < skPrice || !canSocket) ? 'disabled' : ''}>给卡 +1 孔（💰 ${skPrice}）</button>
               <button class="big-btn" data-act="remove" ${(run.gold < rmPrice || run.deck.length <= 1) ? 'disabled' : ''}>删除一张卡（💰 ${rmPrice}）</button>
               <button class="big-btn" data-act="heal" ${(run.svcUsed('heal') || run.gold < hlPrice || run.hp >= run.maxHp) ? 'disabled' : ''}>${run.svcUsed('heal') ? '已治疗' : `治疗 +${healAmt}（💰 ${hlPrice}）`}</button>
@@ -671,6 +673,7 @@ window.CG = window.CG || {};
     const a = act.dataset.act;
     if (a === 'bench') openBench();
     else if (a === 'uninstall') openUninstallPicker();
+    else if (a === 'purify') openGemPicker(`净化哪颗宝石？（💰 ${run.purifyPrice()}，去掉它的代价）`, run.allGems().filter(x => CG.gemHasCost(x.gem)), uid => { CG.Audio.play('coin'); H.onBuyPurify(uid); });
     else if (a === 'socket') openCardPicker('选择要 +1 孔的卡（💰 ' + run.socketPrice() + '）', run.deck.filter(c => (c.limit || 0) < CG.MAX_SOCKETS), uid => H.onBuyAddSocket(uid));
     else if (a === 'remove') openCardPicker('选择要删除的卡（💰 ' + run.removePrice() + '）', run.deck, uid => H.onBuyRemove(uid));
     else if (a === 'heal') { CG.Audio.play('heal'); H.onBuyHeal(); }
@@ -680,7 +683,7 @@ window.CG = window.CG || {};
   function openUninstallPicker() {
     const run = H.getRun();
     const socketed = run.allGems().filter(x => x.loc === 'card');
-    openGemPicker(`卸下哪颗宝石？（💰 ${run.uninstallPrice()}，将随机多一个减益）`, socketed, uid => {
+    openGemPicker(`卸下哪颗宝石？（💰 ${run.uninstallPrice()}，取回背包）`, socketed, uid => {
       const f = run.findGem(uid);
       if (f && f.loc === 'card') H.onBuyUninstall(f.card.uid, f.idx);
     });
@@ -757,7 +760,7 @@ window.CG = window.CG || {};
       openGemPicker('选择要镶嵌的宝石', run.gems.map(g => ({ gem: g, uid: g.uid })), gemUid =>
         openCardPicker('镶嵌到哪张卡？', run.cardsWithEmptySocket(), cardUid => H.onAltarInstall(gemUid, cardUid)));
     } else if (id === 'purify') {
-      openGemPicker('净化哪颗宝石？（移除一个减益）', run.allGems().filter(x => CG.gemHasDebuff(x.gem)), uid => H.onAltarPurify(uid));
+      openGemPicker('净化哪颗宝石？（去掉它的代价）', run.allGems().filter(x => CG.gemHasCost(x.gem)), uid => H.onAltarPurify(uid));
     } else if (id === 'bore') {
       openCardPicker('给哪张卡 +1 孔？', run.deck.filter(c => (c.limit || 0) < CG.MAX_SOCKETS), uid => H.onAltarBore(uid));
     } else if (id === 'recut') {

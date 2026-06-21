@@ -73,7 +73,8 @@ CG.CONFIG = {
     tarotCount: 2, tarotPrice: 45,
     healPrice: 25, healPct: 0.30,
     removeBase: 45, removeStep: 25,        // 删卡：每买一次，下次永久 +25
-    uninstallBase: 30, uninstallStep: 18,  // 卸下宝石：每次永久 +18（且宝石随机加 debuff）
+    uninstallBase: 30, uninstallStep: 18,  // 卸下宝石（仅商店）：每次永久 +18
+    purifyBase: 40, purifyStep: 20,        // 净化：去掉一颗宝石的代价；每次永久 +20
     socketPrice: 65,                        // 给一张卡 +1 孔位
     // 出售 booster pack：买下后开启，从 count 颗同主题宝石里挑 1 颗进背包。
     // 五选一更贵：挑选余地更大 + 宝石档更高（tier 决定大宝石概率/等级）。

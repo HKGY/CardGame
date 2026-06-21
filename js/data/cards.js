@@ -54,7 +54,10 @@ window.CG = window.CG || {};
   // ---------- 构造 ----------
   CG.makeGem = (affixes = []) =>
     ({ uid: CG.nextUid(), affixes: affixes.map(a => ({ id: a.id, level: a.level })) });
-  CG.cloneGem = g => CG.makeGem(g.affixes);   // 复制宝石（新 uid）
+  CG.cloneGem = g => { const n = CG.makeGem(g.affixes); if (g.purified) n.purified = true; return n; };   // 复制宝石（新 uid，保留净化）
+  // 净化：去掉一颗宝石的代价（打出时不再支付其代价；条件类代价本无真资源消耗，标记亦无害）。
+  CG.gemRemoveCost = gem => { if (gem) gem.purified = true; return !!gem; };
+  CG.gemHasCost = gem => !gem.purified && (gem.affixes || []).some(a => { const d = CG.AFFIXES[a.id]; return d && d.cost && !d.cost.cond; });
 
   // makeCard(base, limit, gems[])：gems 会被深拷贝进新卡（各得新 uid）
   CG.makeCard = (base, limit = 1, gems = []) =>
@@ -63,7 +66,7 @@ window.CG = window.CG || {};
        limit: Math.max(limit, (gems || []).length) });
   CG.cloneCard = c =>                          // 跑图层深拷贝（保留 uid，用于战斗副本）
     ({ uid: c.uid, base: c.base, limit: c.limit,
-       sockets: (c.sockets || []).map(g => ({ uid: g.uid, affixes: g.affixes.map(a => ({ id: a.id, level: a.level })) })) });
+       sockets: (c.sockets || []).map(g => { const n = { uid: g.uid, affixes: g.affixes.map(a => ({ id: a.id, level: a.level })) }; if (g.purified) n.purified = true; return n; }) });
 
   CG.cardEmptySockets = c => Math.max(0, (c.limit || 0) - (c.sockets || []).length);
   CG.gemHasDebuff = g => (g.affixes || []).some(a => CG.isDebuff(a.id));
@@ -95,7 +98,7 @@ window.CG = window.CG || {};
     // 每个孔位（宝石）单独分组，供卡面分组显示「(增益+减益)」
     const gemViews = sockets.map(g => {
       const list = (g.affixes || []).map(resolve);
-      return { buffs: list.filter(a => !a.debuff).sort(bySort), debuffs: list.filter(a => a.debuff).sort(bySort) };
+      return { buffs: list.filter(a => !a.debuff).sort(bySort), debuffs: list.filter(a => a.debuff).sort(bySort), purified: !!g.purified };
     });
     const all = sockets.flatMap(g => (g.affixes || []).map(resolve));
     const buffs = all.filter(a => !a.debuff).sort(bySort);
@@ -255,7 +258,7 @@ window.CG = window.CG || {};
     // 代价均摊：若多颗宝石代价「种类」相同，只付其中最高的一个（同种不叠付）。
     const costMax = {};
     (sockets || []).forEach((g, si) => {
-      if (si === 0) return;                          // 首石：代价全免
+      if (si === 0 || g.purified) return;            // 首石免代价；净化过的宝石免代价
       (g.affixes || []).forEach(a => {
         const def = CG.AFFIXES[a.id]; if (!def || !def.cost || def.cost.cond) return;
         const amount = (def.cost.amt || 1) * (a.level || 1);

@@ -15,7 +15,8 @@
 > - **基底卡 = 唯一空法术 `spell`**（`base:0`、渲染法杖）；取消攻击/防御/能力，统称**法术**。`CG.STRIKE/GUARD/HEAL`＝`energy_damage/energy_block/energy_heal`。**战斗掉落卡 ≥1 随机宝石**。
 > - **包＝一组价值原子**（`CG.PACKS[id].values`，代价随机自由组合）；`p.affixes` 是「真资源代价×主题价值」展开（rollGem/fusion 用）。**无独立减益**（代价侧即下行风险，`DEBUFF_ORDER=[]`）。
 > - 展示：`CG.affixCostText/affixValueText(id,L)`。**百科「词条」页改列原子**（所有代价种类 + 所有价值种类，不再逐条列分子）。`cardStats` 伤害/格挡来自价值池 `d.dmg`/`d.blk`、力量 `d.addStr`、金币代价 `loseGold`；`base.kind` 已废。
-> - 连带未重设计：卸宝石不再附 debuff、祭坛「净化」恒不可用（待重做）。测试：`test/costvalue.test.js` + `test/affix-vp.test.js`（旧逐包测试已删）。
+> - **净化(purify)** 改为「**去掉一颗宝石的代价**」（`gem.purified=true`，`CG.gemRemoveCost`；`cardStats` 代价环跳过、卡面/宝石面显示免代价方括号）；**祭坛**与**商店**都提供（`run.buyPurify`/`shop.purifyBase/Step`）。**卸载宝石仅商店**（`buyUninstall`，已不附 debuff）。`purified` 经 `cloneGem`/`cloneCard` 保留。
+> - 测试：`test/costvalue.test.js` + `test/affix-vp.test.js` + `test/run.test.js`（旧逐包测试已删）。
 
 ## 改动前：先通读全项目
 
