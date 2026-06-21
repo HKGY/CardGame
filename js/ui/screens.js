@@ -258,7 +258,7 @@ window.CG = window.CG || {};
         ['直接资源', ['damage', 'block', 'heal', 'draw', 'energy', 'power']],
         ['自身增益（力量/敏捷·永久↔临时）', ['strength', 'dexterity', 'tempStr', 'tempDex']],
         ['敌方减益（含 永久 ↔ 临时翻倍）', ['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseStrTemp', 'enemyLoseDex', 'enemyLoseDexTemp']],
-        ['元素附着（叠加触发反应）', ['fire', 'water', 'thunder', 'ice']],
+        ['元素附着（敌至多1种1层；异元素→反应，同/空→取代）', ['fire', 'water', 'thunder', 'ice']],
         ['引擎·每回合（= 一次性 ×2）', ['produce_draw', 'produce_block', 'produce_energy']],
         ['造物 / 牌', ['summon', 'building', 'conjure', 'food_veg', 'food_meat', 'food_season', 'food_ware']],
       ];
@@ -301,7 +301,7 @@ window.CG = window.CG || {};
           const [a, b] = key.split('+'), r = CG.REACTIONS[key];
           return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span><span class="codex-desc">${el(a)}＋${el(b)} → ${r.desc}</span></div>`;
         }).join('');
-        html += '<div class="codex-grid"><div class="codex-sub">元素反应（⚗️ 元素）</div>' + rows + '</div>';
+        html += '<div class="codex-grid"><div class="codex-sub">元素反应（⚗️ 元素·敌至多 1 种 1 层）</div><p class="codex-note" style="column-span:all">给敌人附元素：遇<b>不同</b>元素→触发反应（放大型令本牌伤害×2、转化型触发一次），遇<b>同/无</b>元素→取代为该元素 1 层；一颗宝石附<b>两层</b>(2、3级)＝先反应、再附 1 层新的。</p>' + rows + '</div>';
       }
     } else if (tab === 'tarot') {
       html = '<div class="codex-grid">' + CG.TAROT_IDS.map(id => {
