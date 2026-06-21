@@ -131,6 +131,26 @@ test('遗物·代价→价值：棱镜核心 敌人开局 +1 力量', () => {
   assert.ok((g.enemy.statuses.strength || 0) >= 1);
 });
 
+// ===== 自身减益代价（参考 StS Berserk）=====
+test('自身减益代价：自易伤→伤害；首石免、非首石才上自易伤', () => {
+  assert.ok(CG.AFFIXES.selfVuln_damage && CG.AFFIXES.selfWeak_block && CG.AFFIXES.selfFrail_heal);
+  const first = stat(spell([{ id: 'selfVuln_damage', level: 1 }]));   // 首石免代价
+  assert.strictEqual(first.value, 6);
+  assert.ok(!first.effects.some(e => e.type === 'selfStatus'));
+  const second = stat(spell([{ id: D, level: 1 }], [{ id: 'selfVuln_damage', level: 1 }]));
+  assert.ok(second.effects.some(e => e.type === 'selfStatus' && e.status === 'vulnerable' && e.value === 3));
+});
+
+test('狂暴(Berserk)：自易伤2 → 每回合 +1 能量（prodEnergy 引擎）', () => {
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'berserk', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.player.statuses.vulnerable, 2);    // 自易伤代价
+  assert.strictEqual(g.player.statuses.prodEnergy, 1);
+  g._startPlayerTurn();
+  assert.strictEqual(g.player.energy, g.player.maxEnergy + 1);   // 下回合 = 满能量 + prodEnergy 1
+});
+
 // ===== 塔罗（生成式·消耗品轨道）=====
 test('塔罗生成式：价值原子牌存在且即时投放', () => {
   assert.ok(CG.TAROT.t_damage && CG.TAROT.t_block && CG.TAROT.t_energy && CG.TAROT.t_strength);

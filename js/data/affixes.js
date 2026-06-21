@@ -25,6 +25,8 @@ window.CG = window.CG || {};
     food: 2.0, summon: 3.0, building: 5.0, produce: 5.0, conjure: 4.0,
     // 代价原子（可玩数字：生命 2VP→3血、金币 1VP→6金）
     hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0,
+    // 自身减益代价（延迟/风险代价；定价略高于"给敌"价值 1.5，因你几乎一定吃到）→ 2VP/层、1 能量≈3 层
+    selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,
     // 条件/机会类代价记机会预算（不扣真资源）
     mult: 6.0, execute: 6.0, lifesteal: 6.0,
   };
@@ -77,6 +79,9 @@ window.CG = window.CG || {};
     hp:      { name: '生命', fmt: n => `失 ${n} 血` },
     gold:    { name: '金币', fmt: n => `失 ${n} 金` },
     discard: { name: '弃牌', fmt: n => `弃 ${n} 张` },
+    selfVuln:  { name: '自易伤', fmt: n => `自易伤 ${n}`, status: 'vulnerable' },
+    selfWeak:  { name: '自虚弱', fmt: n => `自虚弱 ${n}`, status: 'weak' },
+    selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail' },
   };
   // 条件原子：cond=true（不扣真资源）；qty=战斗中取「当前量」的键（playCard 求值）。
   const COST_COND = {
@@ -108,7 +113,7 @@ window.CG = window.CG || {};
     const cond = !!COST_COND[costId];
     const u = amt(va.vpRes);
     const def = Object.assign({
-      cost: cond ? { res: costId, cond: true } : { res: costId, amt: amt(costId === 'energy' ? 'energy' : (COST_REAL[costId] ? ({ energy: 'energy', hp: 'hp', gold: 'gold', discard: 'discard' }[costId]) : 'energy')) },
+      cost: cond ? { res: costId, cond: true } : { res: costId, amt: amt(costId) },
       value: { res: va.vpRes, sub: valId, atom: valId, amt: cond ? null : u },
       color: valColor(valId), score: 4,
     }, extra || {});
@@ -125,6 +130,9 @@ window.CG = window.CG || {};
   A.energyZero_mult = { cost: { res: 'energyZero', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 4, allin: 1 };
   A.play_mult       = { cost: { res: 'play', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 5, potent: 1 };
   A.hit_lifesteal   = { cost: { res: 'hit', cond: true }, value: { res: 'lifesteal', atom: 'lifesteal' }, color: COLOR.lifesteal, score: 4, lifesteal: 0.3 };
+  // 狂暴(Berserk)：有界自身减益(自易伤2,会衰减) → 永久每回合 +1 能量(引擎)。
+  //   "有界代价换永久递归价值"的旗舰；flat-VP 量不了递归引擎，故作签名(净正、不入越界守卫)。
+  A.berserk = { cost: { res: 'selfVuln', amt: 2 }, value: { res: 'energy', atom: 'berserk' }, color: '#e0563a', score: 6, selfStatus: 'prodEnergy', flat: 1, signature: true };
 
   CG.AFFIXES = A;
   CG.AFFIX_ORDER = Object.keys(A);
@@ -146,7 +154,8 @@ window.CG = window.CG || {};
   CG.affixValueText = function (id, level) {
     const a = A[id]; if (!a) return '';
     const v = a.value, L = level || 1;
-    const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ execute: '斩杀', mult: '翻倍', lifesteal: '吸血' }[v.atom]) || v.res;
+    const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ execute: '斩杀', mult: '翻倍', lifesteal: '吸血', berserk: '能量' }[v.atom]) || v.res;
+    if (v.atom === 'berserk') return '每回合 +1 能量（永久）';
     if (v.atom === 'mult') return `数值 ×${1 + L}`;
     if (v.atom === 'lifesteal') return `吸血 ${Math.round(0.3 * 100 * L)}%`;
     if (v.atom === 'execute') return `斩杀（敌残血）`;

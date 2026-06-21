@@ -232,6 +232,7 @@ window.CG = window.CG || {};
         if (st.prodBlock) this.gainBlock(this.player, st.prodBlock);
         if (st.prodUpkeep) this.player.energy = Math.max(0, this.player.energy - st.prodUpkeep);
         if (st.prodDraw) this.drawCards(st.prodDraw);
+        if (st.prodEnergy) this.player.energy += st.prodEnergy;   // 狂暴(Berserk)：每回合 +能量
       }
       this._buildingsTick();                     // 建造包：回合开始触发所有建筑
       this._checkEnd();                          // 箭塔等可能终结战斗

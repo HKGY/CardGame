@@ -306,6 +306,10 @@ window.CG = window.CG || {};
     if (prepare) effects.push({ type: 'tempStrength', value: prepare });   // 准备：本回合力量 +n（回合末移除）
     for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给食材卡
     if (selfBurnN) effects.push({ type: 'selfStatus', status: 'burn', value: selfBurnN });   // 着火：自身灼伤
+    // v3 自身减益代价（首石免/同种均摊已在 costMax 处理）：打出时给自己上易伤/虚弱/脆弱。
+    if (costMax.selfVuln)  effects.push({ type: 'selfStatus', status: 'vulnerable', value: costMax.selfVuln });
+    if (costMax.selfWeak)  effects.push({ type: 'selfStatus', status: 'weak', value: costMax.selfWeak });
+    if (costMax.selfFrail) effects.push({ type: 'selfStatus', status: 'frail', value: costMax.selfFrail });
     if (burnAll)   effects.push({ type: 'exhaustHand' });                                     // 爆燃：消耗其余手牌
     if (nightmare) effects.push({ type: 'nightmare' });                                       // 噩梦：渣滓塞满手牌
     if (gainPowerN) effects.push({ type: 'gainPower', value: gainPowerN });                   // 发电
