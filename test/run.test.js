@@ -86,8 +86,7 @@ test('诅咒房：耗血换 2 个随机商店货色（立即入手）；宝藏�
   run.selectNode(curse);
   assert.equal(run.phase, 'event');
   assert.equal(run.pending.kind, 'curse');
-  assert.ok(run.hp < hp0);                                            // 进入耗血
-  assert.ok(run.pending.hpPaid > 0);                                  // 记录了血代价（遗物 onPickup 可能再改血量，故不比 hp0-hp）
+  assert.ok(run.pending.hpPaid > 0);                                  // 记录了血代价（即"进入耗血"；遗物 onPickup 可能回血/加最大生命，故只验 hpPaid，不比 run.hp<hp0）
   assert.equal(run.pending.offers.length, 2);                        // 2 个商店货色
   run.pending.offers.forEach(o => assert.ok(['gem', 'card', 'tarot', 'relic', 'gold'].includes(o.type)));
   // 非金币的货色应已立即入手（背包/牌组/塔罗/遗物 合计净增 = 非金币个数）

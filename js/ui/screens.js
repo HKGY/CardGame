@@ -256,7 +256,7 @@ window.CG = window.CG || {};
       // —— 价值分组（对偶/相似相邻：力量↔临时力量、敌失力量↔临时版）—— //
       const VG = [
         ['直接资源', ['damage', 'block', 'heal', 'draw', 'energy', 'power']],
-        ['自身增益（永久 ↔ 临时）', ['strength', 'tempStr']],
+        ['自身增益（力量/敏捷·永久↔临时）', ['strength', 'dexterity', 'tempStr', 'tempDex']],
         ['敌方减益（含 永久 ↔ 临时翻倍）', ['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseStrTemp', 'enemyLoseDex', 'enemyLoseDexTemp']],
         ['元素附着（叠加触发反应）', ['fire', 'water', 'thunder', 'ice']],
         ['引擎·每回合（= 一次性 ×2）', ['produce_draw', 'produce_block', 'produce_energy']],

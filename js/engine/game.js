@@ -85,6 +85,7 @@ window.CG = window.CG || {};
 
     // ---- 塔罗牌在战斗中触发的效果 ----
     addTempStrength(n) { this.applyStatus(this.player, 'strength', n); this._tempStrength = (this._tempStrength || 0) + n; this._emit(); }
+    addTempDexterity(n) { this.applyStatus(this.player, 'dexterity', n); this._tempDex = (this._tempDex || 0) + n; this._emit(); }   // 临时敏捷（回合末移除，与临时力量对称）
 
     damageAll(n) {                              // 死亡塔罗：所有人受到 n 点伤害（过格挡）
       [...this.aliveEnemies(), this.player].forEach(t => {
@@ -117,7 +118,7 @@ window.CG = window.CG || {};
       this._vigor = 0; this._inspire = 0;        // 律动：活力(下一张加成,跨回合保留)/灵感(本回合抽牌给格挡)
       this._ampDebuff = 0; this._ampBuff = 0;    // 放大：本回合 倍损/倍益（applyStatus 翻倍）
       this._rewindSnap = null;                   // 律动·回溯：待恢复的战斗快照
-      this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0;
+      this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0; this._tempDex = 0;
       this.drawPile = shuffle(this._deck.map(cloneCard));
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
       this.turn = 0; this.phase = 'player';
@@ -145,7 +146,7 @@ window.CG = window.CG || {};
       this.run = run || null;                  // 反向引用 Run（老虎机/人寿保险等需要）
       this._deck = deck;                       // 原始牌组引用（愚者重开时重新克隆）
       this.nextCardDmgMult = 1;                // 力量塔罗
-      this._tempStrength = 0;                  // 战车（本回合力量）
+      this._tempStrength = 0;                  // 战车（本回合力量） this._tempDex = 0;
       this.freeCards = 0;                      // 回响：可免费打出的张数
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
       this._keepBlock = 0;                      // 死守包·重甲：剩余「格挡不清空」回合数（打出重甲后 = 等级 N）
@@ -248,6 +249,7 @@ window.CG = window.CG || {};
       if (this.phase !== 'player') return;
       if (this.craft || this.pick) return;                             // 做菜 / 选牌中不能结束回合
       if (this._tempStrength) { this.applyStatus(this.player, 'strength', -this._tempStrength); this._tempStrength = 0; } // 战车：回合末移除临时力量
+      if (this._tempDex) { this.applyStatus(this.player, "dexterity", -this._tempDex); this._tempDex = 0; }   // 回合末移除临时敏捷
       if (this.player.statuses.burn) this._dealBurn(this.player, this.player.statuses.burn);   // 灼伤：回合结束受伤（可被本回合格挡吸收）
       // 腐坏卡：先从手牌取出并消耗（一次性，不再清在手里），其结算放到 _tickStatuses 之后，
       // 使易伤/虚弱在接下来的敌方回合保持满层（否则会被本回合的状态衰减立刻 -1）。

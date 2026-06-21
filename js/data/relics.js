@@ -27,6 +27,7 @@ window.CG = window.CG || {};
     belly_button: { name: '肚脐', icon: '🌀', desc: '【价值】消耗品栏 +1', tarotSlot: 1 },
     dinner:       { name: '晚餐', icon: '🍖', desc: '【价值】最大生命 +5，并立即回满', onPickup: r => { r.maxHp += 5; r.hp = r.maxHp; } },
     magic_shroom: { name: '魔法蘑菇', icon: '🍄', desc: '【价值】最大生命 +5；开局 +2 力量', onPickup: r => { r.maxHp += 5; r.hp += 5; }, battleStart: b => b.applyStatus(b.player, 'strength', 2) },
+    feather_boot: { name: '羽靴', icon: '🪶', desc: '【价值】最大生命 +5；开局 +2 敏捷', onPickup: r => { r.maxHp += 5; r.hp += 5; }, battleStart: b => b.applyStatus(b.player, 'dexterity', 2) },
 
     // ========== ② 条件 → 价值 ==========
     babylon:      { name: '巴比伦之妓', icon: '👹', desc: '【残血(开局生命<半) → 价值】+3 力量', battleStart: b => { if (b.player.hp < b.player.maxHp / 2) b.applyStatus(b.player, 'strength', 3); } },
@@ -46,6 +47,7 @@ window.CG = window.CG || {};
     atheist:      { name: '无神论者', icon: '🚫', desc: '【代价】无法获得塔罗 →【价值】每回合 +1 能量', turnEnergy: 1, noTarot: true },
     slot:         { name: '老虎机', icon: '🎰', desc: '【代价】每回合 -6 金币 →【价值】+1 能量', onTurnStart: b => { if (b.run) b.run.gold = Math.max(0, b.run.gold - 6); b.player.energy += 1; } },
     warbanner:    { name: '燃血战旗', icon: '🚩', desc: '【代价】每回合 -2 生命 →【价值】+2 力量', onTurnStart: b => { b.player.hp = Math.max(1, b.player.hp - 2); b.applyStatus(b.player, 'strength', 2); } },
+    windbanner:   { name: '疾风战旗', icon: '🏳️', desc: '【代价】每回合 -2 生命 →【价值】+2 敏捷', onTurnStart: b => { b.player.hp = Math.max(1, b.player.hp - 2); b.applyStatus(b.player, 'dexterity', 2); } },
     sac_dagger:   { name: '献祭匕首', icon: '🔱', desc: '【代价】每回合 -2 生命 →【价值】对敌造成 7 伤害', onTurnStart: b => { if (b.enemy.hp > 0) b.dealAttackDamage(b.player, b.enemy, 7); b.player.hp = Math.max(1, b.player.hp - 2); } },
     damocles:     { name: '达摩克利斯之剑', icon: '⚔️', desc: '【代价】一旦受伤立刻变 1 HP 并永久失效 →【价值】所有卡牌数值翻倍', cardMult: 2 },
     prismcore:    { name: '棱镜核心', icon: '🔆', desc: '【代价】敌人开局各 +1 力量 →【价值】每回合 +1 能量', turnEnergy: 1, battleStart: b => b.aliveEnemies().forEach(e => b.applyStatus(e, 'strength', 1)) },

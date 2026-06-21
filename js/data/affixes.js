@@ -19,7 +19,7 @@ window.CG = window.CG || {};
   const V = {
     // 价值原子（排序铁律：治疗 > 格挡 > 伤害；虚弱 > 易伤/脆弱）
     damage: 1.0, block: 1.2, heal: 1.5, draw: 2.5, energy: 6.0, power: 1.0,
-    strength: 4.0, tempStr: 1.5, dexterity: 3.0,
+    strength: 4.0, tempStr: 1.5, dexterity: 3.0, tempDex: 1.5,
     vulnerable: 1.5, weak: 1.5, frail: 1.5, poison: 1.5,   // 三种敌方减益对称同价（便于条件/代价对称）
     // 敌失力量(减攻)/敏捷(减格挡)，永久；临时版＝半价/层 → 同 VP 下数量翻倍（"临时失去两倍"）
     enemyLoseStr: 3.0, enemyLoseDex: 2.0, enemyLoseStrTemp: 1.5, enemyLoseDexTemp: 1.0,
@@ -42,7 +42,7 @@ window.CG = window.CG || {};
 
   const COLOR = {
     damage: '#e89030', block: '#7fa8c8', heal: '#e89ab8', draw: '#efe9da', energy: '#f0c850', power: '#f0d850',
-    strength: '#e0563a', tempStr: '#c8a0d8', vulnerable: '#e05550', weak: '#3fae62', frail: '#4a86e0', poison: '#8ab84a',
+    strength: '#e0563a', tempStr: '#c8a0d8', dexterity: '#4a86e0', tempDex: '#7fb0d8', vulnerable: '#e05550', weak: '#3fae62', frail: '#4a86e0', poison: '#8ab84a',
     fire: '#ff7a4a', water: '#4aa8ff', thunder: '#e8c84a', ice: '#8fe0ec',
     enemyLoseStr: '#3fae62', enemyLoseStrTemp: '#3fae62', enemyLoseDex: '#4a86e0', enemyLoseDexTemp: '#4a86e0',
     food: '#e0a45a', summon: '#b0b0e0', building: '#c0a060', produce: '#b6d36a', conjure: '#b59ad8',
@@ -59,6 +59,8 @@ window.CG = window.CG || {};
     power:  { name: '电力', vpRes: 'power', mech: u => ({ gainPower: u }) },
     strength: { name: '力量', vpRes: 'strength', mech: u => ({ addStr: u }) },
     tempStr:  { name: '临时力量', vpRes: 'tempStr', mech: u => ({ prepare: u }) },
+    dexterity: { name: '敏捷', vpRes: 'dexterity', mech: u => ({ addDex: u }) },
+    tempDex:   { name: '临时敏捷', vpRes: 'tempDex', mech: u => ({ prepDex: u }) },
     vulnerable: { name: '易伤', vpRes: 'vulnerable', mech: u => ({ apply: { vulnerable: u } }) },
     weak:   { name: '虚弱', vpRes: 'weak', mech: u => ({ apply: { weak: u } }) },
     frail:  { name: '脆弱', vpRes: 'frail', mech: u => ({ apply: { frail: u } }) },

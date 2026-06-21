@@ -22,6 +22,7 @@ window.CG = window.CG || {};
     { id: 'strength', name: '力量', icon: '💪', where: 'battle', n: 3, desc: n => `获得 ${n} 层力量`, act: (r, b, n) => b.applyStatus(b.player, 'strength', n) },
     { id: 'dexterity', name: '敏捷', icon: '🤸', where: 'battle', n: 4, desc: n => `获得 ${n} 层敏捷`, act: (r, b, n) => b.applyStatus(b.player, 'dexterity', n) },
     { id: 'flex',   name: '狂乱', icon: '😤', where: 'battle', n: 8,  desc: n => `本回合 +${n} 力量（回合末失去）`, act: (r, b, n) => b.addTempStrength(n) },
+    { id: 'speed',  name: '迅疾', icon: '💨', where: 'battle', n: 8,  desc: n => `本回合 +${n} 敏捷（回合末失去）`, act: (r, b, n) => b.addTempDexterity(n) },
     { id: 'vulnerable', name: '破绽', icon: '🎯', where: 'battle', n: 8, desc: n => `对当前敌人施加 ${n} 层易伤`, act: (r, b, n) => { if (b.enemy) b.applyStatus(b.enemy, 'vulnerable', n); } },
     { id: 'weak',   name: '疲软', icon: '💧', where: 'battle', n: 6,  desc: n => `对当前敌人施加 ${n} 层虚弱`, act: (r, b, n) => { if (b.enemy) b.applyStatus(b.enemy, 'weak', n); } },
     { id: 'poison', name: '剧毒', icon: '🧪', where: 'battle', n: 8,  desc: n => `对当前敌人施加 ${n} 层中毒`, act: (r, b, n) => { if (b.enemy) b.applyStatus(b.enemy, 'poison', n); } },

@@ -109,7 +109,8 @@ window.CG = window.CG || {};
         costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false,
         blockFlat = 0, freeNextN = 0, comboN = 0,
         dmgPool = 0, blkPool = 0, addStrN = 0, goldCostN = 0,   // v3：伤害/格挡来自宝石价值；力量价值；金币代价
-        enemyStrN = 0, enemyStrTempN = 0, enemyDexN = 0, enemyDexTempN = 0;   // 敌失力量/敏捷（永久/临时）
+        enemyStrN = 0, enemyStrTempN = 0, enemyDexN = 0, enemyDexTempN = 0;
+    let addDexN = 0, prepDexN = 0;   // 敏捷价值/临时敏捷价值（与力量对称）   // 敌失力量/敏捷（永久/临时）
     const condBonusList = [];   // v3：条件代价 → 动态缩放数值价值（playCard 结算）
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
@@ -161,6 +162,8 @@ window.CG = window.CG || {};
       if (d.dmg)       dmgPool += d.dmg * L;            // v2 价值·伤害（strike 等）
       if (d.blk)       blkPool += d.blk * L;            // v2 价值·格挡（guard 等）
       if (d.addStr)    addStrN += d.addStr * L;         // v3 价值·力量
+      if (d.addDex)    addDexN += d.addDex * L;
+      if (d.prepDex)   prepDexN += d.prepDex * L;
       if (d.enemyStr) { if (d.enemyTemp) enemyStrTempN += d.enemyStr * L; else enemyStrN += d.enemyStr * L; }   // 敌失力量
       if (d.enemyDex) { if (d.enemyTemp) enemyDexTempN += d.enemyDex * L; else enemyDexN += d.enemyDex * L; }   // 敌失敏捷
       if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, vtype: d.condBonus.vtype, gate: d.condBonus.gate, base: d.condBonus.base, level: L });   // v3 条件代价
@@ -305,10 +308,11 @@ window.CG = window.CG || {};
     if (silenceLv) effects.push({ type: 'silence', value: silenceLv });
     const strDelta = addStrN - sapStr - (costMax.loseStr || 0);   // v3 力量价值 - 减力量 - 失力量代价
     sapDex += (costMax.loseDex || 0);                  // 失敏捷代价（并入 dexDelta）
-    const dexDelta = -sapDex;                          // 笨拙：永久 -敏捷
+    const dexDelta = addDexN - sapDex;                 // 敏捷价值 - 减敏捷 - 失敏捷代价                          // 笨拙：永久 -敏捷
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
     if (prepare) effects.push({ type: 'tempStrength', value: prepare });   // 准备：本回合力量 +n（回合末移除）
+    if (prepDexN) effects.push({ type: 'tempDexterity', value: prepDexN });   // 临时敏捷（回合末移除）
     for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给食材卡
     if (selfBurnN) effects.push({ type: 'selfStatus', status: 'burn', value: selfBurnN });   // 着火：自身灼伤
     // v3 自身减益代价（首石免/同种均摊已在 costMax 处理）：打出时给自己上易伤/虚弱/脆弱。

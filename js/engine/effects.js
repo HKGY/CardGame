@@ -49,6 +49,10 @@ window.CG = window.CG || {};
       if (source === game.player) game.addTempStrength(eff.value);
       else game.applyStatus(source, 'strength', eff.value);
     },
+    tempDexterity(game, eff, source) {                 // 本回合敏捷（回合末移除，与临时力量对称）
+      if (source === game.player) game.addTempDexterity(eff.value);
+      else game.applyStatus(source, 'dexterity', eff.value);
+    },
     dexterity(game, eff, source) {
       game.applyStatus(source, 'dexterity', eff.value);
     },
