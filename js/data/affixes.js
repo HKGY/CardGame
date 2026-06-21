@@ -21,6 +21,8 @@ window.CG = window.CG || {};
     damage: 1.0, block: 1.2, heal: 1.5, draw: 2.5, energy: 6.0, power: 1.0,
     strength: 4.0, tempStr: 1.5, dexterity: 3.0,
     vulnerable: 1.5, weak: 1.5, frail: 1.5, poison: 1.5,   // 三种敌方减益对称同价（便于条件/代价对称）
+    // 敌失力量(减攻)/敏捷(减格挡)，永久；临时版＝半价/层 → 同 VP 下数量翻倍（"临时失去两倍"）
+    enemyLoseStr: 3.0, enemyLoseDex: 2.0, enemyLoseStrTemp: 1.5, enemyLoseDexTemp: 1.0,
     fire: 2.0, water: 2.0, thunder: 2.0, ice: 2.0,
     food: 2.0, summon: 3.0, building: 5.0, conjure: 4.0,
     // 每回合(递归)价值 = 一次性价值 ×2（从下回合算；2 回合回本后净赚）：能量6→12、抽2.5→5、格挡1.2→2.4
@@ -42,6 +44,7 @@ window.CG = window.CG || {};
     damage: '#e89030', block: '#7fa8c8', heal: '#e89ab8', draw: '#efe9da', energy: '#f0c850', power: '#f0d850',
     strength: '#e0563a', tempStr: '#c8a0d8', vulnerable: '#e05550', weak: '#3fae62', frail: '#4a86e0', poison: '#8ab84a',
     fire: '#ff7a4a', water: '#4aa8ff', thunder: '#e8c84a', ice: '#8fe0ec',
+    enemyLoseStr: '#3fae62', enemyLoseStrTemp: '#3fae62', enemyLoseDex: '#4a86e0', enemyLoseDexTemp: '#4a86e0',
     food: '#e0a45a', summon: '#b0b0e0', building: '#c0a060', produce: '#b6d36a', conjure: '#b59ad8',
     execute: '#b04050', mult: '#ff9fc0', lifesteal: '#cf4f6a',
   };
@@ -60,6 +63,10 @@ window.CG = window.CG || {};
     weak:   { name: '虚弱', vpRes: 'weak', mech: u => ({ apply: { weak: u } }) },
     frail:  { name: '脆弱', vpRes: 'frail', mech: u => ({ apply: { frail: u } }) },
     poison: { name: '中毒', vpRes: 'poison', mech: u => ({ apply: { poison: u } }) },
+    enemyLoseStr:     { name: '敌失力量', vpRes: 'enemyLoseStr', mech: u => ({ enemyStr: u }) },
+    enemyLoseDex:     { name: '敌失敏捷', vpRes: 'enemyLoseDex', mech: u => ({ enemyDex: u }) },
+    enemyLoseStrTemp: { name: '敌临时失力量', vpRes: 'enemyLoseStrTemp', mech: u => ({ enemyStr: u, enemyTemp: true }) },
+    enemyLoseDexTemp: { name: '敌临时失敏捷', vpRes: 'enemyLoseDexTemp', mech: u => ({ enemyDex: u, enemyTemp: true }) },
     fire:   { name: '附火', vpRes: 'fire', mech: u => ({ element: 'fire', elementBase: u }) },
     water:  { name: '附水', vpRes: 'water', mech: u => ({ element: 'water', elementBase: u }) },
     thunder:{ name: '附雷', vpRes: 'thunder', mech: u => ({ element: 'thunder', elementBase: u }) },
@@ -206,7 +213,7 @@ window.CG = window.CG || {};
   CG.PACKS = {
     basic:    P('基础包', '🎴', '#cdd2e2', '伤害 / 格挡（空法术两条基本式）。', ['damage', 'block']),
     power:    P('强攻包', '⚔️', '#e89030', '伤害与穿击。', ['damage']),
-    weaken:   P('弱化包', '☠️', '#8ab84a', '敌方减益。', ['vulnerable', 'weak', 'frail', 'poison']),
+    weaken:   P('弱化包', '☠️', '#8ab84a', '敌方减益（含敌失力量/敏捷，及其临时翻倍版）。', ['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseDex', 'enemyLoseStrTemp', 'enemyLoseDexTemp']),
     tempo:    P('节奏包', '🌀', '#4fb8ee', '抽牌 / 能量。', ['draw', 'energy']),
     vitality: P('生机包', '🌿', '#7fd6a0', '治疗 / 力量。', ['heal', 'strength']),
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发反应。', ['fire', 'water', 'thunder', 'ice']),

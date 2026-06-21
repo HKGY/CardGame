@@ -113,6 +113,7 @@ window.CG = window.CG || {};
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
+      this._tempRevert = [];   // 临时减益(敌临时失力量/敏捷)：到你下个回合开始复原
       this._vigor = 0; this._inspire = 0;        // 律动：活力(下一张加成,跨回合保留)/灵感(本回合抽牌给格挡)
       this._ampDebuff = 0; this._ampBuff = 0;    // 放大：本回合 倍损/倍益（applyStatus 翻倍）
       this._rewindSnap = null;                   // 律动·回溯：待恢复的战斗快照
@@ -154,6 +155,7 @@ window.CG = window.CG || {};
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
+      this._tempRevert = [];   // 临时减益(敌临时失力量/敏捷)：到你下个回合开始复原
       this._vigor = 0; this._inspire = 0;       // 律动包：活力(下一张牌加成)/灵感(本回合抽牌给格挡)
       this._ampDebuff = 0; this._ampBuff = 0;   // 放大包：本回合 倍损/倍益
       this._rewindSnap = null;                  // 律动·回溯：待恢复的战斗快照
@@ -189,6 +191,8 @@ window.CG = window.CG || {};
     _startPlayerTurn() {
       this.turn += 1;
       this.phase = 'player';
+      if (this._tempRevert && this._tempRevert.length) { this._tempRevert.forEach(d => { if (d.target) this.applyStatus(d.target, d.key, d.amount); }); this._tempRevert = []; }   // 复原上回合的临时减益（敌临时失力量/敏捷）
+
       if (this._rewindSnap) { this._restore(this._rewindSnap); this._rewindSnap = null; this.addLog('回溯：时间倒流，敌人这一回合被抹去。'); }   // 律动·回溯：回滚到打出回溯时的双方状态
       if (this._keepBlock > 0) { this._keepBlock--; this.player.block = Math.floor((this.player.block || 0) * 0.5); } else this.player.block = 0;   // 死守包·重甲：接下来 N 回合格挡减半保留（计数器；不再无限累积）
       let energyBonus = 0, drawBonus = 0;          // 癌症/无神论者：每回合额外能量/抽牌

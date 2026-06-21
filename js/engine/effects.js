@@ -61,6 +61,11 @@ window.CG = window.CG || {};
     frail(game, eff, source, target) {
       game.applyStatus(target, 'frail', eff.value);   // 破碎：目标获得的格挡 -25%
     },
+    enemyStat(game, eff, source, target) {            // 敌人失去力量/敏捷（可为负）；temp=本回合临时(下个玩家回合复原)
+      if (!target) return;
+      game.applyStatus(target, eff.key, -eff.value);
+      if (eff.temp) (game._tempRevert = game._tempRevert || []).push({ target, key: eff.key, amount: eff.value });
+    },
     selfStatus(game, eff, source) {
       game.applyStatus(source, eff.status, eff.value); // 减益词条：给自己施加易伤/虚弱/脆弱
     },

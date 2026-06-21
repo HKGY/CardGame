@@ -108,7 +108,8 @@ window.CG = window.CG || {};
         drawN = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
         costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false,
         blockFlat = 0, freeNextN = 0, comboN = 0,
-        dmgPool = 0, blkPool = 0, addStrN = 0, goldCostN = 0;   // v3：伤害/格挡来自宝石价值；力量价值；金币代价
+        dmgPool = 0, blkPool = 0, addStrN = 0, goldCostN = 0,   // v3：伤害/格挡来自宝石价值；力量价值；金币代价
+        enemyStrN = 0, enemyStrTempN = 0, enemyDexN = 0, enemyDexTempN = 0;   // 敌失力量/敏捷（永久/临时）
     const condBonusList = [];   // v3：条件代价 → 动态缩放数值价值（playCard 结算）
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
@@ -160,6 +161,8 @@ window.CG = window.CG || {};
       if (d.dmg)       dmgPool += d.dmg * L;            // v2 价值·伤害（strike 等）
       if (d.blk)       blkPool += d.blk * L;            // v2 价值·格挡（guard 等）
       if (d.addStr)    addStrN += d.addStr * L;         // v3 价值·力量
+      if (d.enemyStr) { if (d.enemyTemp) enemyStrTempN += d.enemyStr * L; else enemyStrN += d.enemyStr * L; }   // 敌失力量
+      if (d.enemyDex) { if (d.enemyTemp) enemyDexTempN += d.enemyDex * L; else enemyDexN += d.enemyDex * L; }   // 敌失敏捷
       if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, vtype: d.condBonus.vtype, gate: d.condBonus.gate, base: d.condBonus.base, level: L });   // v3 条件代价
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
@@ -312,6 +315,10 @@ window.CG = window.CG || {};
     if (costMax.selfVuln)  effects.push({ type: 'selfStatus', status: 'vulnerable', value: costMax.selfVuln });
     if (costMax.selfWeak)  effects.push({ type: 'selfStatus', status: 'weak', value: costMax.selfWeak });
     if (costMax.selfFrail) effects.push({ type: 'selfStatus', status: 'frail', value: costMax.selfFrail });
+    if (enemyStrN)     effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrN });           // 敌失力量（永久）
+    if (enemyStrTempN) effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrTempN, temp: true });
+    if (enemyDexN)     effects.push({ type: 'enemyStat', key: 'dexterity', value: enemyDexN });
+    if (enemyDexTempN) effects.push({ type: 'enemyStat', key: 'dexterity', value: enemyDexTempN, temp: true });
     if (burnAll)   effects.push({ type: 'exhaustHand' });                                     // 爆燃：消耗其余手牌
     if (nightmare) effects.push({ type: 'nightmare' });                                       // 噩梦：渣滓塞满手牌
     if (gainPowerN) effects.push({ type: 'gainPower', value: gainPowerN });                   // 发电
