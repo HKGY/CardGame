@@ -486,7 +486,7 @@ window.CG = window.CG || {};
           }
         }
         if (reaction && reaction.type === 'amplify' && rxConsumed > 0) {
-          const mult = Math.pow(reaction.amplify, rxConsumed);            // 效果发生 consumed 次 → ×amplify^consumed
+          const mult = 1 + (reaction.amplify - 1) * rxConsumed;          // 线性放大（消耗 N 层 → ×(1+N)，不再指数 ^N，否则元素严重失衡）
           s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: Math.floor(e.value * mult) }) : e) });
         }
       }
@@ -514,7 +514,7 @@ window.CG = window.CG || {};
       // 元素结算：反应消耗 min 级、效果发生 consumed 次、余量留在较多一方；无反应则同元素叠加 / 异元素附着（上限 3）
       if (elem) {
         if (reaction) {
-          for (let k = 0; k < rxConsumed; k++) if (reaction.apply) reaction.apply(this, this.player, target);
+          if (reaction.apply) reaction.apply(this, this.player, target);   // 转化型反应触发一次（消耗的层数只决定余量，不再按层数重复，否则 超载20×3=60 等严重失衡）
           const rem = rxPrev - elemLv;
           this._clearAura(target);
           if (rem > 0) this._setAura(target, rxAura, rem);          // 原元素剩余
@@ -523,7 +523,8 @@ window.CG = window.CG || {};
         } else {
           const cur = this._auraOf(target) === elem ? (target.statuses[elem] || 0) : 0;
           this._setAura(target, elem, cur + elemLv);                // 同元素叠加 / 异元素附着（上限 3）
-          if (elemLv > 0 && target.hp > 0) this._reactionBurst(target, elemLv);   // 元素附着·无反应：附着层数＝直接穿透伤害（给元素一个不依赖连招的伤害底）
+          // 无反应附着的「伤害底」改为「可被格挡」的普通伤害（不再穿透）：否则附元素严格强于打击。真正爆发靠连招反应。
+          if (elemLv > 0 && target.hp > 0) this.dealAttackDamage(this.player, target, elemLv);
         }
       }
       // 透支：累计下回合能量惩罚
