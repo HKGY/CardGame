@@ -19,17 +19,13 @@ function registerPack(id, hooks) { HOOKS[id] = Object.assign(HOOKS[id] || {}, ho
 function hooksFor(packs) { return (packs || []).map(id => HOOKS[id]).filter(Boolean); }
 function packsRegistered() { return Object.keys(HOOKS); }
 
-// 宝石倾向基底：攻击向→strike，格挡向→defend，否则 null。
-function baseAffinity(CG, gem) {
-  let atk = 0, def = 0;
-  for (const a of (gem.affixes || [])) {
-    const d = CG.AFFIXES[a.id]; if (!d || (d.value && d.value < 0)) continue;
-    if (d.hits || d.combo || d.pierce || d.valuePct || d.shieldBash || d.lastStand || d.element ||
-        d.lifesteal || d.arc || d.dice || d.coin || d.jackpot || d.slots || d.silence || d.poison || d.apply) atk += a.level;
-    if (d.block || d.keepBlock || d.brace || d.selfStatus === 'thorns' || d.selfStatus === 'prodBlock') def += a.level;
-  }
-  return atk > def ? 'strike' : def > atk ? 'defend' : null;
+// 宝石的真资源代价种类（条件/净化 → null）；用于「代价均摊」契合判断。
+function gemCostRes(CG, gem) {
+  if (gem.purified) return null;
+  for (const a of (gem.affixes || [])) { const d = CG.AFFIXES[a.id]; if (d && d.cost && !d.cost.cond) return d.cost.res; }
+  return null;
 }
+function baseAffinity() { return null; }   // v3 已无攻防基底；保留空壳供兼容
 
 // ---- 战斗局面估值 ----
 function V(CG, g, packs) {
@@ -59,7 +55,7 @@ function V(CG, g, packs) {
   }
   v += (p.power || 0) * 0.6;                          // 电力（elec 包会再加权）
 
-  for (const h of hooksFor(packs)) if (h.battle) { const b = h.battle(CG, g); if (b) v += b; }
+  for (const h of hooksFor(packs)) if (h.battle) { try { const b = h.battle(CG, g); if (b) v += b; } catch (e) {} }
   return v;
 }
 
@@ -67,25 +63,27 @@ function V(CG, g, packs) {
 function gemValueGeneric(CG, gem) {
   let v = 0;
   for (const a of (gem.affixes || [])) {
-    const d = CG.AFFIXES[a.id]; if (!d) continue;
-    v += (d.score || 0) * a.level * (d.debuff ? 1.3 : 1);   // 减益分本为负，×1.3 略加重
+    const vp = CG.affixVP && CG.affixVP(a.id, a.level);
+    if (!vp) { const d = CG.AFFIXES[a.id]; v += ((d && d.score) || 4) * (a.level || 1); continue; }   // 兜底
+    if (vp.signature) v += vp.gain + 4;                          // 执行/翻倍/吸血/狂暴：净正强力
+    else if (gem.purified || vp.condCost) v += vp.gain;          // 净化 / 条件代价：无真资源消耗
+    else v += vp.gain - 0.35 * vp.cost;                          // 真资源代价：价值VP − 能量/血/金 clog
   }
   return v;
 }
 function gemValue(CG, gem, ctx) {
   let v = gemValueGeneric(CG, gem);
-  for (const h of hooksFor(ctx && ctx.packs)) if (h.gem) { const b = h.gem(CG, gem, ctx); if (b) v += b; }
+  for (const h of hooksFor(ctx && ctx.packs)) if (h.gem) { try { const b = h.gem(CG, gem, ctx); if (b) v += b; } catch (e) {} }
   return v;
 }
 
 // ---- 安装契合度（把 gem 装到 card 的相对收益乘子 + 各包加成）----
 function installFit(CG, gem, card, ctx) {
-  const aff = baseAffinity(CG, gem);
   let m = 1;
-  if (aff && card.base === aff) m = 1.3;
-  else if (aff && (card.base === 'strike' || card.base === 'defend')) m = 0.8;   // 装错向打折
+  const cr = gemCostRes(CG, gem);
+  if (cr && (card.sockets || []).some(g => gemCostRes(CG, g) === cr)) m = 1.3;   // 代价均摊：同种真资源代价只付最高一个
   let bonus = 0;
-  for (const h of hooksFor(ctx && ctx.packs)) if (h.install) { const b = h.install(CG, gem, card, ctx); if (b) bonus += b; }
+  for (const h of hooksFor(ctx && ctx.packs)) if (h.install) { try { const b = h.install(CG, gem, card, ctx); if (b) bonus += b; } catch (e) {} }
   return m + bonus;
 }
 

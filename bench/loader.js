@@ -19,6 +19,7 @@ const FILES = [
   'js/util/rng.js',
   'js/data/cards.js',
   'js/data/affixes.js',
+  'js/data/affix-vp.js',
   'js/data/tarot.js',
   'js/data/relics.js',
   'js/data/config.js',

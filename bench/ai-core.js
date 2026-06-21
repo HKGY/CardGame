@@ -74,6 +74,48 @@ function make(CG, rng, opts) {
   }
   function resolvePrompts(g) { let n = 0; while ((g.craft || g.pick) && n++ < 10) { if (g.craft) doCraftOn(g); else doPickOn(g); } }
 
+  // 一张「跑图牌组里的牌」的价值（删牌瘦组用）：原始产出折半 + 各宝石价值。起手强牌 ≈7 > 阈值不会被删。
+  function cardDeckWorth(c) {
+    const s = CG.cardStats(c); let w = (s.value || 0) * 0.5;
+    for (const g of (c.sockets || [])) w += value.gemValue(CG, g, { run: null, packs: PACKS });
+    return w;
+  }
+  // ---- 塔罗（消耗品）使用：审计改进①——原 bench 只收集从不使用 → 现按 ΔV 阈值在战斗/地图打出 ----
+  const tarotUI = { pickCard: (cards, cb) => cb(cards && cards[0] ? cards[0].uid : null), choose: (opts, cb) => cb(0) };
+  function applyTarotEffect(run, game, id) { const t = CG.TAROT[id]; if (!t) return false; try { t.apply(run, game, tarotUI); return true; } catch (e) { return false; } }
+  function consumeTarot(run, id) { const i = run.tarot ? run.tarot.indexOf(id) : -1; if (i >= 0) run.tarot.splice(i, 1); }
+  function tryBattleTarots(game, run) {
+    if (!run || !run.tarot || !run.tarot.length) return;
+    let guard = 0, acted = true;
+    while (acted && guard++ < 8) {
+      acted = false;
+      const Vnow = value.V(CG, game, PACKS);
+      let bestId = null, bestV = Vnow + 25; const seen = {};   // 阈值：明显改善才用（别浪费一次性消耗品）
+      for (const id of run.tarot) {
+        if (seen[id]) continue; seen[id] = 1;
+        const t = CG.TAROT[id]; if (!t || t.async || (t.where !== 'battle' && t.where !== 'any')) continue;
+        const r0 = rng.get(); const sim = cloneGame(CG, game);
+        applyTarotEffect(sim.run || run, sim, id);
+        const v = value.V(CG, sim, PACKS); rng.set(r0);
+        if (v > bestV) { bestV = v; bestId = id; }
+      }
+      if (bestId) { const r0 = rng.get(); applyTarotEffect(run, game, bestId); rng.set(r0); consumeTarot(run, bestId); acted = true; if (TELE) TELE.tarot = (TELE.tarot || 0) + 1; }
+    }
+  }
+  function tryMapTarots(run) {
+    if (!run.tarot || !run.tarot.length) return;
+    for (const id of run.tarot.slice()) {
+      const ok = (id === 't_maxhp' || id === 't_gold' || id === 'star') || (id === 't_heal' && run.hp < run.maxHp * 0.7);
+      if (ok && applyTarotEffect(run, null, id)) { consumeTarot(run, id); if (TELE) TELE.tarot = (TELE.tarot || 0) + 1; }
+    }
+  }
+  // 审计改进④——两回合前瞻：把「打完本回合 + 敌人回合」后的局面也计入评分（奖励产出/铺场/再生等延迟收益）。
+  function lookahead(sim) {
+    const r0 = rng.get(); const c = cloneGame(CG, sim);
+    try { if (c.phase === 'player') { c.endTurn(); if (c.phase === 'enemy') c.runEnemyTurn(); } } catch (e) {}
+    const v = value.V(CG, c, PACKS); rng.set(r0); return v;
+  }
+
   // ---- 出牌可行性 ----
   function isPlayable(game, c, idx, s) {
     if (s.noPlay) return false;
@@ -90,11 +132,14 @@ function make(CG, rng, opts) {
     game.hand.forEach((c, idx) => {
       const s = CG.cardStats(c, { valueMult: game.cardValueMult });
       if (!isPlayable(game, c, idx, s)) return;
-      const hitsEnemy = s.kind === 'damage' || s.pierce || s.element || s.devote || s.annihilate ||
-        s.dice || s.coin || s.jackpot || s.slots || s.backfire || (s.effects || []).some(e => e.type === 'damage' || e.type === 'poison' || e.type === 'vulnerable' || e.type === 'weak');
+      const hitsEnemy = s.kind === 'damage' || s.pierce || s.element || s.execute || s.devote || s.annihilate ||
+        s.dice || s.coin || s.jackpot || s.slots || s.backfire || (s.effects || []).some(e => e.type === 'damage' || e.type === 'poison' || e.type === 'vulnerable' || e.type === 'weak' || e.type === 'frail' || e.type === 'enemyStat' || e.type === 'silence');
       const targets = hitsEnemy ? aliveIdx.slice(0, 3) : [(game.target >= 0 ? game.target : (aliveIdx[0] != null ? aliveIdx[0] : 0))];
       const cantrip = s.cost === 0 || s.freeNext > 0 || (s.effects || []).some(e => e.type === 'draw' || e.type === 'energy' || e.type === 'gainPower');
-      for (const t of targets) out.push({ uid: c.uid, target: t, cantrip });
+      // 审计改进②——「铺垫型」标记：条件代价/元素/造牌/召唤/建筑/产出/抽能 等即时分可能为负的连招启动牌。
+      const setup = !!((s.condBonus && s.condBonus.length) || s.element || s.gainPower || s.conjure ||
+        (s.effects || []).some(e => e.type === 'draw' || e.type === 'energy' || e.type === 'summon' || e.type === 'build' || e.type === 'gainPower' || (e.type === 'selfStatus' && /^prod/.test(e.status || ''))));
+      for (const t of targets) out.push({ uid: c.uid, target: t, cantrip, setup });
     });
     return out;
   }
@@ -143,16 +188,22 @@ function make(CG, rng, opts) {
     const Vnow = value.V(CG, game, packs);
     const scored = candidates(game).map(c => { const { v } = evalPlay(game, c.uid, c.target, packs); return { c, iv: v }; });
     scored.sort((a, b) => b.iv - a.iv);
+    // 审计改进②——不按即时分预剪枝：top-K ∪ 所有「铺垫型」候选（上限 9）一起 rollout，避免连招启动牌被剪掉。
     const K = Math.min(4, scored.length);
-    let best = null, bestV = Vnow + EPS;
-    for (let i = 0; i < K; i++) {
-      const c = scored[i].c;
+    const chosen = scored.slice(0, K);
+    for (let i = K; i < scored.length && chosen.length < 9; i++) if (scored[i].c.setup) chosen.push(scored[i]);
+    let best = null, bestScore = -Infinity, anyGood = false;
+    for (const s of chosen) {
+      const c = s.c;
       const sim = cloneGame(CG, game);
       if (c.target >= 0 && sim.enemies[c.target] && sim.enemies[c.target].alive) { sim.target = c.target; sim.enemy = sim.enemies[c.target]; }
       sim.playCard(c.uid); resolvePrompts(sim);
-      const endV = greedyFinish(sim, packs);
-      if (endV > bestV) { bestV = endV; best = c; }
+      const endV = greedyFinish(sim, packs);                 // 本回合打完
+      if (endV > Vnow + EPS) anyGood = true;
+      const score = endV + 0.4 * lookahead(sim);             // 审计改进④——叠加两回合前瞻（折现 0.4）
+      if (score > bestScore) { bestScore = score; best = c; }
     }
+    if (!anyGood) best = null;                                // 没有任何出牌改善本回合 → 结束回合（下方周转兜底）
     if (!best) for (const s of scored) if (s.c.cantrip && s.iv >= Vnow - EPS) { best = s.c; break; }   // 周转兜底
     rng.set(r0);
     return best;
@@ -161,11 +212,17 @@ function make(CG, rng, opts) {
   function takeTurn(game, run) {
     const packs = run.packs;
     let steps = 0, cantrips = 0;
+    tryBattleTarots(game, run);                          // 审计改进①——开局先看是否该用塔罗（铺场/抢杀/救命）
     while (game.phase === 'player') {
       if (game.craft || game.pick) { resolvePrompts(game); continue; }
       if (steps++ > 80) break;
       const best = SEARCH === 'greedy' ? greedyBest(game, packs) : rolloutChoose(game, packs);
-      if (!best) break;
+      if (!best) {                                       // 无牌可打前再给塔罗一次机会（收尾补伤 / 救命 / 回能再打）
+        const before = run && run.tarot ? run.tarot.length : 0;
+        tryBattleTarots(game, run);
+        if (run && run.tarot && run.tarot.length < before) continue;
+        break;
+      }
       if (best.cantrip && ++cantrips > 16) break;
       if (best.target >= 0 && game.enemies[best.target] && game.enemies[best.target].alive) game.setTarget(best.target);
       game.playCard(best.uid);
@@ -206,6 +263,7 @@ function make(CG, rng, opts) {
     return true;
   }
   function map(run) {
+    tryMapTarots(run);                                   // 审计改进①——地图上用「任意」型塔罗（治疗/加血/金币/群星）
     const a = run.available;
     if (!a.length) { run.phase = 'dead'; return; }
     const targets = run.grid.rooms.filter(r => !r.done && r !== run.current && r.type !== 'boss' && isContent(r) && enterable(run, r));
@@ -264,6 +322,13 @@ function make(CG, rng, opts) {
       if (surplus > empty && run.gold - run.socketPrice() >= reserve && run.deck.some(c => (c.limit || 0) < CG.MAX_SOCKETS)) {
         run.buyAddSocket(run.deck.find(c => (c.limit || 0) < CG.MAX_SOCKETS).uid);
       } else break;
+    }
+    // 审计改进③——删牌瘦组：牌组偏大时删掉最弱的牌（提升抽牌一致性；起手强牌 ≈7 > 阈值不会被删）。
+    let dg = 0;
+    while (dg++ < 3 && run.deck.length > 11 && run.removePrice && run.gold - run.removePrice() >= reserve) {
+      const worst = run.deck.slice().sort((a, b) => cardDeckWorth(a) - cardDeckWorth(b))[0];
+      if (!worst || cardDeckWorth(worst) > 6) break;     // 没有明显废牌就停
+      run.buyRemove(worst.uid);
     }
     installAll(run);
     run.leaveShop();
