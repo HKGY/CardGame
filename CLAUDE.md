@@ -8,11 +8,17 @@
 
 ## 改动前：先通读全项目
 
-- **同一个 session 内，做任何改动之前，必须已通读项目里的每一个文件**（不止要改的那个），先建立全局理解再下手。
+- **同一个 session 内，做任何改动之前，必须已通读项目里的每一个文件**（不止要改的那个），先建立全局理解再下手。**例外：`bench/` 目录下的文件不需要读**（离线评测台、单独维护，见下「bench（离线评测台）维护」）。
+
+## bench（离线评测台）维护
+
+- `bench/` 是离线 AI 自动对局 + 蒙特卡洛量化各主题强弱的评测台，**有专人定期跟进度、单独维护**。
+- **改本项目其它任何东西（`js/`、`test/`、UI、平衡…）时都不需要在意 `bench/` 里的内容**：不用读、不用改、也不用保证它当下还能跑；即便你的改动让 bench 暂时失配（如难度口径、估值钩子），由该专人跟进修复。
+- 反过来：除非任务**明确就是「改 bench」**，否则别顺手去动 `bench/`。
 
 ## 提交前必须全部测试通过（硬性要求）
 
-- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 232 例）才允许提交。** 红 / 跳过都不许提交。
+- **任何 commit 之前必须先跑 `npm test`，全部用例全绿（当前 233 例）才允许提交。** 红 / 跳过都不许提交。
 - 改了 `js/data/` 或 `js/engine/`（纯逻辑）→ **同步增改 `test/` 用例** 再跑测试，不要让覆盖率退化。
 - 改了 UI（`js/ui/*`、`css/`、`index.html`）→ 单测覆盖不到：**在浏览器打开 `index.html` 人工自测**，并在回复里说明已人工验证了什么。
 - 如实报告：测试失败就贴输出；某部分没验证就明说。**不得谎报“通过”。**
@@ -69,7 +75,7 @@
 - **律动包（flow）**：条件触发&能量博弈。活力(vigor→`_vigor` 跨回合、playCard 消耗给下一张+数值)/灵感(inspire→`_inspire` 本回合、`drawCards` 每抽一张给格挡) 走 effects；**固有(innate)** 由 `_startBattle` 把 `cardStats(c).innate` 的牌 sort 到 `drawPile` 末尾＝开局首抽；全力(allin 打出后能量=0则×)/余裕(surplus 能量≥阈值则 `payCost=0`) 在 playCard 资源处。`_vigor` 跨回合保留、`_inspire`/`_ampX` 每回合 `_startPlayerTurn` 清零。
 - **回溯（rewind，律动第 6 个增益）**：`game._snapshot()`/`_restore(s)` 存取「完整战斗快照」(双方 hp/block/电力/statuses，元素光环在 statuses 内)。打出存 `_rewindSnap`；`_startPlayerTurn` 顶部若有快照则 `_restore` 并清空＝把敌人这一回合整体抹去。
 - **放大包（amplify）**：翻倍。强效(potent 本牌伤害/格挡/治疗×(1+等级)) 是 playCard 加成；**倍损(amppain)/倍益(ampgain)** 设本回合标志 `_ampDebuff`/`_ampBuff`，在 `applyStatus` 里把给敌减益/给己增益的 `amount` ×2（每回合清）；激赏(boon)复用 `addTempStrength`(回合末清)、极化(polarize)把当前力量翻倍。
-- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=80`）。
+- **改了任何 `js/` 或 `css/` → 必须把 `index.html` 里对应的 `?v=NN` 版本号全部 +1**（无构建的静态站靠 query 串破浏览器缓存；当前 `v=88`）。
 
 ## 改内容 / 调平衡的位置
 
