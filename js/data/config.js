@@ -9,11 +9,11 @@ CG.CONFIG = {
   startGold: 99,
   acts: 3,                       // 总层数
 
-  // 敌人数值膨胀（大幅加强：20 卡包后玩家很强，敌人血量/伤害随层数大幅放大）。
-  // actScale 同时乘敌人 maxHp 与招式的 damage/block（见 _makeEnemy / _scaleEff）。
-  actScale: { 1: { hp: 1.6, dmg: 1.5 }, 2: { hp: 2.6, dmg: 2.2 }, 3: { hp: 4.0, dmg: 3.0 } },
+  // 敌人数值膨胀。actScale 同时乘敌人 maxHp 与招式的 damage/block（见 _makeEnemy / _scaleEff）。
+  // v3「代价-价值」起手牌更精瘦（打击6/防御5、首石免代价），故膨胀曲线相应放缓（bench 校准）。
+  actScale: { 1: { hp: 1.15, dmg: 1.1 }, 2: { hp: 1.7, dmg: 1.5 }, 3: { hp: 2.4, dmg: 1.9 } },
   // 难度：敌人每项数值（血量/伤害/格挡/力量/敏捷）整体 ×M；开始菜单可自选，越低越易。
-  difficulty: { options: [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], default: 0.7 },
+  difficulty: { options: [0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0], default: 0.75 },   // v3 校准：默认 0.75 时最优 AI 基线 ~69%
   goldMult: { 1: 1, 2: 1.4, 3: 1.8 },   // 后层金币也更多
   // 每场战斗的敌人数量权重 [数量, 权重]：普通最多 4 / 精英最多 2 / 首领恒 1；越高层越可能成群
   encounter: {

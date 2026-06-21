@@ -674,9 +674,9 @@ window.CG = window.CG || {};
     shield:  { name: '盾兵', icon: '🛡️', desc: '4 攻击 + 6 格挡法术；侧重防守。', shopCard: 'spell' },
     priest:  { name: '牧师', icon: '✚',  desc: '4 攻击 + 4 格挡 + 2 治疗法术；续航流。', shopCard: 'spell' },
   };
-  // 按职业构建初始牌组：每张卡＝空法术 + 一颗「无代价首石」（攻击/格挡/治疗），1 个孔。
+  // 按职业构建初始牌组：每张卡＝空法术 + 一颗「无代价首石」+ 1 个空孔（可镶第二颗，付代价/均摊）。
   CG.buildDeck = function (cls) {
-    const gemmed = valId => CG.makeCard('spell', 1, [CG.makeGem([{ id: valId, level: 1 }])]);
+    const gemmed = valId => CG.makeCard('spell', 2, [CG.makeGem([{ id: valId, level: 1 }])]);
     const rep = (valId, n) => Array.from({ length: n }, () => gemmed(valId));
     if (cls === 'shield') return [...rep(CG.STRIKE, 4), ...rep(CG.GUARD, 6)];
     if (cls === 'priest') return [...rep(CG.STRIKE, 4), ...rep(CG.GUARD, 4), ...rep(CG.HEAL, 2)];

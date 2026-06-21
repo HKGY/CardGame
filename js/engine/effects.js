@@ -240,7 +240,7 @@ window.CG = window.CG || {};
     sift(game) { game._discardRandom(2); game.drawCards(2); },                                       // 整理：弃 2 抽 2
     madness(game) { const n = game.hand.length; game._discardRandom(n); if (n > 0) game.applyStatus(game.player, 'strength', n); },   // 疯狂：弃光手牌·每张+1力量
     // === 术士包 ===（造牌/复制/灵视/牌库强化；clutter 塞渣滓）
-    conjure(game, eff) { for (let i = 0; i < 1 + eff.value; i++) game._addToHand(CG.makeCard(Math.random() < 0.5 ? 'strike' : 'defend')); },   // 演卡
+    conjure(game, eff) { for (let i = 0; i < 1 + eff.value; i++) game._addToHand(CG.makeCard('spell', 1, [CG.makeGem([{ id: Math.random() < 0.5 ? CG.STRIKE : CG.GUARD, level: 1 }])])); },   // 演卡：印一张攻/防法术
     daggers(game) { for (let i = 0; i < 3; i++) game._addToHand(CG.makeFoodCard('shiv')); },                                       // 飞刀×3
     duplicate(game) { if (game.hand.length) { const c = game.hand[Math.floor(Math.random() * game.hand.length)]; game._addToHand(CG.makeCard(c.base, c.limit, c.sockets || [])); } },   // 复制随机手牌
     foresight(game) { if (game.drawPile.length) { const c = game.drawPile.pop(); game._applyCardEffects(c); game.discardPile.push(c); } },   // 灵视：免费打出牌堆顶
