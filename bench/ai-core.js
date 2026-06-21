@@ -153,13 +153,21 @@ function make(CG, rng, opts) {
     return { sim, v: value.V(CG, sim, packs) };
   }
   // 从候选里挑「打出后局面分最高」的单手（含不变差的周转牌）。不管 RNG。
+  // 某候选牌的「按包出牌偏好」加分（playPolicy 钩子；无策略包时零成本跳过）。
+  const POL = (typeof process !== 'undefined' && process.env.POL != null) ? +process.env.POL : 0;   // playPolicy 全局缩放：实测「手写覆盖搜索回合内选牌」单调净负 → 默认关；保留钩子与可调以便后续研究
+  function polBonus(game, c, packs) {
+    if (!value.hasPolicy(packs) || POL === 0) return 0;
+    const card = game.hand.find(h => h.uid === c.uid);
+    return card ? POL * value.playPolicyBonus(CG, game, card, CG.cardStats(card), packs) : 0;
+  }
   function pickByImmediate(game, packs) {
     const Vnow = value.V(CG, game, packs);
     let best = null, bestV = Vnow + EPS, bestC = null, bestCV = Vnow - EPS;
     for (const c of candidates(game)) {
-      const { v } = evalPlay(game, c.uid, c.target, packs);
+      const { v: v0 } = evalPlay(game, c.uid, c.target, packs);
+      const v = v0 + polBonus(game, c, packs);             // 叠加按包出牌偏好
       if (v > bestV) { bestV = v; best = c; }
-      else if (c.cantrip && v >= Vnow - EPS && v > bestCV) { bestCV = v; bestC = c; }
+      else if (c.cantrip && v0 >= Vnow - EPS && v > bestCV) { bestCV = v; bestC = c; }
     }
     return best || bestC;
   }
@@ -187,7 +195,7 @@ function make(CG, rng, opts) {
   function rolloutChoose(game, packs) {
     const r0 = rng.get();
     const Vnow = value.V(CG, game, packs);
-    const scored = candidates(game).map(c => { const { v } = evalPlay(game, c.uid, c.target, packs); return { c, iv: v }; });
+    const scored = candidates(game).map(c => { const { v } = evalPlay(game, c.uid, c.target, packs); return { c, iv: v + polBonus(game, c, packs) }; });
     scored.sort((a, b) => b.iv - a.iv);
     // 审计改进②——不按即时分预剪枝：top-K ∪ 所有「铺垫型」候选（上限 9）一起 rollout，避免连招启动牌被剪掉。
     const K = Math.min(4, scored.length);
@@ -201,7 +209,7 @@ function make(CG, rng, opts) {
       sim.playCard(c.uid); resolvePrompts(sim);
       const endV = greedyFinish(sim, packs);                 // 本回合打完
       if (endV > Vnow + EPS) anyGood = true;
-      const score = endV + LOOK * lookahead(sim);            // 审计改进④——叠加两回合前瞻（折现 LOOK，可调）
+      const score = endV + LOOK * lookahead(sim) + polBonus(game, c, packs);   // 两回合前瞻(折现 LOOK) + 按包出牌偏好
       if (score > bestScore) { bestScore = score; best = c; }
     }
     if (!anyGood) best = null;                                // 没有任何出牌改善本回合 → 结束回合（下方周转兜底）

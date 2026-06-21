@@ -1,117 +1,73 @@
 'use strict';
-/* 术士包（conjure）策略模块 —— M3 模式：通过 value.registerPack 注入估值钩子。
+/* 术士包（conjure）v3 策略 —— 原子模型重写。
  *
- * 机制要点（凭空造牌/复制/灵视/牌库强化）：
- *   - conjure(演卡)：打出后临时印 (1+level) 张随机基础牌（打击/防御）进手牌（仅本场）。
- *   - daggers(飞刀)：印 3 张「飞刀」(0 费·造 4 伤·打出即消耗)进手牌，相当于 0 费打出 12 点伤害。
- *   - duplicate(复制)：复制随机手牌 1 张（副本进手牌，含原卡的全部宝石槽）。
- *   - foresight(灵视)：免费打出抽牌堆顶 1 张牌（不耗能量直接结算效果）。
- *   - mindblast(心灵震慑)：本场永久：手牌+抽牌堆+弃牌堆里所有攻击牌 growth += level。
- *   - clutter(谵妄)：打出后向手牌塞 level 张渣滓（1 费·无效果·打出即消耗），污染手牌。
+ * v3 术士＝唯一价值原子 `conjure`（`d.conjure`）：打出带它的牌后，临时印 (1+level) 张随机基础
+ * 法术（攻/防，各带 1 颗 1 级宝石）进手牌，仅本场。引擎 effect：conjure → _addToHand×(1+value)，
+ * 手牌满(HAND_LIMIT=10)则进弃牌堆＝白印。旧版的 daggers/mindblast/duplicate/foresight/clutter
+ * 在 v3 已删 → 那是死代码，本文件按 v3 只对 `conjure` 建模。
  *
- * 通用 V 的盲点：
- *   ① mindblast 触发后，draw/discardPile 里攻击牌实例的 growth 已更新，但通用 V
- *     只看当前手牌的 cardStats——抽牌堆 / 弃牌堆里的 growth 要等打出时才体现。
- *   ② clutter 渣滓（1 费、什么都不做）占手牌槽位 + 浪费能量，通用 V 低估长期惩罚。
- *   ③ 演卡/飞刀/灵视造牌的即时价值（更多可打的牌）rollout 会自动感知，无需额外补偿。
+ * 通用 V 的盲点：V 只看「打完后的局面」（血量/状态/敌血…），**牌的张数本身不计分**。
+ *   - rollout 会真实展开「打 conjure 牌 → 印出新牌 → 这回合接着打它们」，故**本回合内**能用上的
+ *     conjure 产出，搜索已经能看到、无需 battle 补偿（补了反而双重计数 → AI 囤牌）。
+ *   - 真正看不到的是「牌权/续航」的**期权**与**跨回合**价值：多出来的牌是后续回合的出牌机会
+ *     （滚雪球）。这类只能在 gem（构筑：该不该留这颗造牌宝石）与 playPolicy（早造早用、别在
+ *     手牌快满时造而溢出弃牌堆）里表达。
  *
- * 标度参考（来自 README）：
- *   1 点价值 ≈ 0.083 血 ≈ 0.67 敌血；「值半条命的铺垫」≈ +6。
- *   本模块最大附加约 10~15，量级合理。
+ * 标度（README）：1 V ≈ 0.083 玩家血 ≈ 0.67 敌血；「值半条命的铺垫」≈ +6；宝石基准 score×level。
+ *   conjure 通用价值已是 score(4)×level；本文件的 gem 只做小幅边际修正，battle 期权分封顶很小，
+ *   以免 AI 为囤牌而消极不打牌（与项目「V 故意不奖励囤牌防消极」一致）。
  */
 const value = require('../value');
 
+// 一张牌是否「造牌牌」（含 conjure 原子），及其 conjure 总层数。
+function conjureLevel(CG, card) {
+  let n = 0;
+  for (const sk of (card.sockets || [])) for (const a of (sk.affixes || [])) {
+    const d = CG.AFFIXES[a.id]; if (d && d.conjure) n += d.conjure * (a.level || 1);
+  }
+  return n;
+}
+
 value.registerPack('conjure', {
-
-  // ---- 局面附加分 ----
-  // 主要补偿 mindblast 对 draw/discardPile 里攻击牌 growth 的延迟收益，
-  // 以及 clutter 渣滓在手牌中的隐性损失。
+  // battle：给「手里尚未打出的造牌牌」一点点期权分——它代表后续能多打的牌（牌权/续航）。
+  // 注意只给「手牌还有空间接住产出」的部分：手牌越满，造出的牌越会溢出弃牌堆 → 期权越廉价。
+  // 量级刻意很小（每张造牌牌 ≤ ~2 期权分），避免与 rollout 的本回合展开双重计数、也避免 AI 囤牌。
   battle(CG, g) {
-    let v = 0;
-
-    // mindblast 延迟价值：draw/discardPile 里攻击牌已积累的 growth
-    // 手牌里的 growth 已被 cardStats().value 体现，这里只补充看不到的部分。
-    const drawGrowth = g.drawPile.reduce((s, c) => {
-      const b = CG.BASE_CARDS[c.base];
-      return (b && b.type === 'attack' && c.growth > 0) ? s + c.growth : s;
-    }, 0);
-    const discGrowth = g.discardPile.reduce((s, c) => {
-      const b = CG.BASE_CARDS[c.base];
-      return (b && b.type === 'attack' && c.growth > 0) ? s + c.growth : s;
-    }, 0);
-
-    // 抽牌堆的 growth 比弃牌堆更快兑现（不需等洗牌循环）
-    v += drawGrowth * 0.9;
-    v += discGrowth * 0.5;
-    // 早回合铺 mindblast，其收益覆盖更多回合
-    if (g.turn <= 3) v += (drawGrowth + discGrowth) * 0.4;
-
-    // 渣滓污染惩罚：手牌中每张渣滓 = 占用槽位 + 若打出浪费 1 能量
-    const dross = g.hand.filter(c => c.base === 'dross').length;
-    v -= dross * 2.5;
-
-    return v;
+    const hand = g.hand || [];
+    const room = Math.max(0, 10 - hand.length);        // HAND_LIMIT=10：手里还能接住几张
+    if (room <= 0) return 0;                            // 手牌已满：造出全溢出弃牌堆，无期权价值
+    let opt = 0;
+    for (const c of hand) {
+      const cl = conjureLevel(CG, c); if (!cl) continue;
+      const produced = 1 + cl;                          // 打出后印出的牌数
+      const usable = Math.min(produced, room);          // 真正接得住的张数
+      opt += usable;
+    }
+    // 每张「能接住的产出」≈ 0.8 期权分（一次后续出牌机会，远低于一张直接产出牌的即时分），整体封顶。
+    return Math.min(opt * 0.8, 5);
   },
 
-  // ---- 宝石价值附加分 ----
+  // gem：造牌＝牌权/续航，通用已按 score=4 计；这里仅做小幅边际加成（造牌随回合滚雪球、价值略高于
+  // 同分一次性效果），等级越高一次造越多 → 略超线性。
   gem(CG, gem) {
     let v = 0;
     for (const a of (gem.affixes || [])) {
-      const d = CG.AFFIXES[a.id]; if (!d) continue;
-
-      if (d.mindblast) {
-        // 心灵震慑：全牌库攻击牌永久 +level 成长，长期价值极高
-        // 战士起手约 5 张打击，每 1 级 = 每场战斗至少 +5 总伤害，随回合数线性增长
-        v += 4.5 * a.level;
-      }
-      if (d.daggers) {
-        // 飞刀：打出即得 3 张 0 费飞刀（各造 4 点伤害），等效 0 能量 12 点伤害
-        v += 3.0 * a.level;
-      }
-      if (d.conjure) {
-        // 演卡：每回合多 (1+level) 张牌可打，增加出牌选项
-        v += 2.0 * a.level;
-      }
-      if (d.foresight) {
-        // 灵视：免费打出牌堆顶，节省能量同时推进牌组循环
-        v += 2.5 * a.level;
-      }
-      if (d.duplicate) {
-        // 复制：复制含宝石手牌（副本保留所有宝石孔），等效宝石投资翻倍
-        v += 1.8 * a.level;
-      }
-      if (d.clutter) {
-        // 谵妄：每次打出塞渣滓，长期来说每张渣滓 ≈ 1 能量浪费 + 槽位占用
-        // 比基础 score=-3 更严重，再额外扣分
-        v -= 2.5 * a.level;
-      }
+      const d = CG.AFFIXES[a.id]; if (!d || !d.conjure) continue;
+      const L = a.level || 1;
+      v += 1.2 * L + (L >= 2 ? 0.5 : 0);                // 边际加成：造牌的续航溢价；高等级一次多造，略加权
     }
     return v;
   },
 
-  // ---- 安装契合度附加 ----
-  // mindblast / daggers / foresight / conjure 装在攻击牌（strike/shieldbash）上效率更高：
-  // 攻击牌通常打出频率高，且自带伤害值，与这些生成型/强化型词条协同更好。
-  install(CG, gem, card) {
-    let bonus = 0;
-    const isAtk = card.base === 'strike' || card.base === 'shieldbash';
-
-    for (const a of (gem.affixes || [])) {
-      const d = CG.AFFIXES[a.id]; if (!d) continue;
-
-      if (d.mindblast && isAtk) {
-        // mindblast 在攻击牌上：打攻击顺带触发，逻辑协同
-        bonus += 0.25 * a.level;
-      }
-      if ((d.daggers || d.foresight) && isAtk) {
-        // 飞刀/灵视在攻击牌上：攻击牌出牌频率高，触发更多
-        bonus += 0.15 * a.level;
-      }
-      if (d.conjure && isAtk) {
-        // 演卡在攻击牌上：打攻击顺带生成更多牌
-        bonus += 0.1 * a.level;
-      }
-    }
-    return bonus;
+  // playPolicy：早造早用、滚雪球——回合早、手牌不满时偏好打造牌牌（产出能在本回合及后续被用上）；
+  // 手牌快满时压后（造出的牌会溢出弃牌堆＝浪费）。强度中等，仅在确有 conjure 牌时生效。
+  playPolicy(CG, g, card, s) {
+    const cl = conjureLevel(CG, card); if (!cl) return 0;
+    const room = Math.max(0, 10 - g.hand.length);
+    const produced = 1 + cl;
+    if (room <= 1) return -8;                           // 手牌将满：造出几乎全溢出弃牌堆 → 强烈压后
+    if (room < produced) return -3;                     // 接不全：部分溢出 → 轻度压后
+    // 手牌有充裕空间：早造早滚雪球（越早，产出能服务越多回合）。
+    return g.turn <= 2 ? 12 : (g.turn <= 4 ? 7 : 3);
   },
 });

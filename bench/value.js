@@ -99,7 +99,17 @@ function bestInstallScore(CG, gem, run, packs) {
   return best;
 }
 
+// ---- 出牌偏好（playPolicy）：给某候选牌一个「按包策略」的加分，修正搜索的回合内选牌 ----
+//   这是 battle/gem 钩子做不到的一类：V 只评估「打完后的局面」，无法表达「现在更该打哪张」的策略偏好
+//   （如 weaken：减益够了就优先把能量导向伤害/集火击杀；bastion：盾高了就该转伤害）。
+function hasPolicy(packs) { return hooksFor(packs).some(h => h.playPolicy); }
+function playPolicyBonus(CG, g, card, s, packs) {
+  let b = 0;
+  for (const h of hooksFor(packs)) if (h.playPolicy) { try { const x = h.playPolicy(CG, g, card, s); if (x) b += x; } catch (e) {} }
+  return b;
+}
+
 module.exports = {
-  registerPack, hooksFor, packsRegistered,
+  registerPack, hooksFor, packsRegistered, hasPolicy, playPolicyBonus,
   V, gemValue, gemValueGeneric, installFit, bestInstallScore, baseAffinity,
 };

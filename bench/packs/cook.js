@@ -1,10 +1,12 @@
 'use strict';
-/* 厨艺包（cook）策略 —— 核心是 craft 钩子，按当前局势选最优菜谱与调料。
+/* 厨艺包（cook）v3 策略 —— 核心是 craft 钩子：做菜＝序列决策（选荤菜+调料），V 刻画不了。
  *
+ * v3 价值原子＝食材给予词条 `d.give`∈{veg,meat,season,cookware}（食材本身已分 1~3 级）。
  * 机制回顾：
- *   打出素菜 → _startCraft → craft 钩子返回 {meatUid, seasonUid}（null=跳过）
- *   菜谱矩阵 CG.RECIPE[meat][veg] → 效果种类；数值 = veg.level × meat.level × 2
- *   调料：盐(salt)=数值×2 / 酱油(soy)=附滋养(治疗+50%) / 胡椒(pepper)=结算2次
+ *   打出素菜 → _startCraft → craft 钩子返回 {meatUid, seasonUid}（null=跳过该步）
+ *   菜谱矩阵 CG.RECIPE[meat][veg] → 效果种类；数值 = veg.level × meat.level × 4（只素菜＝×2 清炒回复）
+ *   调料：盐(salt)=数值×2(过载) / 酱油(soy)=附滋养(治疗+50%，本场持续) / 胡椒(pepper)=结算 2 次
+ *   荤×素→效果种类：fish=回复/再生/荆棘、chicken=力量/格挡/敏捷、beef=抽牌/能量/回响
  *
  * 关键设计决策：
  *   对 V() 有「直接影响」的效果（block/heal/strength/dexterity/regen/thorns/draw）
@@ -14,8 +16,9 @@
  *     效果是「释放后续出牌」；实际价值 ≈ min(echo_value, 剩余手牌数) × 均牌值，
  *     比直接效果要低得多
  *
- * battle 钩子：只加已生效的 nourish 状态价值，不对食材在手加分
- * gem 钩子：轻度加权 farm/ranch/market/kitchen，加重腐坏惩罚
+ * battle 钩子：已生效 nourish 加分 + 手里凑出「成套食材(素+荤)」时给点潜在做菜价值
+ * gem 钩子：按 d.give 给食材宝石定价（荤＞素≈调料＞厨具；牌组已有素菜来源时荤/调料更值）
+ * playPolicy 钩子：手里有素菜且有荤菜可配 → 偏好打素菜（触发做菜链、变现成强餐点）
  */
 const value = require('../value');
 
@@ -138,32 +141,51 @@ function scoreCombination(CG, vegBase, meatBase, seasonBase, g) {
   return rawScore;
 }
 
+// 牌组里「能产出某类食材」的 give 词条数（跨所有牌的所有宝石）——用于 gem 钩子的合成链判断。
+function deckGiveCounts(CG, run) {
+  const cnt = { veg: 0, meat: 0, season: 0, cookware: 0 };
+  for (const c of (run.deck || [])) for (const g of (c.sockets || [])) for (const a of (g.affixes || [])) {
+    const d = CG.AFFIXES[a.id]; if (d && d.give && cnt[d.give] != null) cnt[d.give] += a.level;
+  }
+  return cnt;
+}
+
 value.registerPack('cook', {
-  // battle：只加已生效的 nourish 状态价值（不对食材在手加分，避免 AI 倾向于不打牌）
+  // battle：已生效 nourish 状态价值 + 手里凑出「成套食材(素+荤)」的潜在做菜价值。
+  // 成套时下一步就能做出数值翻倍的强餐点；rollout 打素菜会真实展开做菜、V 能看到，但「这回合还没轮到」
+  // 时给一点点期权分，鼓励保留并尽快变现（封顶，避免 AI 为了囤食材而消极不打牌）。
   battle(CG, g) {
     const s = g.player.statuses;
-    return (s.nourish || 0) * 1.5;
+    let v = (s.nourish || 0) * 1.5;
+    const has = cat => g.hand.some(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === cat; });
+    if (has('veg') && has('meat')) v += 2;             // 成套(素+荤)：能做强餐点，轻度期权分
+    return v;
   },
 
-  // gem：给 cook 包增益词条轻度加权，对腐坏减益加重惩罚
-  gem(CG, gem) {
+  // gem：按 d.give 给食材宝石定价。荤菜(数值倍增器)＞素菜≈调料＞厨具；
+  // 牌组已有「素菜来源」时，荤菜/调料更值（凑齐合成链才有用，孤立的荤/调料做不成菜）。
+  gem(CG, gem, ctx) {
+    const run = ctx && ctx.run;
+    const have = run ? deckGiveCounts(CG, run) : null;
     let v = 0;
     for (const a of (gem.affixes || [])) {
-      const d = CG.AFFIXES[a.id]; if (!d) continue;
-      if (d.give === 'veg')       v += 1.0 * a.level;
-      if (d.give === 'meat')      v += 1.5 * a.level;   // 荤菜是数值倍增器，最值钱
-      if (d.give === 'season')    v += 1.0 * a.level;
-      if (d.give === 'cookware')  v += 0.8 * a.level;
-      // 腐坏减益：污染手牌且回合末惩罚，比通用估值更重
-      if (d.give === 'spoiled_rice' || d.give === 'stinky_meat' || d.give === 'rotten_veg') {
-        v -= 2.5 * a.level;
-      }
+      const d = CG.AFFIXES[a.id]; if (!d || !d.give) continue;
+      const L = a.level;
+      if (d.give === 'veg')      v += 1.0 * L;          // 素菜＝做菜链的「触发器」，独立可用(可清炒/被配)
+      else if (d.give === 'meat') {                     // 荤菜＝数值倍增器，最值钱；但需配素菜才生效
+        v += 1.6 * L;
+        if (have && have.veg > 0) v += 0.6 * L;         // 牌组已有素菜来源 → 荤菜能凑成链，更值
+      } else if (d.give === 'season') {                 // 调料＝菜谱增幅(盐/酱油/胡椒)，需有可做的菜
+        v += 0.9 * L;
+        if (have && have.veg > 0) v += 0.4 * L;
+      } else if (d.give === 'cookware') v += 0.8 * L;   // 厨具＝0 费小武器(刀/锅/炉)，稳但平庸
     }
     return v;
   },
 
   // craft：核心！按局势选最优 (meatUid, seasonUid)。
-  // 被 doCraftOn 调用时 g.craft.step='meat', g.craft.vegUid 已设好。
+  // 被 doCraftOn 调用时 g.craft.step='meat'、g.craft.vegUid 已设好；做菜分两步，但选 meat 后
+  // step 会推进到 'season'，故这里直接从手牌枚举两类候选（与 craftCandidates 同口径：按 food 分类）。
   craft(CG, g) {
     if (!g.craft) return null;
 
@@ -171,11 +193,11 @@ value.registerPack('cook', {
     if (!vegCard) return null;
     const vegBase = vegCard.base;
 
-    // 收集可选的荤菜和调料
+    // 收集可选的荤菜和调料（按 food 分类，与 game.craftCandidates 一致；荤菜数值乘子越高越好）
     const meats   = g.hand.filter(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === 'meat'; });
-    const seasons  = g.hand.filter(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === 'season'; });
+    const seasons = g.hand.filter(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === 'season'; });
 
-    // 候选列表：null = 跳过
+    // 候选列表：null = 跳过该步
     const meatOptions   = [null].concat(meats);
     const seasonOptions = [null].concat(seasons);
 
@@ -199,5 +221,16 @@ value.registerPack('cook', {
     }
 
     return { meatUid: bestMeatUid, seasonUid: bestSeasonUid };
+  },
+
+  // playPolicy：手里有素菜 + 有荤菜可配 → 偏好打素菜，触发做菜链（素菜单吃只回 1~3 血，
+  // 配上荤菜+调料能做出数值翻几倍的强餐点）。鼓励 AI 走「打素菜→做菜→吃餐点」的变现路径，
+  // 而非把素菜当成 1~3 血的清炒草草打掉。仅当本牌确为素菜、且场上有荤菜时加分。
+  playPolicy(CG, g, card, s) {
+    if (s.kind !== 'veg') return 0;
+    const hasMeat = g.hand.some(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === 'meat'; });
+    if (!hasMeat) return 0;                         // 没荤菜＝只能清炒，不必催着打
+    // 越缺能量越别急着打（做菜本身免费，但餐点是 0 费消耗、随时能吃）；中等强度偏好。
+    return g.player.energy > 0 ? 12 : 4;
   },
 });

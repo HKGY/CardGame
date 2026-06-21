@@ -1,110 +1,107 @@
 'use strict';
-/* 召唤包（summon）策略模块
- * 机制：game.allies 跨回合保留（上限 6），回合末 _allyAttack() 自动出力；嘲讽召唤物重定向敌人伤害。
- * 通用 V 对 allies 完全盲目——召唤物是「持久输出 + 持续格挡 + 挡刀盾」，V 看不到这些长期价值。
- * 修复策略：battle 钩子按 ATK/giveBlock/taunt/HP 给召唤物板面定价；gem/install 给召唤增益加权。
+/* 召唤包（summon）策略 —— v3 原子模型重写。
  *
- * 估值标度参考（value.js）：1 点价值 ≈ 0.083 玩家血 ≈ 0.67 敌血
- *   敌血 ehp × -1.5 → 消 1 敌血=+1.5；每回合 4 攻骷髅理论永久贡献 4×1.5=6/回合（折现保守）
- *   玩家血 projHp × 12 → 1 hp = 12 pts；图腾每回合 3 格挡约抵 1.5 pts 的生存压
+ * v3 召唤 = 价值原子 `summon`（固定召出骷髅：2×L 血 / L 攻；回合末 _allyAttack() 自动打当前敌人）。
+ * game.allies[] 跨回合保留（上限 6）。v3 已无 swarm/totem/guardian/command/culling/discord 词条
+ *   （那些是 v2 机制、现表里不存在）→ 召唤宝石产出的恒是「纯攻击型骷髅」(taunt=false, giveBlock=0)；
+ *   本钩子仍对 taunt/giveBlock 留守卫，以兼容引擎里别处来的此类召唤物。
+ *
+ * —— 关于「与核心 V 双重计」——
+ * 任务设定假设核心 value.js 的 V 已给 allies 估值（atk×4+giveBlock×3+hp×…）。但实测当前 bench/value.js
+ * 的 V（projHp/ehp/状态…）**完全没有 allies 项**（`value.V.toString()` 不含 `allies`/`giveBlock`，
+ * 见下 CORE_VALUES_ALLIES 探测；git 历史里 `taunt?0.8` 公式从未存在）。
+ * 故现状下：核心 V 对召唤物一无所知 → 若本钩子只补「嘲讽挡刀 + 早铺溢价」，骷髅的实际攻击/格挡产出会
+ * 完全无人估值 → AI 永不铺场、召唤包形同废包。
+ * 解法：本 battle 钩子按「核心 V 是否已估 allies」自适应——
+ *   · 核心 V 未估（当前真实情况）→ 本钩子**独家**给出整副板面价值（攻击产出 + 格挡产出 + 嘲讽 + 早铺）。
+ *   · 核心 V 已估（任务假设 / 将来若加上）→ 自动降级为**只补 V 没覆盖的**（嘲讽挡刀折现 + 早回合复利溢价），
+ *     绝不重复加 atk/block/hp 板面。
+ * 这样两种世界都正确、且零手动双重计。
  */
 const value = require('../value');
 
-value.registerPack('summon', {
-  // ---- 局面附加分：核心是给召唤物板面定价 ----
-  battle(CG, g) {
-    const allies = g.allies;
-    if (!allies || !allies.length) return 0;
+// 探测核心 V 是否已经给 allies 板面估值（非递归：读 V 源码字符串，模块加载时算一次）。
+const CORE_VALUES_ALLIES = (() => {
+  try { return /\.allies\b/.test(value.V.toString()); } catch (e) { return false; }
+})();
 
-    // 估算敌方每次攻击的基础伤害（用于嘲讽值换算：挡刀 ≈ 减少这么多伤害）
-    // playerIncomingDamage() 已含格挡/减伤；用 rawIncoming 估算单次打击
-    const alive = g.aliveEnemies();
-    let rawIncoming = 0;
-    for (const e of alive) {
+value.registerPack('summon', {
+  // ---- 局面附加分 ----
+  battle(CG, g) {
+    const allies = (g.allies || []).filter(a => a && a.hp > 0);
+    if (!allies.length) return 0;
+
+    // 敌方本回合（下次行动）打来的单批伤害总量 —— 嘲讽召唤物能替你吃掉「一次」攻击。
+    let incomingBatch = 0;
+    for (const e of g.aliveEnemies()) {
       const p = g.intentPreview ? g.intentPreview(e) : null;
-      if (p && p.damage != null) rawIncoming += p.damage * (p.hits || 1);
+      if (p && p.damage != null) incomingBatch += p.damage * (p.hits || 1);
     }
-    // 每次嘲讽吸收的期望伤害（平均到每回合来做折现）
-    const tauntAbsorb = Math.min(rawIncoming, 20); // 上限防止爆分
 
     let v = 0;
-    let totalAtk = 0, totalBlock = 0, hasTaunt = false;
+    let board = 0;            // 整副板面价值（攻击产出 + 格挡产出 + 残值）—— 仅在核心 V 未估时由本钩子给出
+    let hasTaunt = false;
 
     for (const a of allies) {
-      if (a.hp <= 0) continue;
+      // 期望寿命折现：HP 越低越像消耗品（折算其后续回合的持续产出能兑现多少）。
+      const hpRatio = a.maxHp > 0 ? Math.min(1, a.hp / a.maxHp) : 1;
+      const survive = a.hp <= 2 ? 0.45 : a.hp <= 6 ? 0.72 : 0.1 + hpRatio * 0.9;
 
-      // 存活权重：HP 越低越脆弱，期望寿命折现（hp < 4 基本是消耗品）
-      const hpRatio = Math.min(1, a.hp / Math.max(1, a.maxHp));
-      // 不是所有召唤物都有 maxHp 字段，做兜底
-      const survivalFactor = a.hp <= 2 ? 0.4 : a.hp <= 6 ? 0.7 : hpRatio * 0.9 + 0.1;
+      // 攻击产出：每回合末 atk × 1.5（消敌血价值）；以 survive 折算未来若干回合的兑现。
+      if (a.atk > 0) board += a.atk * 1.5 * survive;
+      // 格挡产出（图腾类，v3 召唤一般为 0）：溢出格挡 ~0.25/点，再按 survive 折现。
+      if (a.giveBlock > 0) board += a.giveBlock * 0.25 * survive;
 
-      // 每回合末攻击出力：∑atk×1.5（敌血价值）× 存活折现 × 回合折现
-      // 搜索只看一回合的 V 差，所以需要把「未来N回合的持续收益」折算为现在的附加分
-      // 经验：2~3 回合折现系数约 2.5 比较合理（不能太高否则会为了保召唤物放弃防御）
-      if (a.atk > 0) {
-        const dps = a.atk * 1.5;          // 单次攻击的敌血价值
-        totalAtk += dps * survivalFactor;
-      }
-
-      // 每回合末格挡产出（图腾）：相当于生存价值 giveBlock×0.2（溢出格挡 0.2/点，略低于 projHp 权重）
-      if (a.giveBlock > 0) {
-        totalBlock += a.giveBlock * 0.3 * survivalFactor;
-      }
-
-      // 嘲讽：这回合/未来几回合帮玩家挡刀（只统计第一个 taunt，多个嘲讽重叠意义不大）
+      // 嘲讽：只第一个有效（多个嘲讽重叠收益边际无意义）。挡住一次攻击 ≈ 省下这批伤害。
+      // 此项 V 永远没覆盖（projHp 不含「下回合伤害会被召唤物吃掉」），故无论 CORE_VALUES_ALLIES 都补。
       if (a.taunt && !hasTaunt) {
         hasTaunt = true;
-        // 嘲讽价值 = 吸收伤害 × hp存活率 × 对玩家血的价值(×12/7 折算)
-        // 理解：挡住 20 伤 ≈ 保住 20/12 HP 价值，但已被 projHp 项间接捕捉，所以这里只加「减少直接压」
-        const tauntVal = tauntAbsorb * survivalFactor * 0.8; // 0.8 = 保守系数防止双重计数
-        v += Math.min(tauntVal, 15); // 单个嘲讽上限 15，别超过保命权重
+        const absorb = Math.min(incomingBatch, 22);             // 单次吸收上限，防爆分
+        v += Math.min(15, absorb * survive * 0.9);              // 折算成 VP，封顶 15（别压过保命权重）
       }
     }
 
-    // 折现系数 2.5：大约等价于「未来 2~3 回合的期望价值」
-    const DISCOUNT = 2.5;
-    v += totalAtk * DISCOUNT;
-    v += totalBlock * DISCOUNT;
-
-    // 早回合铺召唤物价值更高（未来收益更多）
-    if (g.turn <= 3 && (totalAtk > 0 || totalBlock > 0)) {
-      v += (totalAtk + totalBlock) * 0.5;
+    if (!CORE_VALUES_ALLIES) {
+      // 核心 V 未估 allies（当前真实情况）：本钩子独家给整副板面价值。
+      // 折现系数 ~2.5 ≈ 未来 2~3 回合持续产出的现值（太高会为保召唤物放弃防御）。
+      v += board * 2.5;
     }
+    // 早回合铺场溢价（未来收益回合更多 → 复利）：这是 V 提前体现不了的，两种世界都补。
+    if (g.turn <= 3 && board > 0) v += board * 0.5;
 
     return v;
   },
 
-  // ---- 宝石价值附加分 ----
-  gem(CG, gem) {
-    let v = 0;
-    for (const a of (gem.affixes || [])) {
-      const d = CG.AFFIXES[a.id]; if (!d) continue;
-      // 召唤增益：提前加价，鼓励选取和持有
-      if (d.summon === 'skeleton') v += 5 * a.level;   // 骷髅：4L攻 = 高输出，主力
-      if (d.summon === 'swarm')    v += 4 * a.level;   // 群召：3 只 2L攻，爆发但脆
-      if (d.summon === 'totem')    v += 4 * a.level;   // 图腾：稳定格挡，防御向
-      if (d.summon === 'guardian') v += 5 * a.level;   // 守护灵：嘲讽+高HP，保命关键
-      if (d.command)               v += 4 * a.level;   // 督战：召唤物越多越强，但无召唤物时只有伤害
-      // 减益：内讧/折损会伤害己方召唤物，加重惩罚
-      if (d.discord)               v -= 3 * a.level;   // 内讧：全体扣血，可能清场自己的召唤物
-      if (d.culling)               v -= 4 * a.level;   // 折损：直接消灭随机召唤物，很差
-      // toll(索命)已有 score=-3，通用公式够用；不额外加分
+  // ---- 宝石价值附加分（构筑层）----
+  // 召唤宝石「越早抽越值」：板面随回合复利，前期入手能多攒好几轮产出；
+  // 但牌组已堆很多召唤来源时边际递减（上限 6 个召唤物、督战/集火早就够用）。
+  gem(CG, gem, ctx) {
+    let summonLv = 0;
+    for (const a of (gem.affixes || [])) { const d = CG.AFFIXES[a.id]; if (d && d.summon) summonLv += a.level; }
+    if (!summonLv) return 0;
+
+    // 统计牌组已有的召唤来源等级（越多 → 这颗边际越低）。
+    let deckSummon = 0;
+    const run = ctx && ctx.run;
+    for (const c of ((run && run.deck) || [])) for (const sk of (c.sockets || [])) for (const a of (sk.affixes || [])) {
+      const d = CG.AFFIXES[a.id]; if (d && d.summon) deckSummon += a.level;
     }
-    return v;
+    // 早抽溢价：牌组召唤来源稀少 → +2/级；已铺很多 → 边际递减、过量转负（避免无脑全召唤）。
+    const per = deckSummon <= 2 ? 2.0 : deckSummon <= 5 ? 0.8 : -0.8;
+    return summonLv * per;
   },
 
-  // ---- 安装契合度：召唤类宝石适合装在较高费、稳定出牌的卡上 ----
-  install(CG, gem, card) {
-    let bonus = 0;
-    for (const a of (gem.affixes || [])) {
-      const d = CG.AFFIXES[a.id]; if (!d) continue;
-      // summon/command 宝石装在攻击卡或防御卡都 OK（早打出早有召唤物）
-      // 基础卡更便宜 = 更早更频繁打出 = 召唤物上场更早
-      if (d.summon || d.command) {
-        // 装在 0-1 费的基础卡（基础法杖）上优先（频繁打）
-        bonus += card.base === 'strike' ? 0.1 : card.base === 'defend' ? 0.05 : 0;
-      }
-    }
-    return bonus;
+  // ---- 回合内选牌（playPolicy）----
+  // 早铺早赚：回合早 / 场上召唤物少时，优先打召唤牌（让骷髅多吃几轮 _allyAttack）。
+  playPolicy(CG, g, card, s) {
+    const summons = (s.effects || []).filter(e => e.type === 'summon');
+    if (!summons.length) return 0;
+    const onBoard = (g.allies || []).filter(a => a && a.hp > 0).length;
+    if (onBoard >= 6) return -4;                          // 已满员：召唤被浪费，别再打
+    let b = 0;
+    if (g.turn <= 2) b += 14;                             // 极早铺场：未来兑现回合最多
+    else if (g.turn <= 4) b += 7;
+    if (onBoard <= 1) b += 6;                             // 场上空/稀 → 急需铺场
+    return b;
   },
 });

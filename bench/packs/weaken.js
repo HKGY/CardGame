@@ -32,6 +32,21 @@ function gemDebuffWeight(CG, gem) {
   return w;
 }
 
+// 一张候选牌是否「造成伤害」（kind=damage / 条件伤害牌 / effects 里有 damage）。
+function cardDealsDamage(s) {
+  if (!s) return false;
+  if (s.kind === 'damage') return true;
+  if (s.condBonus && s.condBonus.some(c => c.vtype === 'damage')) return true;
+  return (s.effects || []).some(e => e.type === 'damage');
+}
+// 一张候选牌是否「只上减益、不造伤害」（apply 易伤/虚弱/脆弱/中毒 或 enemyStat 减攻减格，但无伤害）。
+function cardOnlyDebuffs(s) {
+  if (cardDealsDamage(s)) return false;
+  return (s.effects || []).some(e =>
+    e.type === 'vulnerable' || e.type === 'weak' || e.type === 'frail' || e.type === 'poison' ||
+    (e.type === 'enemyStat' && (e.value || 0) < 0));
+}
+
 value.registerPack('weaken', {
   // 构筑层：按牌组均衡度给减益宝石边际定价（V 看不到牌组构成）。
   gem(CG, gem, ctx) {
@@ -46,5 +61,26 @@ value.registerPack('weaken', {
     let v = 0;
     for (const e of g.aliveEnemies()) if (e.statuses.frozen) v += 4;
     return v;
+  },
+  // 出牌层（病根直击）：rollout 在回合内拼命叠减益（V 每层都奖）却不击杀 → 打不死。
+  //   当「当前目标的减益层数已足够」时，把能量导向「兑现/击杀」的伤害牌，而非继续堆减益。
+  //   ——这是 V 表达不了的：V 看「打完后的局面」，每加一层减益都涨分，但它不知道
+  //     「该停手转伤害了」。playPolicy 直接给回合内选牌加偏好来纠偏。
+  playPolicy(CG, g, card, s) {
+    const t = g.currentTarget(); if (!t) return 0;
+    // 当前目标已铺的减益总层数（易伤+虚弱+脆弱+中毒，复用引擎口径，含 burn）。
+    const layers = (typeof g._enemyDebuffLayers === 'function')
+      ? g._enemyDebuffLayers(t)
+      : ['vulnerable', 'weak', 'frail', 'poison'].reduce((a, k) => a + (t.statuses[k] || 0), 0);
+    const ENOUGH = 5;                                  // 约 5~6 层即视为「铺够」，该转伤害
+    if (layers < ENOUGH) return 0;                     // 还没铺够：不干预，让它继续上减益
+
+    // 敌血越低，抢杀偏好越强（残血时务必把能量砸在伤害上）。
+    const lowHp = t.maxHp ? (t.hp / t.maxHp) : 1;
+    const urgency = 1 + (lowHp <= 0.35 ? 1.4 : lowHp <= 0.6 ? 0.6 : 0);   // 1.0 / 1.6 / 2.4
+
+    if (cardDealsDamage(s)) return 18 * urgency;       // 兑现：正偏好（强偏好量级 ~18~43）
+    if (cardOnlyDebuffs(s)) return -8;                 // 减益已够还只上减益：小负偏好，压后
+    return 0;                                           // 中性牌（抽能/格挡等）不干预
   },
 });

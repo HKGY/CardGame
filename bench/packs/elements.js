@@ -1,179 +1,144 @@
 'use strict';
-/* 元素包（elements）策略 ——「连招型」包：附火/水/雷/冰，两种异元素轮流命中触发反应。
+/* 元素包（elements）v3 策略钩子 ——「连招型」包，最需要 per-pack 策略。
  *
- * 核心问题：通用 gemValue 对 flame/aqua/volt/frost 一视同仁（score 都是 4），
- * AI 可能拿了 3 颗 flame，永远凑不出异元素对，反应白给。
+ * v3 元素原子：附火/水/雷/冰（fire/water/thunder/ice），打出带该宝石的攻击牌时给当前目标附 (base×L) 层
+ * 元素光环（敌人身上至多 1 种、上限 3）。**单一元素几乎无收益**（无反应时只有附着层数的微小穿透）；
+ * 真正的爆发来自「凑两种异元素、轮流命中触发反应」：
+ *   蒸发/融化(fire×water / fire×ice) → 本牌伤害 ×2；超载(fire×thunder) → 20 穿透；
+ *   感电(thunder×water) → 5 毒；冻结(ice×water) → 跳过一次行动；超导(ice×thunder) → 4 易伤。
  *
- * 本模块两个方向：
- * 1. gem/install 钩子——宝石经济层：
- *    - 统计 deck 中已安装的元素种类（按攻击牌上的已装元素），给「能与已有元素发生反应的异元素」加分，
- *      引导 AI 凑出「至少两种异元素对」。
- *    - 奖励「多样性」：已有 1 种元素时给异元素加分；已有 2+ 种时削减第三种新元素的加分（避免三拼）。
- *    - install 钩子：把元素宝石引导装到攻击牌（strike base）而非防御牌。
- * 2. battle 钩子——战斗局面层（轻量）：
- *    - 当某敌人已有元素光环时，给「手里有异元素牌」的状态加塑形分，鼓励顺序触发反应。
- *    - 不要过重，反应的即时收益（poison/frozen/damage/vuln）已被 V 自动捕捉。
+ * V 的盲区（→ 必须钩子）：
+ *   ① 反应的「铺垫顺序」：要先附 A、再用异元素 B 命中。搜索逐手贪心可能在「只附了 A、当回合 V 不升」时
+ *      就放弃 → 错过下一手的爆发。playPolicy 在「目标已有可反应光环、且本牌是能反应的异元素」时强偏好它。
+ *   ② 构筑：拿 3 颗同元素永远凑不出反应。gem 钩子奖励「能与牌组已有元素反应的异元素」、惩罚三拼同元素；
+ *      install 钩子把不同元素分散到不同的卡（cardStats 取最后一个 element，同卡多元素会互相覆盖）。
+ *
+ * 边界：反应的即时收益（毒/冻/易伤/×2 伤害）落地后已被核心 V 自动捕捉，故 battle 钩子只做**很轻**的
+ * 塑形（鼓励「手里有异元素牌去打已有光环的敌人」这一态势），量级压在「半条命≈6VP」以下，不盖过 V。
  */
 const value = require('../value');
 
-// 元素之间的反应对：哪两个元素能发生反应
+// 元素反应对：哪两个元素能发生反应（4 元素两两皆可反应）。
 const REACT_PAIRS = [
-  ['fire', 'water'],    // 蒸发
-  ['fire', 'ice'],      // 融化
-  ['fire', 'thunder'],  // 超载
-  ['thunder', 'water'], // 感电
-  ['ice', 'water'],     // 冻结
-  ['ice', 'thunder'],   // 超导
+  ['fire', 'water'], ['fire', 'ice'], ['fire', 'thunder'],
+  ['thunder', 'water'], ['ice', 'water'], ['ice', 'thunder'],
 ];
-
-// 给定一个元素，返回能与它发生反应的其它元素列表
 function reactsWith(el) {
   const out = [];
-  for (const [a, b] of REACT_PAIRS) {
-    if (a === el) out.push(b);
-    else if (b === el) out.push(a);
-  }
+  for (const [a, b] of REACT_PAIRS) { if (a === el) out.push(b); else if (b === el) out.push(a); }
   return out;
 }
 
-// 从一颗宝石的词条里提取元素 id（取最后一个 element 词条，与 cardStats 行为一致）
+// 从一颗宝石的词条里取元素 id（取最后一个 element 词条，与 cardStats 行为一致）。
 function gemElement(CG, gem) {
   let el = null;
-  for (const a of (gem.affixes || [])) {
-    const d = CG.AFFIXES[a.id];
-    if (d && d.element) el = d.element;
-  }
+  for (const a of (gem.affixes || [])) { const d = CG.AFFIXES[a.id]; if (d && d.element) el = d.element; }
+  return el;
+}
+// 取一张卡（其孔位宝石聚合后）的元素 id。
+function cardElement(CG, card) {
+  let el = null;
+  for (const g of (card.sockets || [])) { const e = gemElement(CG, g); if (e) el = e; }
   return el;
 }
 
-// 统计 deck 中已安装在攻击牌（strike base）上的元素种类及各种元素的牌数
-// 同时也把背包里（已有但未安装）的元素宝石计进去（权重×0.5，因为还没发挥效果）
-// 返回 Map<element, count>（count 可带小数表示未装的）
-function deckAttackElements(CG, run) {
-  const elMap = new Map();
-  // 已装在攻击牌上的元素（全权重）
+// 统计 deck 已装元素（按卡聚合后的元素，每张卡贡献其最终元素 1 次）+ 背包未装宝石（半权重）。
+// 返回 Map<element, count>。
+function deckElements(CG, run) {
+  const m = new Map();
   for (const card of (run.deck || [])) {
-    if (card.base !== 'strike') continue;
-    for (const g of (card.sockets || [])) {
-      const el = gemElement(CG, g);
-      if (el) elMap.set(el, (elMap.get(el) || 0) + 1);
-    }
+    const el = cardElement(CG, card);
+    if (el) m.set(el, (m.get(el) || 0) + 1);
   }
-  // 背包里还没装的元素宝石（半权重，因为还没产生价值）
   for (const g of (run.gems || [])) {
     const el = gemElement(CG, g);
-    if (el) elMap.set(el, (elMap.get(el) || 0) + 0.5);
+    if (el) m.set(el, (m.get(el) || 0) + 0.5);
   }
-  return elMap;
+  return m;
 }
 
 value.registerPack('elements', {
-  // ---------- battle 钩子：轻量塑形，鼓励触发手里异元素对已有光环的敌人 ----------
-  battle(CG, g) {
-    const alive = g.aliveEnemies();
-    if (!alive.length) return 0;
-    let v = 0;
-
-    // 检查手牌是否有带异元素的牌
-    for (const e of alive) {
-      // 找该敌人的当前元素光环
-      const aura = CG.ELEMENT_IDS.find(id => (e.statuses[id] || 0) > 0);
-      if (!aura) continue;
-      const partners = reactsWith(aura);
-      const auraLevel = e.statuses[aura] || 0;
-
-      // 手里有能与该光环反应的异元素牌？给轻微加分
-      for (const c of g.hand) {
-        const s = CG.cardStats(c);
-        if (s.element && partners.includes(s.element)) {
-          // 根据光环层数给加分：层数越高，反应越值得（蒸发/融化×1.5^层）
-          // 轻量分：2~4 分，别超过「半条命≈6」
-          v += 2 + auraLevel * 0.5;
-          break; // 每个敌人只计一次
-        }
-      }
-    }
-    return v;
-  },
-
-  // ---------- gem 钩子：宝石经济层——奖励「元素多样性」，惩罚「同元素堆叠」 ----------
+  // ---------- 构筑层：奖励「能与已有元素反应的异元素」，惩罚三拼同元素 ----------
   gem(CG, gem, ctx) {
     const el = gemElement(CG, gem);
-    if (!el || !ctx || !ctx.run) return 0;
+    const run = ctx && ctx.run;
+    if (!el || !run) return 0;
 
-    const elMap = deckAttackElements(CG, ctx.run);
-    const distinctElements = elMap.size;
-    const partners = reactsWith(el);
-
-    // 已有几个与该宝石能发生反应的异元素
+    const m = deckElements(CG, run);
+    const distinct = m.size;
+    const sameCount = m.get(el) || 0;
     let reactingPartners = 0;
-    for (const p of partners) {
-      if (elMap.has(p)) reactingPartners++;
-    }
+    for (const p of reactsWith(el)) if (m.has(p)) reactingPartners++;
 
-    // 该元素自身已有几颗安装在攻击牌上
-    const sameCount = elMap.get(el) || 0;
-
-    let bonus = 0;
-
-    if (distinctElements === 0) {
-      // 牌组里还没有任何元素：第一颗元素宝石有中等奖励，鼓励尽快建立元素体系
-      bonus += 3;
+    let bonus;
+    if (distinct === 0) {
+      bonus = 3;                                   // 第一颗元素：建立体系，中等奖励
     } else if (reactingPartners > 0) {
-      // 有能与当前已有元素发生反应的伙伴元素 → 这颗宝石能凑齐连招！大奖励
-      // 已有的反应对越多，奖励越高（多种反应路径更灵活）
-      bonus += 5 + reactingPartners * 3;
-      // 如果已有多颗同元素了，再加同元素的价值递减
-      if (sameCount >= 2) bonus -= (sameCount - 1) * 2;
-    } else if (distinctElements >= 2) {
-      // 已有 2 种元素且该元素与它们都不反应（理论上 4 元素两两都反应，此分支应很少触发）
-      // 或者：deck 里只有同一种元素，这颗是第三个同元素 → 轻微惩罚
-      if (sameCount >= 2) bonus -= 3;
-      else bonus += 1; // 还是第一颗，给小奖励保持多样性
+      bonus = 5 + reactingPartners * 2;            // 能凑反应的异元素：核心奖励（反应路径越多越灵活）
     } else {
-      // distinctElements === 1 且该元素与已有元素不反应（理论不可能，所有元素两两都反应）
-      // 保险：给小加分
-      bonus += 2;
+      bonus = 1;                                   // 4 元素两两皆反应，此分支基本不触发；保守给点
     }
-
-    // 同元素过多则递减：3 颗同元素在攻击牌上基本是浪费
-    if (sameCount >= 3) bonus -= 4;
+    // 同元素堆叠递减：已有 2 颗同元素时第三颗几乎是浪费（凑不出新反应）。
+    if (sameCount >= 2) bonus -= (sameCount - 1) * 2.5;
 
     return bonus;
   },
 
-  // ---------- install 钩子：引导把元素宝石装在攻击牌（strike），不要装防御牌 ----------
+  // ---------- 安装层：把元素宝石分散装到不同的卡（便于两种元素分别命中触发反应）----------
   install(CG, gem, card, ctx) {
     const el = gemElement(CG, gem);
     if (!el) return 0;
+    const cardEl = cardElement(CG, card);
+    if (!cardEl) return 0.12;                       // 空卡：装上去好（新增一个元素命中源）
+    if (cardEl === el) return 0.04;                 // 同卡同元素：叠层有意义（反应消耗更多层）但不增多样性
+    return -0.4;                                    // 同卡异元素：cardStats 取最后一个 → 覆盖丢元素，强避
+  },
 
-    // 元素词条只在命中敌人时触发，装到防御牌（defend base）完全浪费
-    if (card.base === 'defend') return -0.4;  // 大幅降低安装契合（0.8 → 0.4，近乎不装）
-
-    if (card.base === 'strike') {
-      // 检查这张攻击牌上已有的元素
-      const cardEl = (function () {
-        let e = null;
-        for (const g of (card.sockets || [])) {
-          const eg = gemElement(CG, g);
-          if (eg) e = eg;
-        }
-        return e;
-      })();
-
-      if (!cardEl) {
-        // 牌上没有元素，装上去很好
-        return 0.15;
-      } else if (cardEl === el) {
-        // 同张牌已有同元素：cardStats 会取最后一个，所以叠 level 有意义但不新增元素多样性
-        // 给轻微奖励（提升单次附着层数有助于后续反应消耗更多层）
-        return 0.05;
-      } else {
-        // 同张牌已有不同元素：cardStats 只取最后一个！装了等于覆盖，会丢失原元素
-        // 强惩罚，避免 AI 把不同元素装同一张牌（两元素应装不同的攻击牌）
-        return -0.35;
+  // ---------- 战斗层（很轻）：手里有异元素牌、且敌人已有可反应光环 → 鼓励顺序触发 ----------
+  battle(CG, g) {
+    const alive = g.aliveEnemies();
+    if (!alive.length) return 0;
+    let v = 0;
+    for (const e of alive) {
+      const aura = CG.ELEMENT_IDS.find(id => (e.statuses[id] || 0) > 0);
+      if (!aura) continue;
+      const partners = reactsWith(aura);
+      for (const c of g.hand) {
+        const s = CG.cardStats(c, { valueMult: g.cardValueMult });
+        if (s.element && partners.includes(s.element)) { v += 2 + (e.statuses[aura] || 0) * 0.5; break; }
       }
     }
-    return 0;
+    return v;                                       // 量级压在半条命(≈6)以下
+  },
+
+  // ---------- 出牌偏好（关键）：目标已有可反应光环 + 本牌是能反应的异元素 → 强偏好立即触发 ----------
+  //   反应的爆发收益当回合的 V 看得到，但「先铺 A 再 B」的顺序，逐手贪心/有限 rollout 可能错过铺垫 →
+  //   在「可立即触发」这一手上直接强加分，确保 AI 不会拖延、把已有光环兑现成反应。
+  playPolicy(CG, g, card, s) {
+    if (!s.element) return 0;
+    const myEl = s.element;
+    const alive = g.aliveEnemies();
+    if (!alive.length) return 0;
+
+    // 候选枚举会为每个存活敌人各开一个目标，故扫描所有存活敌人：只要存在「本牌异元素能与其光环反应」的敌人就强偏好。
+    let best = 0;
+    for (const e of alive) {
+      const aura = CG.ELEMENT_IDS.find(id => (e.statuses[id] || 0) > 0);
+      if (!aura || aura === myEl) continue;
+      const rx = CG.reactionFor(aura, myEl);
+      if (!rx) continue;
+      const auraLv = e.statuses[aura] || 0;
+      // 反应类型分档（与 RX 的强度对齐）：放大(×2 伤害)/超载(20 穿透) 最值得，转化型其次。
+      //   · 放大型(蒸发/融化)只在本牌确实造成伤害时生效（game.js: rx.type!=='amplify'||kind==='damage'）→ 纯附元素 skill 牌不偏好。
+      //   · 转化型(超载/感电/冻结/超导)的 apply 与本牌是否造伤害无关，纯附元素牌也能触发。
+      let pref = 0;
+      if (rx.type === 'amplify') { if (s.kind === 'damage') pref = 30; }   // 否则无效，pref 留 0
+      else if (rx.name === '超载') pref = 28;                               // 20 穿透：高
+      else pref = 20;                                                       // 感电/冻结/超导：可观
+      // 仅在确有反应价值(pref>0)时，按光环层数（被消耗次数）略加成；封顶避免盖过致命/救命牌。
+      if (pref > 0) pref += Math.min(2, auraLv) * 4;
+      if (pref > best) best = pref;
+    }
+    return best;     // 0 或 ~20~38：落在「强偏好 15~40」区间
   },
 });
