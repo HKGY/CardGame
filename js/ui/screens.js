@@ -18,6 +18,7 @@ window.CG = window.CG || {};
   let lastRewardPending = null;
   let debugPacks = new Set(); // 开始菜单：本局选定的主题（默认＝基础 + 3 随机，可自选；全部融合成一个融合包）
   let menuPacksInit = false;  // 首次渲染菜单时把默认主题填进去
+  let selectedM = null;       // 开始菜单·敌人难度倍率（首次渲染时取 config 默认 0.7）
   let debugGem = [];          // 调试菜单·自定义宝石：构建中的词条 [{id, level}]
 
   // 以撒式房间类型 → 图标 / 名称（普通房不剧透是否有敌人；清空后统一显示 ✓）
@@ -106,6 +107,8 @@ window.CG = window.CG || {};
 
   // ---------- 开始菜单·调试：手动开关本局卡包 ----------
   function getSelectedPacks() { return (CG.PACK_IDS || []).filter(id => debugPacks.has(id)); }
+  function diffDefault() { return (CG.CONFIG.difficulty && CG.CONFIG.difficulty.default) || 0.7; }
+  function getSelectedM() { if (selectedM == null) selectedM = diffDefault(); return selectedM; }
   function syncMenuStart() { const b = $('menu-start'); if (b) b.disabled = debugPacks.size === 0; }
   function renderMenuDebug() {
     const box = $('menu-debug');
@@ -116,8 +119,13 @@ window.CG = window.CG || {};
       return `<button class="pack-toggle ${debugPacks.has(id) ? 'on' : ''}" data-pack="${id}" style="--pk:${p.color}" title="${p.desc}">${p.icon} ${p.name}</button>`;
     }).join('');
     const names = getSelectedPacks().map(id => CG.PACKS[id].name);
+    const m = getSelectedM();
+    const diffBtns = ((CG.CONFIG.difficulty && CG.CONFIG.difficulty.options) || [1])
+      .map(v => `<button class="diff-opt ${v === m ? 'on' : ''}" data-diff="${v}">${(+v).toFixed(1)}</button>`).join('');
     box.innerHTML =
-      `<div class="menu-debug-head">🎴 选择本局<b>主题</b>（选定的主题会融合成一个「融合包」，本局所有扩充包都从中混合产出）</div>
+      `<div class="menu-debug-head">⚔️ <b>敌人强度</b> M（敌人血量/伤害/力量等 ×M，越低越易；默认 0.7）</div>
+       <div class="menu-diff-opts">${diffBtns}</div>
+       <div class="menu-debug-head">🎴 选择本局<b>主题</b>（选定的主题会融合成一个「融合包」，本局所有扩充包都从中混合产出）</div>
        <div class="menu-debug-packs">${toggles}</div>
        <div class="menu-debug-sub">已选 ${debugPacks.size} 个 → 🌀 融合包${names.length ? '：' + names.join(' · ') : '（至少选 1 个）'}</div>
        <div class="menu-debug-tools">
@@ -128,6 +136,8 @@ window.CG = window.CG || {};
     syncMenuStart();
   }
   function onMenuDebugClick(ev) {
+    const dt = ev.target.closest('[data-diff]');
+    if (dt) { selectedM = +dt.dataset.diff; CG.Audio.play('select'); return renderMenuDebug(); }
     const t = ev.target.closest('[data-pack]');
     if (t) {
       const id = t.dataset.pack;
@@ -204,11 +214,12 @@ window.CG = window.CG || {};
   // 点「开始攀登」：菜单整体上滑淡出 → 在其后出现的地图自下而上滑入，衔接成「画面向上移动到地图」。
   function startGame() {
     const packs = getSelectedPacks();
-    if (REDUCE) { H.onStart(packs); return; }
+    const m = getSelectedM();
+    if (REDUCE) { H.onStart(packs, m); return; }
     const menu = $('screen-menu');
     menu.classList.add('menu-exit');
     pendingMapRise = true;
-    setTimeout(() => { menu.classList.remove('menu-exit'); H.onStart(packs); }, 380);
+    setTimeout(() => { menu.classList.remove('menu-exit'); H.onStart(packs, m); }, 380);
   }
 
   // ---------- 百科大全 ----------

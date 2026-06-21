@@ -49,7 +49,7 @@ CG.makeBattle = (opts = {}) => new CG.Game({
   deck: opts.deck || CG.makeDeck(Array.from({ length: 10 }, () => ['strike'])),
   hp: opts.hp || 60, maxHp: opts.maxHp || 60,
   tarot: [], relics: opts.relics || [], run: opts.run || null,
-  actScale: opts.actScale || { hp: 1, dmg: 1 }, hpMult: opts.hpMult || 1,
+  actScale: opts.actScale || { hp: 1, dmg: 1 }, hpMult: opts.hpMult || 1, enemyM: opts.enemyM,
 });
 
 module.exports = CG;

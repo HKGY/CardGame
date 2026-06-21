@@ -170,6 +170,8 @@ window.CG = window.CG || {};
       this.gold = C().startGold;
       this.act = 1;                            // 当前层（决定敌人池 / 数值膨胀 / 场景 / 进度）
       this.maxActs = C().acts;
+      const diff = C().difficulty || { options: [1], default: 1 };
+      this.enemyM = diff.options.includes(+opts.enemyM) ? +opts.enemyM : diff.default;   // 敌人难度倍率（开始菜单自选，默认 0.7）
       const chosen = (opts.packs || []).filter(id => CG.PACKS[id]);
       this.packs = chosen.length ? chosen : CG.rollRunPacks();   // 本局可用卡包：默认基础包 + 3 个随机增强包；调试可手动指定
       CG.setActivePacks(this.packs);           // 之后所有产宝石处只在这几个包里取材

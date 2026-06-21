@@ -15,6 +15,17 @@ test('战斗初始化：玩家回合、抽 5、能量 3、敌人就位', () => {
   assert.equal(b.enemies[0].hp, 28);   // 绿史莱姆 28，actScale=1
 });
 
+test('敌人强度 M：缩放敌人血量 / 伤害(dmgScale) / 力量；M=1 同原版', () => {
+  const half = CG.makeBattle({ enemyM: 0.5 });
+  assert.equal(half.enemies[0].hp, 14);                                                      // 28 × actScale.hp(1) × M(0.5)
+  assert.equal(half.enemies[0].dmgScale, 0.5);                                               // sc.dmg(1) × M(0.5)
+  assert.equal(half._scaleEff({ type: 'damage', value: 10 }, half.enemies[0]).value, 5);     // 伤害按 dmgScale
+  assert.equal(half._scaleEff({ type: 'strength', value: 4 }, half.enemies[0]).value, 2);    // 力量按 M
+  const full = CG.makeBattle({ enemyM: 1 });
+  assert.equal(full.enemies[0].hp, 28);                                                      // M=1 与原版一致
+  assert.equal(full._scaleEff({ type: 'strength', value: 4 }, full.enemies[0]).value, 4);    // M=1 不缩放力量
+});
+
 test('出牌：打击造成 6 伤害并消耗 1 能量、进弃牌堆', () => {
   const b = CG.makeBattle({ deck: deckOf(10) });
   const card = b.hand[0];

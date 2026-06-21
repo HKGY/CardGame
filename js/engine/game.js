@@ -67,15 +67,20 @@ window.CG = window.CG || {};
     _refreshTarget() { this.enemy = this.currentTarget(); }
     _makeEnemy(id, sc, hpMult) {
       const def = CG.ENEMIES[id];
-      const ehp = Math.round(def.maxHp * sc.hp * (hpMult || 1));
-      return { def, name: def.name, maxHp: ehp, hp: ehp, block: 0, statuses: {}, history: [], intent: null, dmgScale: sc.dmg, alive: true };
+      const m = this.enemyM || 1;                          // 难度倍率：缩放敌人血量/伤害/格挡/力量（默认 1＝原版）
+      const ehp = Math.round(def.maxHp * sc.hp * m * (hpMult || 1));
+      return { def, name: def.name, maxHp: ehp, hp: ehp, block: 0, statuses: {}, history: [], intent: null, dmgScale: sc.dmg * m, alive: true };
     }
 
-    // 数值膨胀：把敌人招式的伤害/格挡按层数倍率放大
+    // 数值膨胀：把敌人招式的伤害/格挡按层数倍率放大；难度倍率 M 另外缩放敌方 力量/敏捷
     _scaleEff(eff, enemy) {
       const sc = (enemy || this.enemy).dmgScale || 1;
-      return (sc !== 1 && (eff.type === 'damage' || eff.type === 'block'))
-        ? Object.assign({}, eff, { value: Math.round(eff.value * sc) }) : eff;
+      if (sc !== 1 && (eff.type === 'damage' || eff.type === 'block'))
+        return Object.assign({}, eff, { value: Math.round(eff.value * sc) });
+      const m = this.enemyM || 1;
+      if (m !== 1 && (eff.type === 'strength' || eff.type === 'dexterity'))
+        return Object.assign({}, eff, { value: Math.round(eff.value * m) });
+      return eff;
     }
 
     // ---- 塔罗牌在战斗中触发的效果 ----
@@ -129,8 +134,9 @@ window.CG = window.CG || {};
       this._emit();          // 通知界面：上层据 phase==='won' 走战斗结束流程
     }
 
-    _startBattle({ enemyIds, tier, deck, hp, maxHp, tarot, actScale, hpMult, relics, run }) {
+    _startBattle({ enemyIds, tier, deck, hp, maxHp, tarot, actScale, hpMult, enemyM, relics, run }) {
       const sc = actScale || { hp: 1, dmg: 1 };
+      this.enemyM = enemyM || 1;               // 敌人难度倍率（缩放血量/伤害/格挡/力量；默认 1＝原版，开始菜单默认 0.7）
       this.tier = tier || 'normal';
       this.tarot = tarot || [];                // 与 Run 共享的消耗品栏（同一数组引用）
       this.relics = relics || [];              // 与 Run 共享的遗物（引用）

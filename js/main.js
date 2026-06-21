@@ -8,6 +8,7 @@ window.CG = window.CG || {};
 (function (CG) {
   let run = null;
   let battle = null;
+  let lastEnemyM = (CG.CONFIG.difficulty && CG.CONFIG.difficulty.default) || 0.7;   // 上次选择的难度（重开沿用）
 
   // 当前阶段 + 层数 -> 场景背景 key
   function sceneFor() {
@@ -69,6 +70,7 @@ window.CG = window.CG || {};
     battle = new CG.Game({
       enemyIds, tier: run.pending.tier, deck: run.deck, hp: run.hp, maxHp: run.maxHp,
       tarot: run.tarot, relics: run.relics, run, actScale: CG.CONFIG.actScale[run.act], hpMult,
+      enemyM: run.enemyM,
     });
     battle.onChange(b => CG.UI.render(b));
     battle.onEvent(CG.UI.onEvent);
@@ -98,10 +100,11 @@ window.CG = window.CG || {};
     route();
   }
   // 读取种子输入、选择职业后开始；packs=调试菜单手动选的卡包（从开始菜单传入）
-  function chooseClassAndStart(packs) {
+  function chooseClassAndStart(packs, enemyM) {
     // 职业 / 卡组选择暂时禁用：默认「战士」直接开始（保留 CLASSES/buildDeck 备用）
+    if (enemyM != null) lastEnemyM = enemyM;     // 记住本次难度，重开（onRestart 不带参）时沿用
     const seedEl = document.getElementById('seed-input');
-    newRun('warrior', seedEl ? seedEl.value : '', { packs: packs });
+    newRun('warrior', seedEl ? seedEl.value : '', { packs: packs, enemyM: lastEnemyM });
   }
 
   // 使用一张塔罗牌（战斗 / 地图通用）
@@ -161,7 +164,7 @@ window.CG = window.CG || {};
     setupMute();
     CG.UI.init(battleHandlers);
     CG.Screens.init({
-      onStart:        packs => chooseClassAndStart(packs),
+      onStart:        (packs, enemyM) => chooseClassAndStart(packs, enemyM),
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
       onTakeTarot:    () => run.takeTarot(),

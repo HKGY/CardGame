@@ -112,6 +112,10 @@ body::before {
   box-shadow: 0 0 12px color-mix(in srgb, var(--pk) 45%, transparent) !important; }
 .menu-debug-tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .menu-debug-tools button { --oct-fill: var(--panel); --radius: 12px; font-size: 12px; padding: 6px 12px; }
+.menu-diff-opts { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.diff-opt { --oct-fill: var(--panel); --radius: 12px; font-size: 13px; font-weight: 800; padding: 6px 13px; opacity: .5; }
+.diff-opt.on { opacity: 1; outline: 2px solid color-mix(in srgb, #e8c84a 80%, transparent); outline-offset: -2px;
+  box-shadow: 0 0 12px color-mix(in srgb, #e8c84a 40%, transparent) !important; }
 /* 开始 → 地图：菜单整体上滑淡出，地图随后自下而上滑入（画面向上移动） */
 #screen-menu.menu-exit { animation: menu-rise-out .38s cubic-bezier(.45,0,.55,1) forwards; }
 @keyframes menu-rise-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-12vh); opacity: 0; } }
