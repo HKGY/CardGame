@@ -344,9 +344,13 @@ window.CG = window.CG || {};
   }
   function cardInner(s) {
     const span = a => `<span class="aff" style="color:${a.color}">${a.name}</span>`;
-    // 卡名：基底 + 每颗宝石分组 (增益+减益) + 空孔 ◇
-    const gemChips = s.gemViews.map(g =>
-      `<span class="gem-chip">(${g.buffs.concat(g.debuffs).map(span).join('<span class="aff-plus">+</span>')})</span>`).join('');
+    // 卡名：每颗宝石的「价值」；首石用方括号（免代价），其余写上代价。
+    const gemChips = s.gemViews.map((g, i) => {
+      const a = g.buffs.concat(g.debuffs)[0];
+      if (!a) return '';
+      if (i === 0) return `<span class="gem-chip first">[${span(a)}]</span>`;
+      return `<span class="gem-chip">(<span class="gem-cost">${a.cost}</span> ${span(a)})</span>`;
+    }).join('');
     const empties = '<span class="socket-empty" title="空孔位">◇</span>'.repeat(s.emptySockets);
     const name = `<span class="base-name">${s.baseName}</span>${gemChips}${empties}`;
     // 词条说明：按宝石分组（不同宝石用 ┃ 隔开），避免数量多时撑破卡面
@@ -368,7 +372,7 @@ window.CG = window.CG || {};
     const affs = (gem.affixes || []).map(a => { const d = CG.AFFIXES[a.id] || {}; return { val: CG.affixValueText(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: d.color || '#9aa0b5' }; });
     const ordered = affs;
     const title = ordered.map(a => `<span class="aff" style="color:${a.color}">${a.val}</span>`).join('<span class="aff-plus">+</span>') || '空宝石';
-    const lines = ordered.map(a => `<span class="affix-line" style="color:${a.color}"><span class="cv-cost">代价 ${a.cost}</span> <span class="cv-arrow">→</span> <span class="cv-val">${a.val}</span></span>`).join('<span class="affix-sep">·</span>');
+    const lines = ordered.map(a => `<span class="affix-line" style="color:${a.color}"><span class="cv-cost">${a.cost}</span> <span class="cv-arrow">→</span> <span class="cv-val">${a.val}</span></span>`).join('<span class="affix-sep">·</span>');
     const cls = ['gem', opts.clickable ? 'clickable' : 'static', opts.dim ? 'disabled' : '', opts.selected ? 'selected' : ''].join(' ');
     const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
     return `<div class="${cls}" ${data} style="--gem:${CG.gemPrimaryColor(gem)}">

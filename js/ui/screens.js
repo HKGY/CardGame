@@ -173,7 +173,7 @@ window.CG = window.CG || {};
           `<button class="dbg-lvl ${cur === n ? 'on' : ''}" data-affix="${id}" data-level="${n}">${n}</button>`).join('');
         return `<div class="debug-affix ${cur ? 'sel' : ''}">
             <span class="debug-affix-name" style="color:${a.color}">${CG.affixValueText(id, cur || 1)}</span>
-            <span class="debug-affix-desc">代价 ${CG.affixCostText(id, cur || 1)}</span>
+            <span class="debug-affix-desc">${CG.affixCostText(id, cur || 1)} →</span>
             <span class="debug-levels">${levels}</span>
           </div>`;
       }).join('');

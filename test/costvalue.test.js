@@ -66,6 +66,19 @@ test('展示文字：代价 / 价值', () => {
   assert.strictEqual(CG.affixCostText('hp_damage', 2), '失 6 血');
 });
 
+test('代价均摊：同种代价只付最高的一个', () => {
+  // [首石] + strike(+1费) + strike L2(+2费) → 费 = 基底1 + max(1,2) = 3
+  const s = stat(spell([{ id: D, level: 1 }], [{ id: D, level: 1 }], [{ id: D, level: 2 }]));
+  assert.strictEqual(s.cost, 3);
+  // [首石] + hp_damage(3血) + hp_block L2(6血) → 失血 = max(3,6) = 6
+  const h = stat(spell([{ id: D, level: 1 }], [{ id: 'hp_damage', level: 1 }], [{ id: 'hp_block', level: 2 }]));
+  assert.ok(h.effects.some(e => e.type === 'loseHp' && e.value === 6));
+});
+
+test('宝石只含 1 个词条（rollGem）', () => {
+  for (let i = 0; i < 20; i++) assert.strictEqual(CG.rollGem({ tier: 'boss' }).affixes.length, 1);
+});
+
 // ===== 战斗集成 =====
 function battle(card) {
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });

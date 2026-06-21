@@ -252,17 +252,20 @@ window.CG = window.CG || {};
 
     // === v2 首石免代价 ===：第一颗宝石(socket 0)无视其代价；第二颗起按真资源代价（能量/生命/弃牌）扣。
     //   条件类代价(curBlock/emptyHand…)无真资源消耗，不在此扣（其约束体现在 playCard 求值）。
+    // 代价均摊：若多颗宝石代价「种类」相同，只付其中最高的一个（同种不叠付）。
+    const costMax = {};
     (sockets || []).forEach((g, si) => {
       if (si === 0) return;                          // 首石：代价全免
       (g.affixes || []).forEach(a => {
         const def = CG.AFFIXES[a.id]; if (!def || !def.cost || def.cost.cond) return;
-        const amt = (def.cost.amt || 1) * (a.level || 1);
-        if (def.cost.res === 'energy')  costD  += amt;
-        else if (def.cost.res === 'hp') hpLoss += amt;
-        else if (def.cost.res === 'gold') goldCostN += amt;    // v3 金币代价
-        else if (def.cost.res === 'discard') clutchN += amt;   // 复用随机弃牌
+        const amount = (def.cost.amt || 1) * (a.level || 1);
+        costMax[def.cost.res] = Math.max(costMax[def.cost.res] || 0, amount);
       });
     });
+    costD     += costMax.energy  || 0;
+    hpLoss    += costMax.hp      || 0;
+    goldCostN += costMax.gold    || 0;
+    clutchN   += costMax.discard || 0;
 
     const socketCount = sockets.length;
     const cost = Math.max(0, (b.cost || 0) + costD + (inst.holdCost || 0) - (inst.costDown || 0));
@@ -394,10 +397,10 @@ window.CG = window.CG || {};
     if (polarizeN) effects.push({ type: 'polarize', value: polarizeN });
 
     const baseText = ({
-      damage:   `造成 ${value} 点伤害`,
-      block:    `获得 ${value} 点格挡`,
-      heal:     `回复 ${value} 点生命`,
-    }[kind] || '空法术（效果由宝石决定）') + (hits > 1 ? ` ×${hits}` : '') + '。';
+      damage:   `造成 ${value} 点伤害` + (hits > 1 ? ` ×${hits}` : '') + '。',
+      block:    `获得 ${value} 点格挡。`,
+      heal:     `回复 ${value} 点生命。`,
+    }[kind] || '');
 
     // 卡名：法术 + 各宝石「价值」文字 + 空孔 ◇
     const gemText = gemViews.map(g => '(' + g.buffs.concat(g.debuffs).map(a => a.name).join('+') + ')').join('');
@@ -597,23 +600,16 @@ window.CG = window.CG || {};
     opts = opts || {};
     const tier = opts.tier || 'monster';
     const pack = resolvePack(opts.pack, tier);
-    const buffPool = pack.buffs, debuffPool = pack.debuffs;
+    const buffPool = pack.buffs;
     const gcfg = (CG.CONFIG && CG.CONFIG.gem) || {};
     const lvW = (gcfg.levelW && gcfg.levelW[tier]) || [[1, 6], [2, 3], [3, 1]];
+    // v3：宝石 = 1 个词条（一颗分子）。tier 只影响等级权重（big 不再加词条，只抬等级下限）。
     const big = opts.big != null ? opts.big : Math.random() < ((gcfg.bigChance && gcfg.bigChance[tier]) || 0.35);
-    const lvl = () => { let L = opts.level || weightedPick(lvW); if (opts.minLevel && L < opts.minLevel) L = opts.minLevel; return L; };
-    const ownedB = new Set(), ownedD = new Set(), affixes = [];
-    if (!big) {                                      // 小宝石：1 个朴素增益（最多 2 级）
-      const id = pickBuffId(buffPool, ownedB, false);
-      if (id) affixes.push({ id, level: Math.min(2, lvl()) });
-    } else {                                         // 大宝石：强增益 + 减益（首领可双增益/双减益）
-      const nB = tier === 'boss' ? 2 : 1;
-      for (let i = 0; i < nB; i++) { const id = pickBuffId(buffPool, ownedB, true); if (!id) break; ownedB.add(id); affixes.push({ id, level: lvl() }); }
-      const nD = tier === 'boss' && Math.random() < 0.5 ? 2 : 1;
-      for (let i = 0; i < nD; i++) { const id = pickDebuffId(debuffPool, ownedD); if (!id) break; ownedD.add(id); affixes.push({ id, level: 1 }); }
-    }
-    if (!affixes.length) affixes.push({ id: buffPool[0] || debuffPool[0] || CG.BUFF_ORDER[0], level: 1 });   // 兜底尊重包池（基础包无增益时退而取其减益）
-    return CG.makeGem(affixes);
+    let L = opts.level || weightedPick(lvW);
+    if (big && L < 2) L = 2;
+    if (opts.minLevel && L < opts.minLevel) L = opts.minLevel;
+    const id = pickBuffId(buffPool, new Set(), big) || buffPool[0] || CG.BUFF_ORDER[0];
+    return CG.makeGem([{ id, level: L }]);
   };
 
   // 卸下宝石时随机附带一个 debuff（已满则不再加）。这是「降级惩罚」，从全部减益池抽（不限包）。
