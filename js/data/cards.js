@@ -300,7 +300,8 @@ window.CG = window.CG || {};
     if (hpLoss)  effects.push({ type: 'loseHp', value: hpLoss });
     if (goldCostN) effects.push({ type: 'loseGold', value: goldCostN });   // v3 金币代价
     if (silenceLv) effects.push({ type: 'silence', value: silenceLv });
-    const strDelta = addStrN - sapStr;                 // v3 力量价值 - 减力量
+    const strDelta = addStrN - sapStr - (costMax.loseStr || 0);   // v3 力量价值 - 减力量 - 失力量代价
+    sapDex += (costMax.loseDex || 0);                  // 失敏捷代价（并入 dexDelta）
     const dexDelta = -sapDex;                          // 笨拙：永久 -敏捷
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });

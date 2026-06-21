@@ -29,6 +29,8 @@ window.CG = window.CG || {};
     hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0,
     // 自身减益代价（延迟/风险代价；定价略高于"给敌"价值 1.5，因你几乎一定吃到）→ 2VP/层、1 能量≈3 层
     selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,
+    // 扣除自身力量/敏捷作代价（力量/敏捷可为负，故是真代价）；价同其增益价
+    loseStr: 4.0, loseDex: 3.0,
     // 条件/机会类代价记机会预算（不扣真资源）
     mult: 6.0, execute: 6.0, lifesteal: 6.0,
   };
@@ -85,6 +87,8 @@ window.CG = window.CG || {};
     selfVuln:  { name: '自易伤', fmt: n => `自易伤 ${n}`, status: 'vulnerable' },
     selfWeak:  { name: '自虚弱', fmt: n => `自虚弱 ${n}`, status: 'weak' },
     selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail' },
+    loseStr:   { name: '失力量', fmt: n => `失 ${n} 力量` },
+    loseDex:   { name: '失敏捷', fmt: n => `失 ${n} 敏捷` },
   };
   // 条件原子：cond=true（不扣真资源）；qty=战斗中取「当前量」的键（playCard 求值）。
   const COST_COND = {
@@ -104,6 +108,8 @@ window.CG = window.CG || {};
     noBlock:     { name: '无格挡', qty: 'noBlock', gate: true },
     turnNum:     { name: '回合数', qty: 'turnNum' },
     kills:       { name: '本场击杀数', qty: 'kills' },
+    // 自身减益体系：把"自己背的减益"回收成资源（代价回收 → 越惨越强）。
+    myDebuff:    { name: '自身减益层数', qty: 'myDebuff' },
   };
   CG.COST_REAL = COST_REAL; CG.COST_COND = COST_COND; CG.VALUE_ATOMS = VALUE_ATOMS;
   CG.isCondCost = res => !!COST_COND[res];

@@ -158,6 +158,23 @@ test('狂暴(Berserk)：自易伤2 → 每回合 +1 能量（prodEnergy 引擎�
   assert.strictEqual(g.player.energy, g.player.maxEnergy + 1);   // 下回合 = 满能量 + prodEnergy 1
 });
 
+test('扣力量代价：失力量→伤害（首石免、非首石才扣力量，可为负）', () => {
+  assert.ok(CG.AFFIXES.loseStr_damage && CG.AFFIXES.loseDex_block);
+  const first = stat(spell([{ id: 'loseStr_damage', level: 1 }]));
+  assert.ok(!first.effects.some(e => e.type === 'strength'));   // 首石免代价
+  const second = stat(spell([{ id: D, level: 1 }], [{ id: 'loseStr_damage', level: 1 }]));
+  assert.ok(second.effects.some(e => e.type === 'strength' && e.value === -2));   // 失 2 力量
+});
+
+test('自身减益体系：myDebuff 把自己背的减益层数回收成伤害', () => {
+  assert.ok(CG.AFFIXES.myDebuff_damage);
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9; g.applyStatus(g.player, 'vulnerable', 4);   // 只上易伤(不减自身输出)
+  const hp0 = g.enemy.hp;
+  const c = spell([{ id: 'myDebuff_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.enemy.hp, hp0 - 4);   // 4 层自身减益 → 4 伤害
+});
+
 // ===== 塔罗（生成式·消耗品轨道）=====
 test('塔罗生成式：价值原子牌存在且即时投放', () => {
   assert.ok(CG.TAROT.t_damage && CG.TAROT.t_block && CG.TAROT.t_energy && CG.TAROT.t_strength);

@@ -353,6 +353,7 @@ window.CG = window.CG || {};
             case 'curGold':     return this.run ? Math.floor((this.run.gold || 0) / 6) : 0;
             case 'turnNum':     return this.turn || 0;
             case 'kills':       return this._killsThisCombat || 0;
+            case 'myDebuff':    return ['vulnerable', 'weak', 'frail'].reduce((s, k) => s + (this.player.statuses[k] || 0), 0);   // 自身减益体系：回收自己背的减益
             default:            return 0;
           }
         };
