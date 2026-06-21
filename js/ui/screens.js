@@ -265,7 +265,7 @@ window.CG = window.CG || {};
       const valChip = atom => { const va = AT[atom]; if (!va) return ''; return chip(`${va.name} ${amt(va.vpRes)}`, colorOf(atom)); };
       const valGroups = VG.map(([t, ids]) => sub(t) + row(ids.map(valChip).filter(Boolean))).join('');
       // 特殊签名（净正、稀有；汇率非 1）
-      const sig = [['斩杀(敌残血→必杀)', '#b04050'], ['翻倍(×本牌数值)', '#ff9fc0'], ['吸血(造伤→治疗)', '#cf4f6a']];
+      const sig = [['翻倍(×本牌数值，约12VP)', '#ff9fc0'], ['吸血(攻击全转回复，约12VP)', '#cf4f6a']];
 
       const rules = `<div class="codex-rules"><b>大规则</b>（词条＝付出「代价」换「价值」，按 1 能量 = 6 价值点计）：
         <li>· <b>价值 ≤ 代价</b>：每笔交易不亏本；强度来自把"富余/会浪费的"换成"急需的"。</li>

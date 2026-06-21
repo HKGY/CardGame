@@ -256,7 +256,6 @@ window.CG = window.CG || {};
     mindblast(game, eff) { [...game.drawPile, ...game.discardPile, ...game.hand].forEach(c => { const b = CG.BASE_CARDS[c.base]; if (b && b.type === 'attack') c.growth = (c.growth || 0) + eff.value; }); },   // 心灵震慑：牌库攻击牌永久+伤害（复用 growth）
     clutter(game, eff) { for (let i = 0; i < eff.value; i++) game._addToHand(CG.makeFoodCard('dross')); },                          // 谵妄：塞渣滓
     // === 猎杀包 ===（处决/引爆减益/收割；prey/insight 是 playCard 加成）
-    execute(game, eff, source, target) { if (target && target.hp > 0 && target.hp <= target.maxHp * 0.1 * eff.value) { target.hp = 0; game.addLog(`处决：${target.name} 被斩杀！`); game._checkEnd(); } },
     exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 12 * eff.value); },
     reaping(game, eff) { game._reaping = (game._reaping || 0) + 3 * eff.value; },
     // === 律动包 ===（活力滚到下一张、灵感本回合抽牌给盾；innate/allin/surplus 在 cardStats/playCard/_startBattle 处理）

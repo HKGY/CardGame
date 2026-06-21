@@ -134,7 +134,7 @@ window.CG = window.CG || {};
     const buildList = []; let demolishN = 0, collapseN = 0, subsideN = 0;  // 建造包（hazard 复用 hpLoss）
     let tossN = 0, siftN = 0, madnessN = 0, reclaimN = 0, dumpsterN = 0;   // 弃牌包（forget→clutch、waste→loseEnergy 复用）
     let conjureN = 0, daggersN = 0, duplicateN = 0, foresightN = 0, mindblastN = 0, clutterN = 0;   // 术士包
-    let executeN = 0, preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
+    let preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
     let vigorN = 0, innateN = 0, inspireN = 0, allinN = 0, surplusN = 0, rewindN = 0;   // 律动包（innate/allin/surplus 由 game/playCard 读取）
     let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
     all.forEach(({ def: d, level: rawL }) => {
@@ -249,7 +249,7 @@ window.CG = window.CG || {};
       // —— 术士包 ——
       if (d.conjure) conjureN += d.conjure * L; if (d.daggers) daggersN += d.daggers * L; if (d.duplicate) duplicateN += d.duplicate * L; if (d.foresight) foresightN += d.foresight * L; if (d.mindblast) mindblastN += d.mindblast * L; if (d.clutter) clutterN += d.clutter * L;
       // —— 猎杀包 ——
-      if (d.execute) executeN += d.execute * L; if (d.prey) preyN += d.prey * L; if (d.exploit) exploitN += d.exploit * L; if (d.insight) insightN += d.insight * L; if (d.reaping) reapingN += d.reaping * L;
+      if (d.prey) preyN += d.prey * L; if (d.exploit) exploitN += d.exploit * L; if (d.insight) insightN += d.insight * L; if (d.reaping) reapingN += d.reaping * L;
       // —— 律动包 ——
       if (d.vigor) vigorN += d.vigor * L; if (d.innate) innateN += d.innate * L; if (d.inspire) inspireN += d.inspire * L; if (d.allin) allinN += d.allin * L; if (d.surplus) surplusN += d.surplus * L; if (d.rewind) rewindN += d.rewind * L;
       // —— 放大包 ——
@@ -403,7 +403,6 @@ window.CG = window.CG || {};
     if (mindblastN) effects.push({ type: 'mindblast', value: mindblastN });
     if (clutterN)   effects.push({ type: 'clutter', value: clutterN });
     // === 猎杀包 ===（prey/insight 是 playCard 加成、不在此 push）
-    if (executeN) effects.push({ type: 'execute', value: executeN });
     if (exploitN) effects.push({ type: 'exploit', value: exploitN });
     if (reapingN) effects.push({ type: 'reaping', value: reapingN });
     // === 律动包 ===（innate/allin/surplus 是 game/playCard 读取、不在此 push）

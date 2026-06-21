@@ -33,7 +33,7 @@ window.CG = window.CG || {};
     // 价值 VP：条件类价值往往无 amt（随条件量），用机会预算估
     let gain = v.amt != null ? resVP(v.res, v.amt, vL) : COND_BUDGET * vL;
     if (v.res === 'mult') gain = V.mult * vL;
-    if (v.res === 'lifesteal') gain = V.lifesteal * (v.amt || 0.3) * vL;
+    if (v.res === 'lifesteal') gain = V.lifesteal * (a.lifesteal || 1) * vL;   // 吸血＝攻击全转回复：按 affix.lifesteal 比例×12VP
     // 代价 VP：真资源按代价倍率；条件类记机会预算（不随等级）
     const condCost = !!c.cond;
     const cost = condCost ? COND_BUDGET : resVP(c.res, c.amt, cL);

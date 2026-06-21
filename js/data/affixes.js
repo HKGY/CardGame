@@ -34,7 +34,7 @@ window.CG = window.CG || {};
     // 扣除自身力量/敏捷作代价（力量/敏捷可为负，故是真代价）；价同其增益价
     loseStr: 3.0, loseDex: 3.0,
     // 条件/机会类代价记机会预算（不扣真资源）
-    mult: 6.0, execute: 6.0, lifesteal: 6.0,
+    mult: 12.0, lifesteal: 12.0,   // 翻倍=12VP(≈每回合3能量的×潜力)、吸血=12VP(攻击全转回复)
   };
   CG.VALUES = V;
   // 某资源「1 能量等值」的数量；用 floor 保证价值 VP ≤ 6（不越界）：如力量(4VP)→1、敏捷(3VP)→2。
@@ -46,7 +46,7 @@ window.CG = window.CG || {};
     fire: '#ff7a4a', water: '#4aa8ff', thunder: '#e8c84a', ice: '#8fe0ec',
     enemyLoseStr: '#3fae62', enemyLoseStrTemp: '#3fae62', enemyLoseDex: '#4a86e0', enemyLoseDexTemp: '#4a86e0',
     food: '#e0a45a', summon: '#b0b0e0', building: '#c0a060', produce: '#b6d36a', conjure: '#b59ad8',
-    execute: '#b04050', mult: '#ff9fc0', lifesteal: '#cf4f6a',
+    mult: '#ff9fc0', lifesteal: '#cf4f6a',
   };
 
   /* —— 价值原子：mech(u)=按数量 u 产出引擎机制字段；numeric=可被条件代价动态缩放 —— */
@@ -146,10 +146,9 @@ window.CG = window.CG || {};
   Object.keys(COST_REAL).forEach(cid => Object.keys(VALUE_ATOMS).forEach(vid => mk(cid, vid)));
   Object.keys(COST_COND).forEach(cid => numericVals.forEach(vid => mk(cid, vid)));
   // 特殊签名（条件 → 非数值价值）：
-  A.lowHp_execute   = { cost: { res: 'lowHp', cond: true }, value: { res: 'execute', atom: 'execute' }, color: COLOR.execute, score: 5, execute: 1 };
   A.energyZero_mult = { cost: { res: 'energyZero', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 4, allin: 1 };
   A.play_mult       = { cost: { res: 'play', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 5, potent: 1 };
-  A.hit_lifesteal   = { cost: { res: 'hit', cond: true }, value: { res: 'lifesteal', atom: 'lifesteal' }, color: COLOR.lifesteal, score: 4, lifesteal: 0.3 };
+  A.hit_lifesteal   = { cost: { res: 'hit', cond: true }, value: { res: 'lifesteal', atom: 'lifesteal' }, color: COLOR.lifesteal, score: 4, lifesteal: 1.0 };
   //   "有界代价换永久递归价值"的旗舰；flat-VP 量不了递归引擎，故作签名(净正、不入越界守卫)。
 
   // 等级规则：1级 1换1、2级 2换2、3级 1换2（3 级是高效"稀有"档：价值×2、代价×1 → 汇率 2）。
@@ -176,10 +175,9 @@ window.CG = window.CG || {};
   CG.affixValueText = function (id, level) {
     const a = A[id]; if (!a) return '';
     const v = a.value, vL = CG.lvVal(level);
-    const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ execute: '斩杀', mult: '翻倍', lifesteal: '吸血' }[v.atom]) || v.res;
+    const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ mult: '翻倍', lifesteal: '吸血' }[v.atom]) || v.res;
     if (v.atom === 'mult') return `数值 ×${1 + vL}`;
-    if (v.atom === 'lifesteal') return `吸血 ${Math.round(0.3 * 100 * vL)}%`;
-    if (v.atom === 'execute') return `斩杀（敌残血）`;
+    if (v.atom === 'lifesteal') return '吸血 100%';
     if (a.condBonus && a.condBonus.gate) return `${nm} ${(a.condBonus.base || 6) * vL}（${condName(a.cost.res)}时）`;   // 门：达成则给定额
     if (v.amt == null) return `${nm}＝${condName(a.cost.res)}×${vL}`;   // 量：随条件当前量
     return `${nm} ${v.amt * vL}`;
