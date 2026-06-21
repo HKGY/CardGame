@@ -192,6 +192,25 @@ test('敌失力量/敏捷：永久减；临时版量翻倍且下回合复原', (
   assert.strictEqual(g2.enemy.statuses.dexterity, 10);   // 复原
 });
 
+test('弃牌代价：玩家自选丢弃，且在造牌之前生效', () => {
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  const played = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'discard_conjure', level: 1 }]);   // 首石strike(免) + 弃牌→造牌
+  const cA = spell([{ id: CG.STRIKE, level: 1 }]), cB = spell([{ id: CG.GUARD, level: 1 }]), cC = spell([{ id: CG.STRIKE, level: 1 }]);
+  g.hand = [played, cA, cB, cC];
+  assert.strictEqual(CG.cardStats(played).discardCost, 2);   // 弃 2 张
+  g.playCard(played.uid);
+  assert.ok(g.pick && g.pick.type === 'discardCost');         // 进入自选丢弃
+  assert.strictEqual(g.hand.length, 3);                       // 造牌尚未发生（仍是 cA,cB,cC）
+  g.pickResolve(cA.uid);                                      // 自选丢 cA
+  assert.ok(g.pick && g.pick.type === 'discardCost');         // 还要再弃 1
+  g.pickResolve(cB.uid);                                      // 自选丢 cB → 结算 resolve
+  assert.ok(!g.pick);
+  assert.ok(g.discardPile.some(c => c.uid === cA.uid) && g.discardPile.some(c => c.uid === cB.uid));   // 弃的是自选的两张
+  assert.ok(g.hand.some(c => c.uid === cC.uid));             // cC 未被弃（证明非随机）
+  assert.ok(g.hand.length >= 3);                             // 造牌在弃牌之后发生（cC + 2 张新造）
+});
+
 // ===== 塔罗（生成式·消耗品轨道）=====
 test('塔罗生成式：价值原子牌存在且即时投放', () => {
   assert.ok(CG.TAROT.t_damage && CG.TAROT.t_block && CG.TAROT.t_energy && CG.TAROT.t_strength);

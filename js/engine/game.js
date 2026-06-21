@@ -492,6 +492,8 @@ window.CG = window.CG || {};
       this.hand.splice(idx, 1);
       this.addLog(`你打出了 ${s.name}${oc ? `（耗电力 ${payPower}）` : ''}。`);
 
+      // 弃牌代价＝自选丢弃，且须在结算其它效果（尤其造牌）之前完成：把后续结算包成 resolve()，先选弃、再 resolve。
+      const resolve = () => {
       const target = this.currentTarget();
       const enemyHpBefore = target.hp;
       // 穿刺：额外命中当前目标右侧的若干存活敌人（仅伤害类效果）
@@ -549,6 +551,20 @@ window.CG = window.CG || {};
       for (let i = 0; i < (s.reborn || 0); i++) this._pickQueue.push('reborn');
       for (let i = 0; i < (s.reclaim || 0); i++) this._pickQueue.push('reclaim');   // 弃牌包·拾遗
       this._nextPick();
+      };   // resolve()
+      if (s.discardCost > 0) this._beginDiscardCost(s.discardCost, resolve);
+      else resolve();
+    }
+    // 弃牌代价：逐张让玩家自选丢弃，全部选完（或手牌空/跳过）后执行 cont（即 resolve）。
+    _beginDiscardCost(n, cont) { this._discardLeft = n; this._afterDiscard = cont; this._promptDiscard(); }
+    _promptDiscard() {
+      if (!this._discardLeft || this._discardLeft <= 0 || !this.hand.length) {
+        const cont = this._afterDiscard; this._afterDiscard = null; this.pick = null;
+        if (cont) cont(); else this._emit();
+        return;
+      }
+      this.pick = { type: 'discardCost', title: `弃牌代价：选择要丢弃的牌（剩 ${this._discardLeft}）` };
+      this._emit();
     }
 
     // ---------- 厨艺：做菜 ----------
@@ -639,6 +655,12 @@ window.CG = window.CG || {};
     pickResolve(uid) {                            // UI 回调：uid=null 跳过本次
       if (!this.pick) return;
       const t = this.pick.type;
+      if (t === 'discardCost') {                  // 弃牌代价：自选丢弃一张 → 计数 -1 → 继续提示 / 结算
+        if (uid != null) { const i = this.hand.findIndex(c => c.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this._discard(c); this.addLog(`弃牌代价：丢弃了 ${CG.cardStats(c).name}。`); } }
+        this._discardLeft = (this._discardLeft || 1) - 1;
+        this._promptDiscard();
+        return;
+      }
       if (uid != null) {
         if (t === 'burn') { const i = this.hand.findIndex(c => c.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this.addLog(`燃烧：消耗了 ${CG.cardStats(c).name}。`); this._exhaustCard(c); } }
         else if (t === 'reclaim') { const i = this.discardPile.findIndex(c => c.uid === uid); if (i >= 0 && this.hand.length < HAND_LIMIT) { this.hand.push(this.discardPile.splice(i, 1)[0]); this.addLog('拾遗：从弃牌堆取回 1 张。'); } }

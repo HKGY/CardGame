@@ -335,7 +335,7 @@ window.CG = window.CG || {};
     if (harvestN)  effects.push({ type: 'harvest', value: harvestN });                        // 丰收：产出层总和 ×L → 格挡
     if (irrigateN) effects.push({ type: 'irrigate', value: irrigateN });                      // 灌溉：立即产出 L 次
     if (stagnateN) effects.push({ type: 'stagnate', value: stagnateN });                      // 滞产：蓄能/耕作各 -L
-    if (clutchN)   effects.push({ type: 'clutch', value: clutchN });                          // === 留置包 === 手滑：随机弃 N 张
+    // 弃牌代价改为「自选丢弃」：不 push 随机 clutch；由 playCard 在结算其它效果(含造牌)前逐张提示玩家选弃。
     if (whetN)   effects.push({ type: 'whet', value: whetN });                                // 磨砺：随机手牌成长 +N
     if (quenchN) effects.push({ type: 'quench', value: quenchN });                            // 淬火：随机手牌永久降费
     if (annealN) effects.push({ type: 'anneal', value: annealN });                            // 退火：随机手牌成长 -N
@@ -435,7 +435,7 @@ window.CG = window.CG || {};
       temper: temperN, awaken: awakenN,                                          // 强化包（playCard 用）
       emptyMind: emptyMindN, voidEcho: voidEchoN, hollow: hollowN,               // === 虚无包 ===（playCard 用）
       windfall: windfallN, prospect: prospectN, quarry: quarryN, ember: emberN,  // 市场/矿工/锻造（playCard 用）
-      reclaim: reclaimN, dumpster: dumpsterN,                                     // 弃牌包（reclaim 选牌队列、dumpster playCard 加成）
+      reclaim: reclaimN, dumpster: dumpsterN, discardCost: clutchN,                                     // 弃牌包（reclaim 选牌队列、dumpster playCard 加成）
       prey: preyN, insight: insightN,                                             // 猎杀包（playCard 加成）
       innate: innateN, allin: allinN, surplus: surplusN,                          // 律动包（innate=开局抽序、allin/surplus=playCard）
       potent: potentN,                                                            // 放大包（playCard 加成）
