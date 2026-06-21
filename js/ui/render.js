@@ -557,6 +557,10 @@ window.CG = window.CG || {};
     if (!REDUCE) handEl.querySelectorAll('.card').forEach(el => { const u = el.dataset.uid; oldRects[u] = el.getBoundingClientRect(); oldNodes[u] = el; });
     const newUids = game.hand.map(c => String(c.uid));
     handEl.innerHTML = game.hand.map((c, i) => handCardHTML(game, c, i)).join('');
+    // 手牌拥挤（>7 张）：不换行，改为重叠（负边距，随张数加深），悬停时前置不被挡。
+    const nHand = game.hand.length;
+    handEl.classList.toggle('crowded', nHand > 7);
+    handEl.style.setProperty('--ov', nHand > 7 ? (-Math.min(62, (nHand - 7) * 24)) + 'px' : '');
     const logs = game.log || [];
     if (!REDUCE) {
       if (logs.slice(prevLogLen).some(l => l.indexOf('洗入抽牌堆') >= 0)) shuffleFx();

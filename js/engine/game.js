@@ -473,21 +473,17 @@ window.CG = window.CG || {};
         s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: Math.floor(e.value * 0.5) }) : e) });
       }
       // 元素反应：本牌附元素时，按主目标当前元素与层数定反应（消耗 min(prev,new) 级、效果发生这么多次、余量留存）
+      // 元素（新模型：敌人至多 1 种 1 层。附 elemLv 层＝逐层「反应或取代」；放大型反应先乘本牌伤害 ×amplify）
       const elem = s.element, elemLv = s.elementLevel || 0;
-      let reaction = null, rxAura = null, rxPrev = 0, rxConsumed = 0;
-      if (elem) {
-        const t0 = this.currentTarget();
-        const aura = this._auraOf(t0);
+      let reaction = null;
+      if (elem && elemLv > 0) {
+        const aura = this._auraOf(this.currentTarget());
         if (aura && aura !== elem) {
           const rx = CG.reactionFor(aura, elem);
-          if (rx && (rx.type !== 'amplify' || s.kind === 'damage')) {     // 放大型需本牌确实造成伤害
-            reaction = rx; rxAura = aura; rxPrev = t0.statuses[aura] || 0;
-            rxConsumed = Math.min(rxPrev, elemLv);
-          }
+          if (rx && (rx.type !== 'amplify' || s.kind === 'damage')) reaction = rx;   // 放大型需本牌确实造成伤害
         }
-        if (reaction && reaction.type === 'amplify' && rxConsumed > 0) {
-          const mult = 1 + (reaction.amplify - 1) * rxConsumed;          // 线性放大（消耗 N 层 → ×(1+N)，不再指数 ^N，否则元素严重失衡）
-          s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: Math.floor(e.value * mult) }) : e) });
+        if (reaction && reaction.type === 'amplify') {
+          s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: Math.floor(e.value * reaction.amplify) }) : e) });
         }
       }
 
@@ -511,20 +507,15 @@ window.CG = window.CG || {};
       }
       // 吸血：按对主目标造成的伤害回血
       if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
-      // 元素结算：反应消耗 min 级、效果发生 consumed 次、余量留在较多一方；无反应则同元素叠加 / 异元素附着（上限 3）
-      if (elem) {
+      // 元素结算（新模型：敌人至多 1 种 1 层）：有反应→消耗敌方元素并触发一次；附两层(elemLv≥2)则反应后再附 1 层新的；无反应→取代为本元素 1 层。
+      if (elem && elemLv > 0) {
         if (reaction) {
-          if (reaction.apply) reaction.apply(this, this.player, target);   // 转化型反应触发一次（消耗的层数只决定余量，不再按层数重复，否则 超载20×3=60 等严重失衡）
-          const rem = rxPrev - elemLv;
+          if (reaction.type === 'effect' && reaction.apply) reaction.apply(this, this.player, target);   // 转化型反应触发一次
           this._clearAura(target);
-          if (rem > 0) this._setAura(target, rxAura, rem);          // 原元素剩余
-          else if (rem < 0) this._setAura(target, elem, -rem);      // 新元素剩余
-          this.addLog(`元素反应·${reaction.name}${rxConsumed > 1 ? ' ×' + rxConsumed : ''}！`);
+          if (elemLv >= 2) this._setAura(target, elem, 1);          // 附着两层：先反应、再附一层新的
+          this.addLog(`元素反应·${reaction.name}！`);
         } else {
-          const cur = this._auraOf(target) === elem ? (target.statuses[elem] || 0) : 0;
-          this._setAura(target, elem, cur + elemLv);                // 同元素叠加 / 异元素附着（上限 3）
-          // 无反应附着的「伤害底」改为「可被格挡」的普通伤害（不再穿透）：否则附元素严格强于打击。真正爆发靠连招反应。
-          if (elemLv > 0 && target.hp > 0) this.dealAttackDamage(this.player, target, elemLv);
+          this._setAura(target, elem, 1);                           // 无反应：取代/设为本元素 1 层
         }
       }
       // 透支：累计下回合能量惩罚
@@ -828,7 +819,7 @@ window.CG = window.CG || {};
 
     // ---------- 元素附着 / 反应 ----------（元素＝一种状态，至多 1 种、不随回合衰减）
     _auraOf(target) { return CG.ELEMENT_IDS.find(id => target.statuses[id] > 0) || null; }
-    _setAura(target, el, level) { CG.ELEMENT_IDS.forEach(id => delete target.statuses[id]); target.statuses[el] = Math.min(3, Math.max(1, level || 1)); }
+    _setAura(target, el, level) { CG.ELEMENT_IDS.forEach(id => delete target.statuses[id]); target.statuses[el] = Math.min(1, Math.max(1, level || 1)); }
     _clearAura(target) { CG.ELEMENT_IDS.forEach(id => delete target.statuses[id]); }
     _reactionBurst(target, n) {                          // 超载：无视格挡的即时穿透伤害（带动画事件）
       const before = target.hp; target.hp = Math.max(0, target.hp - n);
