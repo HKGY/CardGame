@@ -11,19 +11,8 @@ window.CG = window.CG || {};
  *  价值排序铁律（用户拍板）：治疗 > 格挡 > 伤害；虚弱(防御性) > 易伤/脆弱(进攻性)。
  * ========================================================================= */
 (function (CG) {
-  const V = {
-    // 主资源
-    damage: 1.0, block: 1.2, heal: 1.5, draw: 2.5, energy: 6.0,
-    hp: 0.5, gold: 0.25, power: 1.0, maxhp: 1.0,
-    // 增益状态（每层）
-    strength: 4.0, tempStr: 1.5, dexterity: 3.0,
-    // 敌方减益（每层）：虚弱(防御性) > 易伤/脆弱(进攻性)
-    vulnerable: 1.5, weak: 2.0, frail: 1.5, poison: 1.5, burn: 1.3, frozen: 4.0,
-    // 其它价值（近似）
-    element: 2.0, lifesteal: 6.0, mult: 6.0, execute: 6.0, conjure: 4.0,
-    food: 2.0, summon: 3.0, building: 5.0, produce: 5.0, depth: 0.8, heat: 0.8,
-  };
-  CG.VALUES = V;
+  // 单一价值真源＝ affixes.js 的 CG.VALUES（本文件加载在其后）；不再另立一份以免与生成器不一致。
+  const V = CG.VALUES;
 
   // 条件/机会类代价的「机会预算」≈ 1 能量/级（不扣真资源，但价值受此封顶）
   const COND_BUDGET = 6.0;

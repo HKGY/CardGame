@@ -35,10 +35,11 @@ test('全词条覆盖：每条都有有限 VP 估值', () => {
   }
 });
 
-test('自含真资源兑换越界项（软目标，仅打印不失败）', () => {
-  const rep = CG.affixVPReport(1);
-  const lines = rep.violations.map(r => `  ⚠ ${r.id} gain=${r.gain} cost=${r.cost} rate=${r.rate} — ${r.note}`);
-  console.log('\n[资源置换] 真资源兑换汇率 > 1（待 bench 校准）：');
-  console.log(lines.length ? lines.join('\n') : '  （无）');
-  assert.ok(Array.isArray(rep.violations));
+test('真资源兑换不越界：价值 VP ≤ 代价 VP（回归守卫）', () => {
+  for (const L of [1, 2, 3]) {
+    const rep = CG.affixVPReport(L);
+    const lines = rep.violations.map(r => `  ⚠ ${r.id} gain=${r.gain} cost=${r.cost} rate=${r.rate} — ${r.note}`);
+    if (lines.length) console.log(`\n[资源置换] L${L} 越界：\n${lines.join('\n')}`);
+    assert.strictEqual(rep.violations.length, 0, `L${L} 有 ${rep.violations.length} 条真资源兑换越界（价值 > 代价）`);
+  }
 });

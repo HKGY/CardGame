@@ -19,7 +19,7 @@ window.CG = window.CG || {};
   const V = {
     // 价值原子（排序铁律：治疗 > 格挡 > 伤害；虚弱 > 易伤/脆弱）
     damage: 1.0, block: 1.2, heal: 1.5, draw: 2.5, energy: 6.0, power: 1.0,
-    strength: 4.0, tempStr: 1.5,
+    strength: 4.0, tempStr: 1.5, dexterity: 3.0,
     vulnerable: 1.5, weak: 2.0, frail: 1.5, poison: 1.5,
     fire: 2.0, water: 2.0, thunder: 2.0, ice: 2.0,
     food: 2.0, summon: 3.0, building: 5.0, produce: 5.0, conjure: 4.0,
@@ -29,7 +29,8 @@ window.CG = window.CG || {};
     mult: 6.0, execute: 6.0, lifesteal: 6.0,
   };
   CG.VALUES = V;
-  const amt = res => Math.max(1, Math.round(6 / (V[res] || 6)));   // 某资源「1 能量等值」的数量
+  // 某资源「1 能量等值」的数量；用 floor 保证价值 VP ≤ 6（不越界）：如力量(4VP)→1、敏捷(3VP)→2。
+  const amt = res => Math.max(1, Math.floor(6 / (V[res] || 6) + 1e-6));
 
   const COLOR = {
     damage: '#e89030', block: '#7fa8c8', heal: '#e89ab8', draw: '#efe9da', energy: '#f0c850', power: '#f0d850',
