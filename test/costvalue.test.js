@@ -30,10 +30,17 @@ test('首石＝攻击6/格挡5，复现打击/防御', () => {
   assert.strictEqual(guard.value, 5);
 });
 
-test('等级 ×L：价值翻倍、首石代价不变', () => {
+test('等级规则 1换1 / 2换2 / 3换2（价值 1,2,2；代价 1,2,1）', () => {
+  // 价值倍率：L1=6、L2=12、L3=12
+  assert.strictEqual(stat(spell([{ id: D, level: 1 }])).value, 6);
   assert.strictEqual(stat(spell([{ id: D, level: 2 }])).value, 12);
-  assert.strictEqual(stat(spell([{ id: D, level: 3 }])).value, 18);
-  assert.strictEqual(stat(spell([{ id: D, level: 3 }])).cost, 1);
+  assert.strictEqual(stat(spell([{ id: D, level: 3 }])).value, 12);
+  // 代价倍率（非首石才付）：L2 +2 费、L3 +1 费（→ L3 = L2 的价值、L1 的代价）
+  const L2 = stat(spell([{ id: D, level: 1 }], [{ id: D, level: 2 }]));
+  assert.strictEqual(L2.cost, 3);   // 基底1 + L2 代价2
+  const L3 = stat(spell([{ id: D, level: 1 }], [{ id: D, level: 3 }]));
+  assert.strictEqual(L3.cost, 2);   // 基底1 + L3 代价1
+  assert.ok(L3.effects.some(e => e.type === 'damage' && e.value === 18));   // 首石6 + L3价值12
 });
 
 test('首石免代价、第二颗起付能量代价', () => {

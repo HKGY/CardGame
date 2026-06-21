@@ -35,11 +35,13 @@ test('全词条覆盖：每条都有有限 VP 估值', () => {
   }
 });
 
-test('真资源兑换不越界：价值 VP ≤ 代价 VP（回归守卫）', () => {
-  for (const L of [1, 2, 3]) {
+test('真资源兑换不越界：价值 VP ≤ 代价 VP（L1/L2 守卫；L3 是有意 1换2）', () => {
+  for (const L of [1, 2]) {   // L1 1换1、L2 2换2 → 汇率 1；L3 是「1换2」高效档(汇率 2)，有意净正、不守卫
     const rep = CG.affixVPReport(L);
     const lines = rep.violations.map(r => `  ⚠ ${r.id} gain=${r.gain} cost=${r.cost} rate=${r.rate} — ${r.note}`);
     if (lines.length) console.log(`\n[资源置换] L${L} 越界：\n${lines.join('\n')}`);
     assert.strictEqual(rep.violations.length, 0, `L${L} 有 ${rep.violations.length} 条真资源兑换越界（价值 > 代价）`);
   }
+  // L3 应当几乎全部"越界"(rate≈2)——这是设计：1 份代价换 2 份价值。
+  assert.ok(CG.affixVPReport(3).violations.length > 10, 'L3 应普遍 1换2（汇率≈2）');
 });

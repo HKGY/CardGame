@@ -139,6 +139,10 @@ window.CG = window.CG || {};
   //   "有界代价换永久递归价值"的旗舰；flat-VP 量不了递归引擎，故作签名(净正、不入越界守卫)。
   A.berserk = { cost: { res: 'selfVuln', amt: 2 }, value: { res: 'energy', atom: 'berserk' }, color: '#e0563a', score: 6, selfStatus: 'prodEnergy', flat: 1, signature: true };
 
+  // 等级规则：1级 1换1、2级 2换2、3级 1换2（3 级是高效"稀有"档：价值×2、代价×1 → 汇率 2）。
+  CG.lvVal  = L => Math.min(2, L || 1);     // 价值倍率：1,2,2
+  CG.lvCost = L => ((L || 1) > 2 ? 1 : (L || 1));   // 代价倍率：1,2,1
+
   CG.AFFIXES = A;
   CG.AFFIX_ORDER = Object.keys(A);
   CG.BUFF_ORDER = CG.AFFIX_ORDER.slice();
@@ -154,19 +158,19 @@ window.CG = window.CG || {};
     const a = A[id]; if (!a) return '';
     const c = a.cost;
     if (c.cond) return condName(c.res);
-    return (COST_REAL[c.res] ? COST_REAL[c.res].fmt : n => `${c.res} ${n}`)((c.amt || 1) * (level || 1));
+    return (COST_REAL[c.res] ? COST_REAL[c.res].fmt : n => `${c.res} ${n}`)((c.amt || 1) * CG.lvCost(level));
   };
   CG.affixValueText = function (id, level) {
     const a = A[id]; if (!a) return '';
-    const v = a.value, L = level || 1;
+    const v = a.value, vL = CG.lvVal(level);
     const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ execute: '斩杀', mult: '翻倍', lifesteal: '吸血', berserk: '能量' }[v.atom]) || v.res;
     if (v.atom === 'berserk') return '每回合 +1 能量（永久）';
-    if (v.atom === 'mult') return `数值 ×${1 + L}`;
-    if (v.atom === 'lifesteal') return `吸血 ${Math.round(0.3 * 100 * L)}%`;
+    if (v.atom === 'mult') return `数值 ×${1 + vL}`;
+    if (v.atom === 'lifesteal') return `吸血 ${Math.round(0.3 * 100 * vL)}%`;
     if (v.atom === 'execute') return `斩杀（敌残血）`;
-    if (a.condBonus && a.condBonus.gate) return `${nm} ${(a.condBonus.base || 6) * L}（${condName(a.cost.res)}时）`;   // 门：达成则给定额
-    if (v.amt == null) return `${nm}＝${condName(a.cost.res)}×${L}`;   // 量：随条件当前量
-    return `${nm} ${v.amt * L}`;
+    if (a.condBonus && a.condBonus.gate) return `${nm} ${(a.condBonus.base || 6) * vL}（${condName(a.cost.res)}时）`;   // 门：达成则给定额
+    if (v.amt == null) return `${nm}＝${condName(a.cost.res)}×${vL}`;   // 量：随条件当前量
+    return `${nm} ${v.amt * vL}`;
   };
   CG.affixDisplayName = (id, level) => CG.affixValueText(id, level);
 

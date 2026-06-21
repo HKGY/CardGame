@@ -29,13 +29,14 @@ window.CG = window.CG || {};
     const L = level || 1;
     const v = a.value || {}, c = a.cost || {};
     const round = x => Math.round(x * 100) / 100;
-    // 价值 VP：条件类价值往往无 amt（随条件量），用机会预算 ×L 估
-    let gain = v.amt != null ? resVP(v.res, v.amt, L) : COND_BUDGET * L;
-    if (v.res === 'mult') gain = V.mult * L;
-    if (v.res === 'lifesteal') gain = V.lifesteal * (v.amt || 0.3) * L;
-    // 代价 VP：真资源 ×L；条件类记机会预算（不随等级）
+    const vL = CG.lvVal(L), cL = CG.lvCost(L);   // 等级规则：价值 1,2,2；代价 1,2,1（L3 是 1换2 高效档）
+    // 价值 VP：条件类价值往往无 amt（随条件量），用机会预算估
+    let gain = v.amt != null ? resVP(v.res, v.amt, vL) : COND_BUDGET * vL;
+    if (v.res === 'mult') gain = V.mult * vL;
+    if (v.res === 'lifesteal') gain = V.lifesteal * (v.amt || 0.3) * vL;
+    // 代价 VP：真资源按代价倍率；条件类记机会预算（不随等级）
     const condCost = !!c.cond;
-    const cost = condCost ? COND_BUDGET : resVP(c.res, c.amt, L);
+    const cost = condCost ? COND_BUDGET : resVP(c.res, c.amt, cL);
     return { id, level: L, gain: round(gain), cost: round(cost), condCost, signature: !!a.signature,
              rate: cost > 0 ? round(gain / cost) : null, note: CG.affixCostText(id, L) + ' → ' + CG.affixValueText(id, L) };
   };

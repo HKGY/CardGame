@@ -135,7 +135,8 @@ window.CG = window.CG || {};
     let executeN = 0, preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
     let vigorN = 0, innateN = 0, inspireN = 0, allinN = 0, surplusN = 0, rewindN = 0;   // 律动包（innate/allin/surplus 由 game/playCard 读取）
     let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
-    all.forEach(({ def: d, level: L }) => {
+    all.forEach(({ def: d, level: rawL }) => {
+      const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
       score += (d.score || 0) * L;
       // 注：v2 里 d.value / d.cost 是「代价-价值」描述对象，不再是旧的数值机制字段（已删）。
       if (d.valuePct)  valPct  += d.valuePct * L;
@@ -261,7 +262,7 @@ window.CG = window.CG || {};
       if (si === 0 || g.purified) return;            // 首石免代价；净化过的宝石免代价
       (g.affixes || []).forEach(a => {
         const def = CG.AFFIXES[a.id]; if (!def || !def.cost || def.cost.cond) return;
-        const amount = (def.cost.amt || 1) * (a.level || 1);
+        const amount = (def.cost.amt || 1) * CG.lvCost(a.level);   // 代价倍率：1级×1、2级×2、3级×1
         costMax[def.cost.res] = Math.max(costMax[def.cost.res] || 0, amount);
       });
     });
