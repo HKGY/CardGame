@@ -148,11 +148,13 @@ test('自身减益代价：自易伤→伤害；首石免、非首石才上自�
   assert.ok(second.effects.some(e => e.type === 'selfStatus' && e.status === 'vulnerable' && e.value === 3));
 });
 
-test('狂暴(Berserk)：自易伤2 → 每回合 +1 能量（prodEnergy 引擎）', () => {
+test('自残→每回合能量引擎（公平定价 selfVuln_produce_energy，取代旧 berserk 签名）', () => {
+  // 递归价值 = 一次性 ×2：每回合+1能量=12VP → 自易伤代价 ceil(12/2)=6 层（破坏衡、非净正签名）
+  assert.strictEqual(CG.affixCostText('selfVuln_produce_energy', 1), '自易伤 6');
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
-  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'berserk', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
-  assert.strictEqual(g.player.statuses.vulnerable, 2);    // 自易伤代价
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfVuln_produce_energy', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.player.statuses.vulnerable, 6);   // 自易伤代价（首石免，第二颗付）
   assert.strictEqual(g.player.statuses.prodEnergy, 1);
   g._startPlayerTurn();
   assert.strictEqual(g.player.energy, g.player.maxEnergy + 1);   // 下回合 = 满能量 + prodEnergy 1

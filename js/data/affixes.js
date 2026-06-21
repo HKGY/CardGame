@@ -150,9 +150,7 @@ window.CG = window.CG || {};
   A.energyZero_mult = { cost: { res: 'energyZero', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 4, allin: 1 };
   A.play_mult       = { cost: { res: 'play', cond: true }, value: { res: 'mult', atom: 'mult' }, color: COLOR.mult, score: 5, potent: 1 };
   A.hit_lifesteal   = { cost: { res: 'hit', cond: true }, value: { res: 'lifesteal', atom: 'lifesteal' }, color: COLOR.lifesteal, score: 4, lifesteal: 0.3 };
-  // 狂暴(Berserk)：有界自身减益(自易伤2,会衰减) → 永久每回合 +1 能量(引擎)。
   //   "有界代价换永久递归价值"的旗舰；flat-VP 量不了递归引擎，故作签名(净正、不入越界守卫)。
-  A.berserk = { cost: { res: 'selfVuln', amt: 2 }, value: { res: 'energy', atom: 'berserk' }, color: '#e0563a', score: 6, selfStatus: 'prodEnergy', flat: 1, signature: true };
 
   // 等级规则：1级 1换1、2级 2换2、3级 1换2（3 级是高效"稀有"档：价值×2、代价×1 → 汇率 2）。
   CG.lvVal  = L => Math.min(2, L || 1);     // 价值倍率：1,2,2
@@ -178,8 +176,7 @@ window.CG = window.CG || {};
   CG.affixValueText = function (id, level) {
     const a = A[id]; if (!a) return '';
     const v = a.value, vL = CG.lvVal(level);
-    const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ execute: '斩杀', mult: '翻倍', lifesteal: '吸血', berserk: '能量' }[v.atom]) || v.res;
-    if (v.atom === 'berserk') return '每回合 +1 能量（永久）';
+    const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ execute: '斩杀', mult: '翻倍', lifesteal: '吸血' }[v.atom]) || v.res;
     if (v.atom === 'mult') return `数值 ×${1 + vL}`;
     if (v.atom === 'lifesteal') return `吸血 ${Math.round(0.3 * 100 * vL)}%`;
     if (v.atom === 'execute') return `斩杀（敌残血）`;

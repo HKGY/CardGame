@@ -37,14 +37,14 @@ window.CG = window.CG || {};
     // 代价 VP：真资源按代价倍率；条件类记机会预算（不随等级）
     const condCost = !!c.cond;
     const cost = condCost ? COND_BUDGET : resVP(c.res, c.amt, cL);
-    return { id, level: L, gain: round(gain), cost: round(cost), condCost, signature: !!a.signature,
+    return { id, level: L, gain: round(gain), cost: round(cost), condCost,
              rate: cost > 0 ? round(gain / cost) : null, note: CG.affixCostText(id, L) + ' → ' + CG.affixValueText(id, L) };
   };
 
   // 全表报告：自含真资源兑换按汇率降序（条件类不计汇率）。
   CG.affixVPReport = function (level) {
     const rows = CG.AFFIX_ORDER.map(id => CG.affixVP(id, level || 1));
-    const real = rows.filter(r => r.rate != null && !r.condCost && !r.signature).sort((x, y) => y.rate - x.rate);   // 签名(执行/翻倍/吸血/狂暴)是手调净正、不入守卫
+    const real = rows.filter(r => r.rate != null && !r.condCost).sort((x, y) => y.rate - x.rate);   // 条件代价记机会预算、不入"价值≤代价"硬守卫(其约束是"需达成条件")
     return { rows, exchanges: real, violations: real.filter(r => r.rate > 1.0001) };
   };
 })(window.CG);

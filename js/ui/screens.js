@@ -265,7 +265,7 @@ window.CG = window.CG || {};
       const valChip = atom => { const va = AT[atom]; if (!va) return ''; return chip(`${va.name} ${amt(va.vpRes)}`, colorOf(atom)); };
       const valGroups = VG.map(([t, ids]) => sub(t) + row(ids.map(valChip).filter(Boolean))).join('');
       // 特殊签名（净正、稀有；汇率非 1）
-      const sig = [['翻倍', '#ff9fc0'], ['斩杀', '#b04050'], ['吸血', '#cf4f6a'], ['狂暴：自易伤2→每回合+1能量', '#e0563a']];
+      const sig = [['斩杀(敌残血→必杀)', '#b04050'], ['翻倍(×本牌数值)', '#ff9fc0'], ['吸血(造伤→治疗)', '#cf4f6a']];
 
       const rules = `<div class="codex-rules"><b>大规则</b>（词条＝付出「代价」换「价值」，按 1 能量 = 6 价值点计）：
         <li>· <b>价值 ≤ 代价</b>：每笔交易不亏本；强度来自把"富余/会浪费的"换成"急需的"。</li>
@@ -281,7 +281,7 @@ window.CG = window.CG || {};
         sub('代价 · 条件 量型（价值 = 该量 × 等级）') + row(magIds.map(condChip)) +
         sub('代价 · 条件 门型（达成则给定额）') + row(gateIds.map(condChip)) +
         valGroups +
-        sub('特殊签名（稀有·净正）') + row(sig.map(([l, c]) => chip(l, c)));
+        sub('条件型特殊价值(条件→斩杀/翻倍/吸血；VP 按条件机会预算计)') + row(sig.map(([l, c]) => chip(l, c)));
     } else if (tab === 'pack') {
       const names = vals => (vals || []).map(v => { const va = (CG.VALUE_ATOMS || {})[v] || {}; return `<span class="cx-aff">${va.name || v}</span>`; }).join('、');
       const active = (H.getRun && H.getRun() && H.getRun().packs) || null;

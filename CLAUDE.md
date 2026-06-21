@@ -9,7 +9,7 @@
 > ## ⚠️ 词条系统已重写为 v3「代价-价值」原子+分子模型
 > **完整设计见 `DESIGN-resource-exchange.md`。下文大量关于旧词条/包/基底卡的描述已过时，按以下要点为准：**
 > - **原子才是基本单位**（`affixes.js`）：**代价原子** `CG.COST_REAL`（能量/生命/金币/弃牌，真资源）+ `CG.COST_COND`（当前格挡/空手/深度/敌方减益/热度/电力…条件）；**价值原子** `CG.VALUE_ATOMS`（伤害/格挡/治疗/抽牌/力量/易伤/元素/召唤/建筑/产出…）。每个原子默认「1 能量等值」：`amount = round(6/VP)`（VP 见 `CG.VALUES`）。
-> - **一条词条 = 随机填入的 (代价原子, 价值原子) 分子**，id＝`<cost>_<value>`（如 `energy_damage`=打击、`curBlock_damage`=盾击、`hp_damage`=舍身）。生成器把所有「真资源代价×全部价值」「条件代价×数值价值(伤/挡/治)」+ 少量特殊签名（`lowHp_execute`/`play_mult`/`energyZero_mult`/`hit_lifesteal`）预生成进 `CG.AFFIXES`。词条**无名**，卡面/百科只显示「代价」「价值」。
+> - **一条词条 = 随机填入的 (代价原子, 价值原子) 分子**，id＝`<cost>_<value>`（如 `energy_damage`=打击、`curBlock_damage`=盾击、`hp_damage`=舍身）。生成器把所有「真资源代价×全部价值」「条件代价×数值价值(伤/挡/治)」+ 少量「条件型特殊价值」(`lowHp_execute`斩杀/`play_mult`+`energyZero_mult`翻倍/`hit_lifesteal`吸血——必须搭条件、非自由原子)预生成进 `CG.AFFIXES`。词条**无名**，卡面/百科只显示「代价」「价值」。
 > - **真资源代价 + 价值**：价值取固定 amount、代价按 amount 扣（**首石免代价**：`cardStats` socket 代价环按下标 0 跳过）。**条件代价 + 数值价值**：价值改为「条件当前量 × 等级」动态（`cardStats` 出 `s.condBonus`，`playCard` 统一一个 `condBonus` 环按 `qty` 求当前量后加到对应效果）。等级 L：价值 ×L；真资源代价 ×L、条件类不随等级。二者皆 6VP↔6VP 自动破坏衡。
 > - **一颗宝石 = 1 个词条（1 颗分子）**（`rollGem` 只出 1 词条）。**代价均摊**：同一张牌上若多颗宝石「代价种类」相同，只付最高的一个（`cardStats` 的 `costMax` 取 max 而非 sum）。卡面：首石用 `[价值]` 方括号（免代价）、其余宝石写出 `(代价 价值)`；宝石/卡面不再出现「代价」字样标签、空法术无 baseText。
 > - **基底卡 = 唯一空法术 `spell`**（`base:0`、渲染法杖）；取消攻击/防御/能力，统称**法术**。`CG.STRIKE/GUARD/HEAL`＝`energy_damage/energy_block/energy_heal`。**战斗掉落卡 ≥1 随机宝石**。
@@ -22,7 +22,7 @@
 > - **敌失力量/敏捷价值** `enemyLoseStr(减攻)/enemyLoseDex(减格挡，敌 dexterity 进 gainBlock)`：新 effect `enemyStat` 给敌人施负力量/敏捷。**临时版** `enemyLoseStrTemp/enemyLoseDexTemp`＝半 VP/层 → **同 VP 下数量翻倍**（"临时失去两倍"），打出后扣、到你下个回合开始由 `_tempRevert` 复原（覆盖敌方那回合）。归弱化包。
 > - **力量/敏捷对称**：词条价值原子补 `dexterity`(+敏捷)/`tempDex`(临时敏捷)，与 strength/tempStr 对称(cardStats addDex/prepDex；game.addTempDexterity + _tempDex 回合末复原；effects.tempDexterity)。塔罗加 `speed`(临时敏捷,对 flex)。遗物加 feather_boot(+敏捷,对魔法蘑菇)/windbanner(每回合-2血→+2敏捷,对燃血战旗)。
 > - **扣力量/敏捷代价** `loseStr/loseDex`（`COST_REAL`，4/3VP）：打出时扣自身力量/敏捷（可为负，真代价；`cardStats` 并入 strDelta/dexDelta，首石免/均摊）。**自身减益体系（代价回收）**：条件原子 `myDebuff`＝自身 易伤+虚弱+脆弱 层数总和 → 价值（`myDebuff_damage` 等"越惨越强"），与自身减益代价(selfVuln…)/Berserk 形成"自残→回收"闭环。注意自身 weak 会减自己输出、frail 减自己格挡（引擎对称）。
-> - **自身减益代价轨道**（参考 StS Berserk）：`COST_REAL` 加 `selfVuln/selfWeak/selfFrail`（2VP/层→3层/能量），打出时给自己上易伤/虚弱/脆弱（首石免/同种均摊，`cardStats` 代价环出 `selfStatus` 效果）。三种敌方减益已对称同价(1.5)。**狂暴 `berserk`**＝签名词条：自易伤2 → 永久每回合 +1 能量（`prodEnergy` 引擎，`_startPlayerTurn` 处理）——"有界代价换永久递归引擎"，递归引擎 flat-VP 量不了故标 `signature:true` 不入越界守卫（同 execute/mult/lifesteal）。
+> - **自身减益代价轨道**（参考 StS Berserk）：`COST_REAL` 加 `selfVuln/selfWeak/selfFrail`（2VP/层→3层/能量），打出时给自己上易伤/虚弱/脆弱（首石免/同种均摊，`cardStats` 代价环出 `selfStatus` 效果）。三种敌方减益已对称同价(1.5)。**自残→每回合能量引擎**＝`selfVuln_produce_energy`(自易伤6→每回合+1能量，`prodEnergy` 引擎，`_startPlayerTurn` 处理)，按「递归价值=一次性×2」公平定价(12VP=自易伤6)，破坏衡、无需净正签名。已删旧 berserk 签名与 affix-vp 的 signature 豁免机制——现无任何词条豁免越界守卫。
 > - **塔罗(消耗品)＝第三条价值投放轨道**（`tarot.js` 生成式，见 DESIGN 附录 E）：与宝石共用价值原子、换「消耗品栏·即时·无能量/条件代价」轨道，量级 ~2 能量(`round(12/VP)`)。价值原子牌 id `t_<atom>`（烈焰/磐石/能量/迅捷/力量/破绽/剧毒/治疗/财富…）+ 少量特色工具牌(愚者/魔术师/皇帝/月亮…)。储存仍是 id 字符串，run/game/UI 不变。三轨道(宝石/遗物/塔罗)共享一套价值原子，只靠「代价轨道+量级旋钮」区分。
 > - 测试：`test/costvalue.test.js` + `test/affix-vp.test.js` + `test/run.test.js`（旧逐包测试已删）。
 
