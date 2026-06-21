@@ -333,6 +333,29 @@ window.CG = window.CG || {};
         s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value * this.nextCardDmgMult }) : e) });
         this.nextCardDmgMult = 1;
       }
+      // v3 条件代价：动态缩放数值价值——价值量 =（条件当前量 × 等级），加到对应类型的效果上。
+      if (s.condBonus && s.condBonus.length) {
+        const handAfter = this.hand.length - 1, t = this.enemy;
+        const qtyOf = q => {
+          switch (q) {
+            case 'curBlock':    return this.player.block || 0;
+            case 'curPower':    return this.player.power || 0;
+            case 'depth':       return this._depth || 0;
+            case 'heat':        return this._heat || 0;
+            case 'enemyDebuff': return t ? this._enemyDebuffLayers(t) : 0;
+            case 'exhaustPile': return this.exhaustPile.length;
+            case 'heldTurns':   return card.heldTurns || 0;
+            case 'handSize':    return Math.max(0, handAfter);
+            case 'emptyHand':   return Math.max(0, 5 - handAfter);
+            case 'curGold':     return this.run ? Math.floor((this.run.gold || 0) / 6) : 0;
+            default:            return 0;
+          }
+        };
+        s.condBonus.forEach(cb => {
+          const bonus = qtyOf(cb.qty) * (cb.level || 1);
+          if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === cb.vtype ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+        });
+      }
       // 连击：本回合此前每打出过一张牌，本牌伤害 +combo
       if (s.combo > 0) {
         const bonus = s.combo * (this._playedThisTurn || 0);

@@ -238,24 +238,29 @@ window.CG = window.CG || {};
     CODEX_TABS.forEach(t => $('codex-tab-' + t).classList.toggle('active', t === tab));
     let html = '';
     if (tab === 'affix') {
-      const row = id => {
-        const a = CG.AFFIXES[id];
-        return `<div class="codex-item cv-row">` +
-               `<span class="cv-cost">${CG.affixCostText(id, 1)}</span>` +
-               `<span class="cv-arrow">→</span>` +
-               `<span class="cv-val" style="color:${a.color}">${CG.affixValueText(id, 1)}</span></div>`;
-      };
-      html = '<p class="codex-note">每条词条＝一笔置换：付出<b>代价</b>→获得<b>价值</b>（价值 ≤ 代价）。1~3 级数值 ×1/2/3（条件类代价不随等级）；<b>首石免代价</b>。</p>' +
-        '<div class="codex-grid"><div class="codex-sub">代价　→　价值</div>' + (CG.AFFIX_ORDER || []).map(row).join('') + '</div>';
+      // v3：原子才是基本单位——列出所有「代价种类」与「价值种类」（默认 1 能量等值）。
+      //     词条＝随机填入的 (代价, 价值) 分子；首石免代价，等级 1~3 数值 ×1/2/3。
+      const amt = res => Math.max(1, Math.round(6 / (CG.VALUES[res] || 6)));
+      const realCost = Object.entries(CG.COST_REAL || {}).map(([id, c]) =>
+        `<div class="codex-item cv-row"><span class="cv-cost">${c.fmt(amt(id === 'energy' ? 'energy' : id))}</span><span class="cv-tag">真资源</span></div>`).join('');
+      const condCost = Object.entries(CG.COST_COND || {}).map(([id, c]) =>
+        `<div class="codex-item cv-row"><span class="cv-cost">${c.name}</span><span class="cv-tag">条件·令价值=该量×等级</span></div>`).join('');
+      const vals = Object.entries(CG.VALUE_ATOMS || {}).map(([id, va]) => {
+        const u = amt(va.vpRes), txt = va.numeric || ['draw', 'energy', 'power', 'strength', 'tempStr', 'vulnerable', 'weak', 'frail', 'poison'].includes(va.vpRes) ? `${va.name} ${u}` : va.name;
+        return `<div class="codex-item cv-row"><span class="cv-val" style="color:${CG.AFFIXES[Object.keys(CG.AFFIXES).find(k => CG.AFFIXES[k].value && CG.AFFIXES[k].value.atom === id)] ? (CG.AFFIXES[Object.keys(CG.AFFIXES).find(k => CG.AFFIXES[k].value && CG.AFFIXES[k].value.atom === id)].color) : '#ccc'}">${txt}</span></div>`;
+      }).join('');
+      html = '<p class="codex-note"><b>代价</b>与<b>价值</b>是原子，<b>词条＝随机组合的 (代价→价值) 分子</b>。每个原子默认 ≈1 能量等值；真资源代价×任意价值都可组合。等级 1~3 数值 ×1/2/3，<b>首石免代价</b>。</p>' +
+        '<div class="codex-grid"><div class="codex-sub">代价种类</div>' + realCost + condCost +
+        '<div class="codex-sub">价值种类（默认 1 能量等值）</div>' + vals + '</div>';
     } else if (tab === 'pack') {
-      const names = ids => (ids || []).map(a => `<span class="cx-aff" style="color:${(CG.AFFIXES[a] || {}).color}">${CG.affixValueText(a, 1)}</span>`).join('、');
+      const names = vals => (vals || []).map(v => { const va = (CG.VALUE_ATOMS || {})[v] || {}; return `<span class="cx-aff">${va.name || v}</span>`; }).join('、');
       const active = (H.getRun && H.getRun() && H.getRun().packs) || null;
       const card = id => {
         const p = CG.PACKS[id], on = !active || active.includes(id);
         return `<div class="codex-pack${on ? '' : ' off'}">` +
           `<div class="codex-pack-head" style="color:${p.color}">${p.icon} ${p.name}${active && on ? ' <span class="cx-on">本局</span>' : ''}</div>` +
           `<div class="codex-desc">${p.desc}</div>` +
-          `<div class="cx-affs">${names(p.affixes)}</div></div>`;
+          `<div class="cx-affs"><b>价值</b> ${names(p.values)}</div></div>`;
       };
       html = '<p class="codex-note">每个词条属于一个<b>主题</b>；开局选定的主题<b>融合成一个「🌀 融合包」</b>，本局产出的宝石都从其混合池里抽。' +
         (active ? `当前融合 ${active.length} 个：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' ')}` : '') + '</p>' +

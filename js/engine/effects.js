@@ -190,6 +190,7 @@ window.CG = window.CG || {};
     },
     // === 市场包 ===（金币＝run.gold；无跑图时金币操作安全跳过）
     invest(game, eff, source, target) { const r = game.run; if (!r) return; const spend = Math.min(r.gold || 0, 2 * eff.value); if (spend > 0) { r.gold -= spend; if (target && target.hp > 0) game.dealAttackDamage(source, target, spend); } },   // 投资：花至多 2L 金币·造等量(×1)伤害
+    loseGold(game, eff) { if (game.run) game.run.gold = Math.max(0, (game.run.gold || 0) - eff.value); },             // v3 金币代价（首石免）
     income(game, eff) { if (game.run) game.run.gold = (game.run.gold || 0) + 3 * eff.value; },                       // 进账
     trade(game, eff)  { game.drawCards(1); if (game.run) game.run.gold = (game.run.gold || 0) + 2 * eff.value; },    // 贸易
     hire(game, eff)   { const r = game.run; if (r && (r.gold || 0) >= 5 * eff.value) { r.gold -= 5 * eff.value; game.applyStatus(game.player, 'strength', eff.value); } },  // 雇佣

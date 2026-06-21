@@ -47,7 +47,7 @@ CG.makeDeck = entries => entries.map(([base, gemAffixes, limit]) =>
 CG.makeBattle = (opts = {}) => new CG.Game({
   enemyIds: opts.enemyIds || ['green_slime'],
   tier: opts.tier || 'normal',
-  deck: opts.deck || CG.makeDeck(Array.from({ length: 10 }, () => ['spell', [[{ id: 'strike', level: 1 }]]])),
+  deck: opts.deck || CG.makeDeck(Array.from({ length: 10 }, () => ['spell', [[{ id: CG.STRIKE, level: 1 }]]])),
   hp: opts.hp || 60, maxHp: opts.maxHp || 60,
   tarot: [], relics: opts.relics || [], run: opts.run || null,
   actScale: opts.actScale || { hp: 1, dmg: 1 }, hpMult: opts.hpMult || 1, enemyM: opts.enemyM,

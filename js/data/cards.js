@@ -105,7 +105,8 @@ window.CG = window.CG || {};
         drawN = 0, prepare = 0, sapStr = 0, sapDex = 0, score = 0,
         costD = 0, nextE = 0, hpLoss = 0, healAmt = 0, lifesteal = 0, silenceLv = 0, pierceN = 0, exhaust = false,
         blockFlat = 0, freeNextN = 0, comboN = 0,
-        dmgPool = 0, blkPool = 0;   // v2：空法术无基础数值，伤害/格挡全来自宝石「价值」
+        dmgPool = 0, blkPool = 0, addStrN = 0, goldCostN = 0;   // v3：伤害/格挡来自宝石价值；力量价值；金币代价
+    const condBonusList = [];   // v3：条件代价 → 动态缩放数值价值（playCard 结算）
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
@@ -154,6 +155,8 @@ window.CG = window.CG || {};
       if (d.block)     blockFlat += d.block * L;        // 壁垒：附加格挡
       if (d.dmg)       dmgPool += d.dmg * L;            // v2 价值·伤害（strike 等）
       if (d.blk)       blkPool += d.blk * L;            // v2 价值·格挡（guard 等）
+      if (d.addStr)    addStrN += d.addStr * L;         // v3 价值·力量
+      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, vtype: d.condBonus.vtype, level: L });   // v3 条件代价
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.element) { elementId = d.element; elementLevel = (d.elementBase || 1) * L; }   // 元素附着：附 (base×L) 层（放电=2×L）
@@ -256,6 +259,7 @@ window.CG = window.CG || {};
         const amt = (def.cost.amt || 1) * (a.level || 1);
         if (def.cost.res === 'energy')  costD  += amt;
         else if (def.cost.res === 'hp') hpLoss += amt;
+        else if (def.cost.res === 'gold') goldCostN += amt;    // v3 金币代价
         else if (def.cost.res === 'discard') clutchN += amt;   // 复用随机弃牌
       });
     });
@@ -270,23 +274,26 @@ window.CG = window.CG || {};
     const limit = inst.limit == null ? sockets.length : inst.limit;
     const emptySockets = Math.max(0, limit - sockets.length);
 
-    // 主效果类型：有伤害（含条件型伤害加成）→ damage；否则 block / heal / skill。
-    const condDmg = shieldBashN || arcN || prospectN || ashesN || preyN || emptyMindN || heldStrikeN || lastStandN || hoardN || dumpsterN || windfallN || emberN;
-    const kind = (dmgVal > 0 || condDmg) ? 'damage' : (blkVal > 0 || quarryN || coolantN) ? 'block' : healAmt > 0 ? 'heal' : 'skill';
+    // v3 条件代价：动态缩放某数值价值 → 保证对应类型的效果存在，供 playCard 填量。
+    const condDmg = condBonusList.some(c => c.vtype === 'damage');
+    const condBlk = condBonusList.some(c => c.vtype === 'block');
+    const condHeal = condBonusList.some(c => c.vtype === 'heal');
+    const kind = (dmgVal > 0 || condDmg) ? 'damage' : (blkVal > 0 || condBlk) ? 'block' : (healAmt > 0 || condHeal) ? 'heal' : 'skill';
     const value = dmgVal || blkVal || healAmt || 0;
 
     // 结算效果
     const effects = [];
     if (dmgVal > 0 || condDmg) effects.push({ type: 'damage', value: dmgVal, hits });
-    if (blkVal > 0 || quarryN || coolantN) effects.push({ type: 'block', value: blkVal });
+    if (blkVal > 0 || condBlk) effects.push({ type: 'block', value: blkVal });
     for (const k in statuses) effects.push({ type: k, value: statuses[k] });               // 给敌人
     for (const k in selfStatuses) effects.push({ type: 'selfStatus', status: k, value: selfStatuses[k] });
     if (energy)  effects.push({ type: 'energy', value: energy });
     if (drawN)   effects.push({ type: 'draw', value: drawN });
-    if (healAmt) effects.push({ type: 'heal', value: healAmt });
+    if (healAmt || condHeal) effects.push({ type: 'heal', value: healAmt });
     if (hpLoss)  effects.push({ type: 'loseHp', value: hpLoss });
+    if (goldCostN) effects.push({ type: 'loseGold', value: goldCostN });   // v3 金币代价
     if (silenceLv) effects.push({ type: 'silence', value: silenceLv });
-    const strDelta = -sapStr;                          // 怯懦：永久 -力量（准备已改为「本回合力量」单列）
+    const strDelta = addStrN - sapStr;                 // v3 力量价值 - 减力量
     const dexDelta = -sapDex;                          // 笨拙：永久 -敏捷
     if (strDelta) effects.push({ type: 'strength', value: strDelta });
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
@@ -398,7 +405,7 @@ window.CG = window.CG || {};
 
     return {
       base: inst.base, baseName: b.name, cost, type: 'spell', kind, limit, emptySockets, score,
-      value, hits, effects, buffs, debuffs, gemViews, baseText,
+      value, hits, effects, buffs, debuffs, gemViews, baseText, condBonus: condBonusList,
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
       freeNext: freeNextN, combo: comboN, element: elementId, elementLevel,
@@ -672,8 +679,8 @@ window.CG = window.CG || {};
   CG.buildDeck = function (cls) {
     const gemmed = valId => CG.makeCard('spell', 1, [CG.makeGem([{ id: valId, level: 1 }])]);
     const rep = (valId, n) => Array.from({ length: n }, () => gemmed(valId));
-    if (cls === 'shield') return [...rep('strike', 4), ...rep('guard', 6)];
-    if (cls === 'priest') return [...rep('strike', 4), ...rep('guard', 4), ...rep('v_heal', 2)];
-    return [...rep('strike', 5), ...rep('guard', 5)];   // warrior（默认）
+    if (cls === 'shield') return [...rep(CG.STRIKE, 4), ...rep(CG.GUARD, 6)];
+    if (cls === 'priest') return [...rep(CG.STRIKE, 4), ...rep(CG.GUARD, 4), ...rep(CG.HEAL, 2)];
+    return [...rep(CG.STRIKE, 5), ...rep(CG.GUARD, 5)];   // warrior（默认）
   };
 })(window.CG);

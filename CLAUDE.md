@@ -6,15 +6,15 @@
 > **本文件即本项目的「记忆」。** 所有需要跨会话记住的偏好 / 约定 / 事实都写在这里，
 > **不使用单独的 memory 系统、也不依赖它**。每当出现新的持久事实或用户偏好，更新本文件即可。
 
-> ## ⚠️ 词条系统已重写为 v2「代价-价值」（资源置换模型）
-> **完整设计见 `DESIGN-resource-exchange.md`。下文中大量关于旧词条/包/基底卡的描述已过时，按以下要点为准：**
-> - **每条词条 = 一笔置换**：付出「代价(cost)」→ 获得「价值(value)」，软目标 价值 ≤ 代价（VP 见 `js/data/affix-vp.js` 的 `CG.VALUES`）。词条**不再有名字**，卡面/百科只显示「代价」「价值」两栏。
-> - **基底卡 = 唯一空法术 `spell`**（`base:0`、无效果、渲染成法杖）；取消攻击/防御/能力之分，统称**法术**。`打击=spell+首石〔伤害6〕`、`防御=spell+首石〔格挡5〕`。
-> - **首石免代价**：一张牌第一颗宝石无视其代价（在 `cardStats` 的 socket 代价环按下标 0 跳过）。等级 L：价值 ×L；真资源代价 ×L，**条件/机会类代价不随等级**。
-> - **战斗掉落卡 ≥1 随机宝石**（`run.js` rollCardReward/事件 card）。
-> - **词条表 `CG.AFFIXES`**（`affixes.js`）：每条 `{cost:{res,amt,cond}, value:{res,amt,sub}, color, score, ...mech}`；mech 字段（apply/shieldBash/summon/give/element…）仍复用旧引擎管线。**无独立减益**（`DEBUFF_ORDER=[]`，代价侧即下行风险）。包缩水成签名兑换（`CG.PACKS[id].affixes`）。
-> - 展示：`CG.affixCostText(id,L)` / `CG.affixValueText(id,L)`。`cardStats` 里伤害/格挡来自宝石价值池（`d.dmg`/`d.blk`），`base.kind` 已废。
-> - 连带未重设计的旧功能：卸宝石不再附 debuff、祭坛「净化」恒不可用（待重做）。测试：`test/costvalue.test.js` + `test/affix-vp.test.js`（旧 25 包逐包测试已删）。
+> ## ⚠️ 词条系统已重写为 v3「代价-价值」原子+分子模型
+> **完整设计见 `DESIGN-resource-exchange.md`。下文大量关于旧词条/包/基底卡的描述已过时，按以下要点为准：**
+> - **原子才是基本单位**（`affixes.js`）：**代价原子** `CG.COST_REAL`（能量/生命/金币/弃牌，真资源）+ `CG.COST_COND`（当前格挡/空手/深度/敌方减益/热度/电力…条件）；**价值原子** `CG.VALUE_ATOMS`（伤害/格挡/治疗/抽牌/力量/易伤/元素/召唤/建筑/产出…）。每个原子默认「1 能量等值」：`amount = round(6/VP)`（VP 见 `CG.VALUES`）。
+> - **一条词条 = 随机填入的 (代价原子, 价值原子) 分子**，id＝`<cost>_<value>`（如 `energy_damage`=打击、`curBlock_damage`=盾击、`hp_damage`=舍身）。生成器把所有「真资源代价×全部价值」「条件代价×数值价值(伤/挡/治)」+ 少量特殊签名（`lowHp_execute`/`play_mult`/`energyZero_mult`/`hit_lifesteal`）预生成进 `CG.AFFIXES`。词条**无名**，卡面/百科只显示「代价」「价值」。
+> - **真资源代价 + 价值**：价值取固定 amount、代价按 amount 扣（**首石免代价**：`cardStats` socket 代价环按下标 0 跳过）。**条件代价 + 数值价值**：价值改为「条件当前量 × 等级」动态（`cardStats` 出 `s.condBonus`，`playCard` 统一一个 `condBonus` 环按 `qty` 求当前量后加到对应效果）。等级 L：价值 ×L；真资源代价 ×L、条件类不随等级。二者皆 6VP↔6VP 自动破坏衡。
+> - **基底卡 = 唯一空法术 `spell`**（`base:0`、渲染法杖）；取消攻击/防御/能力，统称**法术**。`CG.STRIKE/GUARD/HEAL`＝`energy_damage/energy_block/energy_heal`。**战斗掉落卡 ≥1 随机宝石**。
+> - **包＝一组价值原子**（`CG.PACKS[id].values`，代价随机自由组合）；`p.affixes` 是「真资源代价×主题价值」展开（rollGem/fusion 用）。**无独立减益**（代价侧即下行风险，`DEBUFF_ORDER=[]`）。
+> - 展示：`CG.affixCostText/affixValueText(id,L)`。**百科「词条」页改列原子**（所有代价种类 + 所有价值种类，不再逐条列分子）。`cardStats` 伤害/格挡来自价值池 `d.dmg`/`d.blk`、力量 `d.addStr`、金币代价 `loseGold`；`base.kind` 已废。
+> - 连带未重设计：卸宝石不再附 debuff、祭坛「净化」恒不可用（待重做）。测试：`test/costvalue.test.js` + `test/affix-vp.test.js`（旧逐包测试已删）。
 
 ## 改动前：先通读全项目
 

@@ -117,7 +117,7 @@ test('皇帝塔罗：直达本层首领并开战', () => {
 
 test('安装免费：installGemInv 把背包宝石装进空孔', () => {
   const run = newRun();
-  const gem = CG.makeGem([{ id: 'strike', level: 1 }]);
+  const gem = CG.makeGem([{ id: 'energy_damage', level: 1 }]);
   run.gems.push(gem);
   const target = run.deck[0];
   CG.addSocket(target);                                   // v2 起手牌都是单孔满镶，先加一个空孔
@@ -164,7 +164,7 @@ test('商店：买宝石 / 买法杖', () => {
   const run = newRun();
   run.gold = 1000;
   run.pending = {
-    gems: [{ gem: CG.makeGem([{ id: 'strike', level: 1 }]), price: 30, bought: false }],
+    gems: [{ gem: CG.makeGem([{ id: 'energy_damage', level: 1 }]), price: 30, bought: false }],
     cards: [{ base: 'spell', limit: 2, gems: [], price: 40, bought: false }],
     tarot: [],
   };
@@ -187,7 +187,7 @@ test('事件祭坛可用性判定', () => {
   assert.equal(run.altarUsable('setting'), false);                // 背包没宝石
   assert.equal(run.altarUsable('purify'), false);                 // 没有带 debuff 的宝石
 
-  run.gems.push(CG.makeGem([{ id: 'strike', level: 1 }]));
+  run.gems.push(CG.makeGem([{ id: 'energy_damage', level: 1 }]));
   CG.addSocket(run.deck[0]);                          // v2 起手牌满镶，先腾一个空孔
   assert.equal(run.altarUsable('setting'), true);
   assert.equal(run.altarUsable('purify'), false);   // v2：无独立减益，净化恒不可用（待重设计）
@@ -376,12 +376,12 @@ test('整局推进：领奖励 + 镶嵌 + 逛遍房型（覆盖宝石/法杖/商
 test('调试：debugAddGem 把自定义词条宝石加入背包（夹等级 1~3、滤非法、空则不加）', () => {
   const run = newRun('debug-gem');
   const n0 = run.gems.length;
-  const gem = run.debugAddGem([{ id: 'strike', level: 5 }, { id: 'guard', level: 1 }, { id: 'not_real', level: 2 }]);
+  const gem = run.debugAddGem([{ id: 'energy_damage', level: 5 }, { id: 'energy_block', level: 1 }, { id: 'not_real', level: 2 }]);
   assert.ok(gem);
   assert.equal(run.gems.length, n0 + 1);
   assert.equal(run.gems[run.gems.length - 1], gem);
   assert.equal(gem.affixes.length, 2, '非法词条被过滤');
-  assert.equal(gem.affixes.find(a => a.id === 'strike').level, 3, '等级夹到 1~3');
+  assert.equal(gem.affixes.find(a => a.id === 'energy_damage').level, 3, '等级夹到 1~3');
   // 空 / 全非法 → 不加、返回 null
   assert.equal(run.debugAddGem([]), null);
   assert.equal(run.debugAddGem([{ id: 'nope' }]), null);

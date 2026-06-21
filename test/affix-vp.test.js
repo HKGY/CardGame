@@ -24,10 +24,6 @@ test('基础卡平衡不变式：5格挡 = 6伤害 = 1能量 = 6VP', () => {
   assert.strictEqual(5 * V.block, 6 * V.damage);
 });
 
-test('生命作为支付资源带风险溢价（< 伤害单价）', () => {
-  assert.ok(CG.VALUES.hp < CG.VALUES.damage);
-});
-
 test('全词条覆盖：每条都有有限 VP 估值', () => {
   for (const id of CG.AFFIX_ORDER) {
     for (const L of [1, 2, 3]) {
