@@ -131,6 +131,20 @@ test('遗物·代价→价值：棱镜核心 敌人开局 +1 力量', () => {
   assert.ok((g.enemy.statuses.strength || 0) >= 1);
 });
 
+// ===== 塔罗（生成式·消耗品轨道）=====
+test('塔罗生成式：价值原子牌存在且即时投放', () => {
+  assert.ok(CG.TAROT.t_damage && CG.TAROT.t_block && CG.TAROT.t_energy && CG.TAROT.t_strength);
+  // t_damage：即时对当前敌人造 12 伤（~2 能量）
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  const hp0 = g.enemy.hp;
+  CG.TAROT.t_damage.apply(null, g, null);
+  assert.strictEqual(g.enemy.hp, hp0 - 12);
+  // t_block：即时 +10 格挡
+  const g2 = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  CG.TAROT.t_block.apply(null, g2, null);
+  assert.strictEqual(g2.player.block, 10);
+});
+
 // ===== 完整性 =====
 test('每个包的价值原子都在 VALUE_ATOMS / 组合存在于 AFFIXES', () => {
   for (const pid of CG.PACK_IDS) {
