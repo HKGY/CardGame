@@ -22,7 +22,9 @@ window.CG = window.CG || {};
     strength: 4.0, tempStr: 1.5, dexterity: 3.0,
     vulnerable: 1.5, weak: 1.5, frail: 1.5, poison: 1.5,   // 三种敌方减益对称同价（便于条件/代价对称）
     fire: 2.0, water: 2.0, thunder: 2.0, ice: 2.0,
-    food: 2.0, summon: 3.0, building: 5.0, produce: 5.0, conjure: 4.0,
+    food: 2.0, summon: 3.0, building: 5.0, conjure: 4.0,
+    // 每回合(递归)价值 = 一次性价值 ×2（从下回合算；2 回合回本后净赚）：能量6→12、抽2.5→5、格挡1.2→2.4
+    produce_draw: 5.0, produce_block: 2.4, produce_energy: 12.0,
     // 代价原子（可玩数字：生命 2VP→3血、金币 1VP→6金）
     hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0,
     // 自身减益代价（延迟/风险代价；定价略高于"给敌"价值 1.5，因你几乎一定吃到）→ 2VP/层、1 能量≈3 层
@@ -66,8 +68,9 @@ window.CG = window.CG || {};
     food_ware:   { name: '厨具', vpRes: 'food', mech: () => ({ give: 'cookware' }) },
     summon:   { name: '召唤物', vpRes: 'summon', mech: () => ({ summon: 'skeleton' }) },
     building: { name: '建筑', vpRes: 'building', mech: () => ({ build: 'arrowtower' }) },
-    produce_draw:  { name: '每回合抽牌', vpRes: 'produce', mech: () => ({ selfStatus: 'prodDraw', flat: 1 }) },
-    produce_block: { name: '每回合格挡', vpRes: 'produce', mech: () => ({ selfStatus: 'prodBlock', flat: 1 }) },
+    produce_draw:  { name: '每回合抽牌', vpRes: 'produce_draw', mech: () => ({ selfStatus: 'prodDraw', flat: 1 }) },
+    produce_block: { name: '每回合格挡', vpRes: 'produce_block', mech: u => ({ selfStatus: 'prodBlock', flat: u }) },
+    produce_energy:{ name: '每回合能量', vpRes: 'produce_energy', mech: () => ({ selfStatus: 'prodEnergy', flat: 1 }) },
     conjure:  { name: '造牌', vpRes: 'conjure', mech: () => ({ conjure: 1 }) },
   };
   // 价值原子的元素色：附元素用元素色，食材/产出用各自色
@@ -112,8 +115,10 @@ window.CG = window.CG || {};
     const va = VALUE_ATOMS[valId];
     const cond = !!COST_COND[costId];
     const u = amt(va.vpRes);
+    const valVP = u * (V[va.vpRes] || 6);   // 价值总 VP（递归价值已经是 ×2）
     const def = Object.assign({
-      cost: cond ? { res: costId, cond: true } : { res: costId, amt: amt(costId) },
+      // 代价量级 = 与价值 VP 对齐（破坏衡）：故「每回合能量(12VP)」自动要 2 费、「失血换它」要 6 血…
+      cost: cond ? { res: costId, cond: true } : { res: costId, amt: Math.max(1, Math.ceil(valVP / (V[costId] || 6) - 1e-6)) },
       value: { res: va.vpRes, sub: valId, atom: valId, amt: cond ? null : u },
       color: valColor(valId), score: 4,
     }, extra || {});

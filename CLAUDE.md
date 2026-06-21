@@ -18,6 +18,7 @@
 > - **净化(purify)** 改为「**去掉一颗宝石的代价**」（`gem.purified=true`，`CG.gemRemoveCost`；`cardStats` 代价环跳过、卡面/宝石面显示免代价方括号）；**祭坛**与**商店**都提供（`run.buyPurify`/`shop.purifyBase/Step`）。**卸载宝石仅商店**（`buyUninstall`，已不附 debuff）。`purified` 经 `cloneGem`/`cloneCard` 保留。
 > - **时点型条件原子**（借鉴 StS 遗物）：`COST_COND` 加 `firstTurn`/`hurt`/`noBlock`（门 gate，达成给 1 能量等值，`condBonus.gate/base`）+ `turnNum`/`kills`（量）；`game.js` 加 `_hurtThisCombat`/`_killsThisCombat`，`playCard` 的 `condBonus` 环分门/量求值。
 > - **遗物也套代价-价值**（`relics.js`，见 DESIGN 附录 D）：三类＝纯价值/条件→价值/代价→价值（boss 式永久负面换永久价值，如棱镜核心、灵魂熔炉）；条件遗物描述统一写成「条件→价值」。已精简冗余数值堆叠遗物（41 件）。
+> - **递归(每回合)价值定价规则**：从下回合算的「每回合 X」= 一次性 X 的 **×2 VP**（2 回合回本后净赚）。故 `produce_energy=12 / produce_draw=5 / produce_block=2.4` VP。**生成器代价量级与价值 VP 对齐**（`cost.amt = ceil(valVP / costResVP)`，ceil 保证不越界）→「每回合能量(12VP)」自动要 2 费、6 血或 12 金…用户范式「2 能量 → 每回合 1 能量」就是 `energy_produce_energy`。
 > - **自身减益代价轨道**（参考 StS Berserk）：`COST_REAL` 加 `selfVuln/selfWeak/selfFrail`（2VP/层→3层/能量），打出时给自己上易伤/虚弱/脆弱（首石免/同种均摊，`cardStats` 代价环出 `selfStatus` 效果）。三种敌方减益已对称同价(1.5)。**狂暴 `berserk`**＝签名词条：自易伤2 → 永久每回合 +1 能量（`prodEnergy` 引擎，`_startPlayerTurn` 处理）——"有界代价换永久递归引擎"，递归引擎 flat-VP 量不了故标 `signature:true` 不入越界守卫（同 execute/mult/lifesteal）。
 > - **塔罗(消耗品)＝第三条价值投放轨道**（`tarot.js` 生成式，见 DESIGN 附录 E）：与宝石共用价值原子、换「消耗品栏·即时·无能量/条件代价」轨道，量级 ~2 能量(`round(12/VP)`)。价值原子牌 id `t_<atom>`（烈焰/磐石/能量/迅捷/力量/破绽/剧毒/治疗/财富…）+ 少量特色工具牌(愚者/魔术师/皇帝/月亮…)。储存仍是 id 字符串，run/game/UI 不变。三轨道(宝石/遗物/塔罗)共享一套价值原子，只靠「代价轨道+量级旋钮」区分。
 > - 测试：`test/costvalue.test.js` + `test/affix-vp.test.js` + `test/run.test.js`（旧逐包测试已删）。
