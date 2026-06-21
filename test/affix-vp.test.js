@@ -11,10 +11,10 @@ test('价值排序铁律：治疗 > 格挡 > 伤害', () => {
   assert.ok(V.block > V.damage, `格挡(${V.block}) 应 > 伤害(${V.damage})`);
 });
 
-test('价值排序：防御性减益 > 进攻性减益（虚弱 > 易伤/脆弱）', () => {
+test('敌方减益对称同价：虚弱 = 易伤 = 脆弱', () => {
   const V = CG.VALUES;
-  assert.ok(V.weak > V.vulnerable, `虚弱(${V.weak}) 应 > 易伤(${V.vulnerable})`);
-  assert.ok(V.weak > V.frail, `虚弱(${V.weak}) 应 > 脆弱(${V.frail})`);
+  assert.strictEqual(V.weak, V.vulnerable);
+  assert.strictEqual(V.frail, V.vulnerable);
 });
 
 test('基础卡平衡不变式：5格挡 = 6伤害 = 1能量 = 6VP', () => {

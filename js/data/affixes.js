@@ -20,7 +20,7 @@ window.CG = window.CG || {};
     // 价值原子（排序铁律：治疗 > 格挡 > 伤害；虚弱 > 易伤/脆弱）
     damage: 1.0, block: 1.2, heal: 1.5, draw: 2.5, energy: 6.0, power: 1.0,
     strength: 4.0, tempStr: 1.5, dexterity: 3.0,
-    vulnerable: 1.5, weak: 2.0, frail: 1.5, poison: 1.5,
+    vulnerable: 1.5, weak: 1.5, frail: 1.5, poison: 1.5,   // 三种敌方减益对称同价（便于条件/代价对称）
     fire: 2.0, water: 2.0, thunder: 2.0, ice: 2.0,
     food: 2.0, summon: 3.0, building: 5.0, produce: 5.0, conjure: 4.0,
     // 代价原子（可玩数字：生命 2VP→3血、金币 1VP→6金）
