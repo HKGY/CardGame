@@ -49,11 +49,12 @@ function V(CG, g, packs) {
   v += (p.statuses.regen || 0) * 2 + (p.statuses.thorns || 0) * 2 + (p.statuses.nourish || 0) * 3;
   for (const e of alive) {
     v += (e.statuses.poison || 0) * 2.5 + (e.statuses.burn || 0) * 2;   // 我方铺的持续伤害=未来收益
-    v += (e.statuses.vulnerable || 0) * 2 + (e.statuses.weak || 0) * 2 + (e.statuses.frozen ? 9 : 0);
-    v -= (e.statuses.strength || 0) * 5;             // 敌人变强=坏
+    v += (e.statuses.vulnerable || 0) * 2 + (e.statuses.weak || 0) * 2 + (e.statuses.frail || 0) * 1.5 + (e.statuses.frozen ? 9 : 0);   // v3 补敌脆弱（减益降权实测反伤 weaken，故维持原权重）
+    v -= (e.statuses.strength || 0) * 5;             // 敌力量（负＝敌失力量 → 自动加分）
+    v -= (e.statuses.dexterity || 0) * 2;            // 敌敏捷（负＝敌失敏捷 → 加分；v3 弱化包原子，原 V 漏估）
     v -= (e.block || 0) * 0.15;                       // 敌人格挡=坏：鼓励凿穿护盾、破解「带盾残血」的对峙僵局
   }
-  v += (p.power || 0) * 0.6;                          // 电力（elec 包会再加权）
+  v += (p.power || 0) * 1.0;                          // 电力（v3 可跨回合存，~1VP/点；elec 钩子在有消耗途径时再加权）
 
   for (const h of hooksFor(packs)) if (h.battle) { try { const b = h.battle(CG, g); if (b) v += b; } catch (e) {} }
   return v;

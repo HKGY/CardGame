@@ -48,6 +48,7 @@ function cloneGame(CG, g) {
 function make(CG, rng, opts) {
   opts = opts || {};
   const SEARCH = opts.search || 'rollout';      // 'rollout'=多步（默认）| 'greedy'=单步（对照）
+  const LOOK = opts.lookahead != null ? opts.lookahead : ((typeof process !== 'undefined' && process.env.LOOKAHEAD != null) ? +process.env.LOOKAHEAD : 0);   // 两回合前瞻折现权重：实测净负（过奖延迟态）→ 默认关，保留可调
   let TELE = null, PACKS = null;
   const EPS = 0.4;
 
@@ -200,7 +201,7 @@ function make(CG, rng, opts) {
       sim.playCard(c.uid); resolvePrompts(sim);
       const endV = greedyFinish(sim, packs);                 // 本回合打完
       if (endV > Vnow + EPS) anyGood = true;
-      const score = endV + 0.4 * lookahead(sim);             // 审计改进④——叠加两回合前瞻（折现 0.4）
+      const score = endV + LOOK * lookahead(sim);            // 审计改进④——叠加两回合前瞻（折现 LOOK，可调）
       if (score > bestScore) { bestScore = score; best = c; }
     }
     if (!anyGood) best = null;                                // 没有任何出牌改善本回合 → 结束回合（下方周转兜底）
