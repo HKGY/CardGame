@@ -109,6 +109,7 @@ window.CG = window.CG || {};
         enemyStrN = 0, enemyStrTempN = 0, enemyDexN = 0, enemyDexTempN = 0;
     let addDexN = 0, prepDexN = 0;   // 敏捷价值/临时敏捷价值（与力量对称）   // 敌失力量/敏捷（永久/临时）
     const condBonusList = [];   // v3：条件代价 → 动态缩放数值价值（playCard 结算）
+    const everyTurnList = [], nextTurnList = [];   // v3.1 时点修饰器：每回合/下回合 调度的效果（值已按等级缩放）
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
@@ -164,7 +165,9 @@ window.CG = window.CG || {};
       if (d.prepDex)   prepDexN += d.prepDex * L;
       if (d.enemyStr) { if (d.enemyTemp) enemyStrTempN += d.enemyStr * L; else enemyStrN += d.enemyStr * L; }   // 敌失力量
       if (d.enemyDex) { if (d.enemyTemp) enemyDexTempN += d.enemyDex * L; else enemyDexN += d.enemyDex * L; }   // 敌失敏捷
-      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, vtype: d.condBonus.vtype, gate: d.condBonus.gate, base: d.condBonus.base, level: L });   // v3 条件代价
+      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, atom: d.condBonus.atom, gate: d.condBonus.gate, mult: d.condBonus.mult, level: L });   // v3 条件代价（mult=条件VP/价值VP；playCard 按当前量结算）
+      if (d.everyTurn) d.everyTurn.forEach(e => everyTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));   // 每回合：按等级缩放后调度
+      if (d.nextTurn)  d.nextTurn.forEach(e => nextTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));     // 下回合：同上
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.element) { elementId = d.element; elementLevel = (d.elementBase || 1) * L; }   // 元素附着：附 (base×L) 层（放电=2×L）
@@ -267,7 +270,8 @@ window.CG = window.CG || {};
       if (si === 0 || g.purified) return;            // 首石免代价；净化过的宝石免代价
       (g.affixes || []).forEach(a => {
         const def = CG.AFFIXES[a.id]; if (!def || !def.cost || def.cost.cond) return;
-        const amount = (def.cost.amt || 1) * CG.lvCost(a.level);   // 代价倍率：1级×1、2级×2、3级×1
+        // v3.1：每级实际代价来自 def.costByLv（L3 是 L1 代价的高效档）；老路径兜底
+        const amount = def.costByLv ? (def.costByLv[a.level] != null ? def.costByLv[a.level] : def.costByLv[1]) : (def.cost.amt || 1) * CG.lvCost(a.level);
         costMax[def.cost.res] = Math.max(costMax[def.cost.res] || 0, amount);
       });
     });
@@ -286,22 +290,19 @@ window.CG = window.CG || {};
     const limit = inst.limit == null ? sockets.length : inst.limit;
     const emptySockets = Math.max(0, limit - sockets.length);
 
-    // v3 条件代价：动态缩放某数值价值 → 保证对应类型的效果存在，供 playCard 填量。
-    const condDmg = condBonusList.some(c => c.vtype === 'damage');
-    const condBlk = condBonusList.some(c => c.vtype === 'block');
-    const condHeal = condBonusList.some(c => c.vtype === 'heal');
-    const kind = (dmgVal > 0 || condDmg) ? 'damage' : (blkVal > 0 || condBlk) ? 'block' : (healAmt > 0 || condHeal) ? 'heal' : 'skill';
+    // v3.2 条件代价：价值在 playCard 按「当前条件量」动态结算（喂给价值原子的 mech）→ cardStats 不预置其效果。
+    const kind = dmgVal > 0 ? 'damage' : blkVal > 0 ? 'block' : healAmt > 0 ? 'heal' : 'skill';
     const value = dmgVal || blkVal || healAmt || 0;
 
     // 结算效果
     const effects = [];
-    if (dmgVal > 0 || condDmg) effects.push({ type: 'damage', value: dmgVal, hits });
-    if (blkVal > 0 || condBlk) effects.push({ type: 'block', value: blkVal });
+    if (dmgVal > 0) effects.push({ type: 'damage', value: dmgVal, hits });
+    if (blkVal > 0) effects.push({ type: 'block', value: blkVal });
     for (const k in statuses) effects.push({ type: k, value: statuses[k] });               // 给敌人
     for (const k in selfStatuses) effects.push({ type: 'selfStatus', status: k, value: selfStatuses[k] });
     if (energy)  effects.push({ type: 'energy', value: energy });
     if (drawN)   effects.push({ type: 'draw', value: drawN });
-    if (healAmt || condHeal) effects.push({ type: 'heal', value: healAmt });
+    if (healAmt) effects.push({ type: 'heal', value: healAmt });
     if (hpLoss)  effects.push({ type: 'loseHp', value: hpLoss });
     if (goldCostN) effects.push({ type: 'loseGold', value: goldCostN });   // v3 金币代价
     if (silenceLv) effects.push({ type: 'silence', value: silenceLv });
@@ -413,6 +414,9 @@ window.CG = window.CG || {};
     if (ampgainN)  effects.push({ type: 'ampgain', value: ampgainN });
     if (boonN)     effects.push({ type: 'boon', value: boonN });
     if (polarizeN) effects.push({ type: 'polarize', value: polarizeN });
+    // v3.1 时点修饰器（真资源代价的 每回合/下回合 价值）：包成调度效果（playCard→effects 推入 game._everyTurn/_nextTurn，_startPlayerTurn 结算）
+    everyTurnList.forEach(e => effects.push({ type: 'scheduleEvery', eff: e }));
+    nextTurnList.forEach(e => effects.push({ type: 'scheduleNext', eff: e }));
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害` + (hits > 1 ? ` ×${hits}` : '') + '。',
@@ -444,6 +448,38 @@ window.CG = window.CG || {};
       nextEnergyPenalty: -nextE,
       name,
     };
+  };
+
+  // v3.2 条件代价结算：把某价值原子在「数量 amount」下的产出拆成 now/every/next 效果 + 卡级修饰（potent/lifesteal/multiHit/element）。
+  //   直接复用该价值原子自己的 mech(amount)，故 本回合/下回合/每回合 与所有价值类型自动一致；playCard 的 condBonus 环调用它。
+  CG.valueEffects = function (atom, amount, level) {
+    const va = CG.VALUE_ATOMS[atom], out = { now: [], every: [], next: [] };
+    if (!va || !va.mech || !(amount > 0)) return out;
+    const f = va.mech(amount), L = level || 1;
+    if (f.dmg)       out.now.push({ type: 'damage', value: f.dmg, hits: 1 });
+    if (f.blk)       out.now.push({ type: 'block', value: f.blk });
+    if (f.heal)      out.now.push({ type: 'heal', value: f.heal });
+    if (f.draw)      out.now.push({ type: 'draw', value: f.draw });
+    if (f.energy)    out.now.push({ type: 'energy', value: f.energy });
+    if (f.gainPower) out.now.push({ type: 'gainPower', value: f.gainPower });
+    if (f.addStr)    out.now.push({ type: 'strength', value: f.addStr });
+    if (f.prepare)   out.now.push({ type: 'tempStrength', value: f.prepare });
+    if (f.addDex)    out.now.push({ type: 'dexterity', value: f.addDex });
+    if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
+    if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
+    if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
+    if (f.enemyDex)  out.now.push({ type: 'enemyStat', key: 'dexterity', value: f.enemyDex, temp: !!f.enemyTemp });
+    if (f.give)      out.now.push({ type: 'give', what: f.give, value: 1 });
+    if (f.summon)    out.now.push({ type: 'summon', what: f.summon, value: L });
+    if (f.build)     out.now.push({ type: 'build', what: f.build, value: L });
+    if (f.conjure)   out.now.push({ type: 'conjure', value: f.conjure });
+    if (f.everyTurn) out.every = f.everyTurn.slice();   // 每回合变体：mech 已产出待调度效果
+    if (f.nextTurn)  out.next = f.nextTurn.slice();     // 下回合变体
+    if (f.potent)    out.potent = f.potent;             // 卡级修饰（合并进 s，由 playCard 应用到本牌其它价值）
+    if (f.lifesteal) out.lifesteal = f.lifesteal;
+    if (f.multiHit)  out.multiHit = f.multiHit;
+    if (f.element)   { out.element = f.element; out.elementLevel = f.elementBase; }
+    return out;
   };
 
   // ===========================================================================
@@ -551,6 +587,16 @@ window.CG = window.CG || {};
   }
   CG.rollAffixLevel = () => weightedPick((CG.CONFIG && CG.CONFIG.upgradeLevelWeights) || [[1, 4], [2, 3], [3, 2]]);
 
+  // v3.1：把等级 L 夹到某词条「实际存在的等级」集合内（不存在则就近向下、再不行取最小可用）。
+  function snapLevel(L, avail) {
+    if (!avail || !avail.length) return L;
+    if (avail.includes(L)) return L;
+    const below = avail.filter(x => x <= L);
+    return below.length ? Math.max.apply(null, below) : Math.min.apply(null, avail);
+  }
+  CG.affixLevels = id => (CG.AFFIXES[id] && CG.AFFIXES[id].levels) || [1, 2, 3];
+  CG.clampAffixLevel = (id, L) => snapLevel(Math.max(1, Math.min(3, L || 1)), CG.affixLevels(id));
+
   // strong=true 偏向高分（强力）增益；否则偏向低分（朴素）增益。pool 为候选词条 id 列表。
   function pickBuffId(pool, owned, strong) {
     const p = pool.filter(id => !owned.has(id))
@@ -619,10 +665,14 @@ window.CG = window.CG || {};
     const lvW = (gcfg.levelW && gcfg.levelW[tier]) || [[1, 6], [2, 3], [3, 1]];
     // v3：宝石 = 1 个词条（一颗分子）。tier 只影响等级权重（big 不再加词条，只抬等级下限）。
     const big = opts.big != null ? opts.big : Math.random() < ((gcfg.bigChance && gcfg.bigChance[tier]) || 0.35);
-    let L = opts.level || weightedPick(lvW);
-    if (big && L < 2) L = 2;
-    if (opts.minLevel && L < opts.minLevel) L = opts.minLevel;
     const id = pickBuffId(buffPool, new Set(), big) || buffPool[0] || CG.BUFF_ORDER[0];
+    // v3.1：等级只能取该词条「实际存在的等级」（元素/产出等被 maxCount 卡成只剩 LV1）
+    const avail = CG.affixLevels(id);
+    let L = opts.level;
+    if (!L) { const w = lvW.filter(p => avail.includes(p[0])); L = w.length ? weightedPick(w) : avail[avail.length - 1]; }
+    if (big) { const himin = avail.filter(lv => lv >= 2)[0]; if (himin && L < himin) L = himin; }   // 大宝石抬等级（若有高等级）
+    if (opts.minLevel) L = Math.max(L, opts.minLevel);
+    L = snapLevel(L, avail);
     return CG.makeGem([{ id, level: L }]);
   };
 
@@ -646,7 +696,7 @@ window.CG = window.CG || {};
     const D = (gem.affixes || []).length - B;
     const pack = resolvePack(null, null);
     const ob = new Set(), od = new Set(), out = [];
-    for (let i = 0; i < B; i++) { const id = pickBuffId(pack.buffs, ob, i === 0); if (!id) break; ob.add(id); out.push({ id, level: CG.rollAffixLevel() }); }
+    for (let i = 0; i < B; i++) { const id = pickBuffId(pack.buffs, ob, i === 0); if (!id) break; ob.add(id); out.push({ id, level: CG.clampAffixLevel(id, CG.rollAffixLevel()) }); }
     for (let i = 0; i < D; i++) { const id = pickDebuffId(pack.debuffs, od); if (!id) break; od.add(id); out.push({ id, level: 1 }); }
     gem.affixes = out.length ? out : gem.affixes;
   };

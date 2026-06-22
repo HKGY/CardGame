@@ -259,7 +259,7 @@ window.CG = window.CG || {};
     debugAddGem(affixes) {
       const valid = (affixes || [])
         .filter(a => a && CG.AFFIXES[a.id])
-        .map(a => ({ id: a.id, level: Math.max(1, Math.min(3, a.level || 1)) }));
+        .map(a => ({ id: a.id, level: CG.clampAffixLevel(a.id, a.level) }));   // 夹到该词条实际存在的等级
       if (!valid.length) return null;
       const gem = CG.makeGem(valid);
       this.gems.push(gem);

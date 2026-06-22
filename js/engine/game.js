@@ -112,6 +112,7 @@ window.CG = window.CG || {};
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.allies = [];                         // 召唤：愚者重开时清空召唤物
       this.buildings = [];                      // 建造：愚者重开时清空建筑
+      this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
       this._tempRevert = [];   // 临时减益(敌临时失力量/敏捷)：到你下个回合开始复原
@@ -154,6 +155,7 @@ window.CG = window.CG || {};
       this._heat = 0;                          // 锻造包：本场热度
       this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
+      this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
       this._tempRevert = [];   // 临时减益(敌临时失力量/敏捷)：到你下个回合开始复原
@@ -229,16 +231,10 @@ window.CG = window.CG || {};
         if (s.sluggish)  c.holdCost  = (c.holdCost  || 0) + s.sluggish;   // 滞涩：越攒越贵
       }
       this.drawCards(CARDS_PER_TURN + drawBonus);
-      // === 生产包 ===（每回合开始的被动产出引擎；prod* 状态常驻、不进 _tickStatuses 衰减）
-      const st = this.player.statuses;
-      if (st.prodSkip > 0) { st.prodSkip -= 1; if (st.prodSkip <= 0) delete st.prodSkip; }  // 歉收：跳过本次产出
-      else {
-        if (st.prodGrow) st.prodBlock = (st.prodBlock || 0) + st.prodGrow;   // 复利：蓄能逐回合增长
-        if (st.prodBlock) this.gainBlock(this.player, st.prodBlock);
-        if (st.prodUpkeep) this.player.energy = Math.max(0, this.player.energy - st.prodUpkeep);
-        if (st.prodDraw) this.drawCards(st.prodDraw);
-        if (st.prodEnergy) this.player.energy += st.prodEnergy;   // 狂暴(Berserk)：每回合 +能量
-      }
+      // === 时点修饰器：每回合(常驻重复) + 下回合(一次性) ===（壁垒/耕作/引擎/箭塔/蓄击… 统一在此结算）
+      const tgt = this.currentTarget();
+      (this._everyTurn || []).forEach(e => CG.Effects.apply(this, e, this.player, tgt));   // 每回合：重复结算、跨回合保留
+      if (this._nextTurn && this._nextTurn.length) { const q = this._nextTurn; this._nextTurn = []; q.forEach(e => CG.Effects.apply(this, e, this.player, this.currentTarget())); }   // 下回合：结算一次后清空
       this._buildingsTick();                     // 建造包：回合开始触发所有建筑
       this._checkEnd();                          // 箭塔等可能终结战斗
       this._emit();
@@ -355,26 +351,34 @@ window.CG = window.CG || {};
             case 'exhaustPile': return this.exhaustPile.length;
             case 'heldTurns':   return card.heldTurns || 0;
             case 'handSize':    return Math.max(0, handAfter);
-            case 'emptyHand':   return Math.max(0, 5 - handAfter);
-            case 'curGold':     return this.run ? Math.floor((this.run.gold || 0) / 6) : 0;
+            case 'emptyHand':   return Math.max(0, 10 - handAfter);   // 空手程度 = 10 − 手牌数
+            case 'curGold':     return this.run ? (this.run.gold || 0) : 0;   // 原始金币量（单价 vp 0.06）
             case 'turnNum':     return this.turn || 0;
             case 'kills':       return this._killsThisCombat || 0;
             case 'myDebuff':    return ['vulnerable', 'weak', 'frail'].reduce((s, k) => s + (this.player.statuses[k] || 0), 0);   // 自身减益体系：回收自己背的减益
             default:            return 0;
           }
         };
-        const gateMet = q => {                      // 门(gate)：达成 → 给「1 能量等值」(cb.base)
+        const gateMet = q => {                      // 门(gate)：达成则当前量记 1（× mult × 等级 = 定额价值）
           switch (q) {
-            case 'firstTurn': return this.turn === 1;
+            case 'firstPlay': return (card.plays || 0) === 0;   // 这张牌本场第一次打出（plays 在结算后才 +1）
             case 'hurt':      return !!this._hurtThisCombat;
             case 'noBlock':   return (this.player.block || 0) === 0;
             default:          return false;
           }
         };
         s.condBonus.forEach(cb => {
-          const q = cb.gate ? (gateMet(cb.qty) ? (cb.base || 6) : 0) : qtyOf(cb.qty);
-          const bonus = q * (cb.level || 1);
-          if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === cb.vtype ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+          const q = cb.gate ? (gateMet(cb.qty) ? 1 : 0) : qtyOf(cb.qty);
+          const amount = Math.floor(q * (cb.mult || 1) * (cb.level || 1) + 1e-9);   // 价值数量 = floor(条件量 × 条件VP/价值VP × 等级)
+          if (amount <= 0) return;
+          const ve = CG.valueEffects(cb.atom, amount, cb.level);   // 喂给该价值原子的 mech → 本回合/下回合/每回合 + 卡级修饰
+          if (ve.now.length)  s = Object.assign({}, s, { effects: s.effects.concat(ve.now) });
+          ve.every.forEach(e => (this._everyTurn = this._everyTurn || []).push(e));
+          ve.next.forEach(e => (this._nextTurn = this._nextTurn || []).push(e));
+          if (ve.potent)    s = Object.assign({}, s, { potent: (s.potent || 0) + ve.potent });
+          if (ve.lifesteal) s = Object.assign({}, s, { lifesteal: (s.lifesteal || 0) + ve.lifesteal });
+          if (ve.multiHit)  s = Object.assign({}, s, { multiHit: (s.multiHit || 0) + ve.multiHit });
+          if (ve.element)   s = Object.assign({}, s, { element: ve.element, elementLevel: ve.elementLevel });
         });
       }
       // 连击：本回合此前每打出过一张牌，本牌伤害 +combo
@@ -518,7 +522,7 @@ window.CG = window.CG || {};
         });
       }
       // 吸血：按对主目标造成的伤害回血（含连击多段）
-      if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal)); }
+      if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal / 100)); }   // 吸血以 1% 计
       // 元素结算（新模型：敌人至多 1 种 1 层）：有反应→消耗敌方元素并触发一次；附两层(elemLv≥2)则反应后再附 1 层新的；无反应→取代为本元素 1 层。
       if (elem && elemLv > 0) {
         if (reaction) {
@@ -538,10 +542,8 @@ window.CG = window.CG || {};
 
       // === 强化包 ===（成长挂在被打出的 card 实例上＝本场永久；它随后进弃牌堆/消耗堆，重抽仍是同一实例、成长保留）
       if (s.temper > 0) card.growth = (card.growth || 0) + s.temper;     // 锤炼：本牌数值永久 +L
-      if (s.awaken > 0) {                                                // 觉醒：累计打出 3 次后跳变 +5×L（仅一次）
-        card.plays = (card.plays || 0) + 1;
-        if (card.plays >= 2 && !card.awakened) { card.growth = (card.growth || 0) + 8 * s.awaken; card.awakened = true; this.addLog(`觉醒：${s.name} 数值大幅提升！`); }
-      }
+      card.plays = (card.plays || 0) + 1;                                 // 本场该实例打出次数（门型条件 firstPlay / 觉醒共用；在 condBonus 求值之后才 +1）
+      if (s.awaken > 0 && card.plays >= 2 && !card.awakened) { card.growth = (card.growth || 0) + 8 * s.awaken; card.awakened = true; this.addLog(`觉醒：${s.name} 数值大幅提升！`); }   // 觉醒：累计打出 2 次后跳变
 
       // 风怒：本回合前 N 次打出后回到手牌（销毁优先，不回手）
       let returned = false;

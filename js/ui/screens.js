@@ -165,17 +165,19 @@ window.CG = window.CG || {};
     const preview = { affixes: debugGem };
     const composedId = (debugCost && debugValue) ? debugCost + '_' + debugValue : null;
     const composed = composedId && CG.AFFIXES[composedId];
+    const availLv = composed ? CG.affixLevels(composedId) : [1, 2, 3];   // 该「代价×价值」实际存在的等级
+    const effLv = composed ? CG.clampAffixLevel(composedId, debugLevel) : debugLevel;
     const atomBtn = (attr, id, name, on, dim) =>
       `<button class="dbg-atom ${on ? 'on' : ''}" ${attr}="${id}"${dim ? ' style="opacity:.35"' : ''}>${name}</button>`;
     const realCosts = Object.keys(CG.COST_REAL).map(id => atomBtn('data-dcost', id, CG.COST_REAL[id].name, debugCost === id)).join('');
     const condCosts = Object.keys(CG.COST_COND).map(id => atomBtn('data-dcost', id, CG.COST_COND[id].name, debugCost === id)).join('');
-    // 价值原子：与当前代价组不成有效分子的 → 变暗提示（条件代价只配 伤/挡/治）
+    // 价值原子：与当前代价组不成有效分子的 → 变暗提示（条件代价只配「数值/状态」类价值）
     const valBtns = Object.keys(CG.VALUE_ATOMS).map(id =>
       atomBtn('data-dvalue', id, CG.VALUE_ATOMS[id].name, debugValue === id, !CG.AFFIXES[debugCost + '_' + id])).join('');
-    const lvlBtns = [1, 2, 3].map(n => `<button class="dbg-lvl ${debugLevel === n ? 'on' : ''}" data-dlevel="${n}">${n}</button>`).join('');
+    const lvlBtns = [1, 2, 3].map(n => `<button class="dbg-lvl ${effLv === n ? 'on' : ''}" data-dlevel="${n}"${availLv.includes(n) ? '' : ' disabled style="opacity:.35"'}>${n}</button>`).join('');
     const composedText = composed
-      ? `<b style="color:${composed.color}">${CG.affixCostText(composedId, debugLevel)} → ${CG.affixValueText(composedId, debugLevel)}</b>`
-      : (debugCost && debugValue ? '<span class="muted">该「代价 × 价值」不成词条（条件代价只配 伤害/格挡/治疗）</span>' : '<span class="muted">选一个代价 + 一个价值</span>');
+      ? `<b style="color:${composed.color}">${CG.affixCostText(composedId, effLv)} → ${CG.affixValueText(composedId, effLv)}</b>`
+      : (debugCost && debugValue ? '<span class="muted">该「代价 × 价值」不成词条（条件代价只配数值/状态类价值，不配 元素/召唤/建筑/产出/翻倍 等）</span>' : '<span class="muted">选一个代价 + 一个价值</span>');
     const full = debugGem.length >= 3;
     const chosen = debugGem.length
       ? debugGem.map(g => `<button class="dbg-chosen" data-rmaffix="${g.id}" title="点击移除" style="border-color:${CG.AFFIXES[g.id].color}">${CG.affixValueText(g.id, g.level)} <small>${CG.affixCostText(g.id, g.level)}·L${g.level}</small> ✕</button>`).join('')
@@ -213,8 +215,9 @@ window.CG = window.CG || {};
     if (a === 'addaffix') {
       const id = debugCost + '_' + debugValue;
       if (CG.AFFIXES[id] && debugGem.length < 3) {
+        const lv = CG.clampAffixLevel(id, debugLevel);   // 夹到该词条实际存在的等级
         const ex = debugGem.find(x => x.id === id);
-        if (ex) ex.level = debugLevel; else debugGem.push({ id, level: debugLevel });   // 同词条更新等级、否则新增
+        if (ex) ex.level = lv; else debugGem.push({ id, level: lv });   // 同词条更新等级、否则新增
         CG.Audio.play('select');
       }
       return renderDebug();
@@ -266,34 +269,31 @@ window.CG = window.CG || {};
       const magIds = condIds.filter(id => !CG.COST_COND[id].gate);
       const condChip = id => chip(CG.COST_COND[id].name, '#7a86b0');
 
-      // —— 价值分组（对偶/相似相邻：力量↔临时力量、敌失力量↔临时版）—— //
-      const VG = [
-        ['直接资源', ['damage', 'block', 'heal', 'draw', 'energy', 'power']],
-        ['自身增益（力量/敏捷·永久↔临时）', ['strength', 'dexterity', 'tempStr', 'tempDex']],
-        ['敌方减益（含 永久 ↔ 临时翻倍）', ['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseStrTemp', 'enemyLoseDex', 'enemyLoseDexTemp']],
-        ['元素附着（敌至多1种1层；异元素→反应，同/空→取代）', ['fire', 'water', 'thunder', 'ice']],
-        ['引擎·每回合（= 一次性 ×2）', ['produce_draw', 'produce_block', 'produce_energy']],
-        ['造物 / 牌', ['summon', 'building', 'conjure', 'food_veg', 'food_meat', 'food_season', 'food_ware']],
-      ];
-      const valChip = atom => { const va = AT[atom]; if (!va) return ''; return chip(`${va.name} ${amt(va.vpRes)}`, colorOf(atom)); };
-      const valGroups = VG.map(([t, ids]) => sub(t) + row(ids.map(valChip).filter(Boolean))).join('');
-      // 放大本牌的特殊价值（已是正式价值原子，进卡包）：翻倍/吸血→放大包，连击→强攻包
-      const sig = [['翻倍 ×2（12VP）→放大包', '#ff9fc0'], ['吸血 100%（12VP）→放大包', '#cf4f6a'], ['连击 +1命中（6VP）→强攻包', '#e89030']];
+      // —— 价值分组：每个基值有 本回合/下回合/每回合 三版本（独立命名），按时点成行；另列无时点价值 —— //
+      const valChip = atom => { const va = AT[atom]; if (!va) return ''; const m = A['energy_' + atom]; const n = (m && m.value && m.value.amt != null) ? m.value.amt : amt(va.vpRes); return chip(`${va.name} ${n}`, colorOf(atom)); };   // 用实际烘焙 LV1 量（已按 maxCount 夹）
+      const TB = CG.TURN_BASES || {};
+      const bases = Object.keys(TB);
+      const timingRow = t => row(bases.map(b => valChip(TB[b].ids[t])).filter(Boolean));
+      const nonTurn = Object.keys(AT).filter(id => !AT[id].turnBase && !['mult', 'lifesteal', 'combo'].includes(id));   // 无时点：治疗/元素/召唤/建筑/造牌
+      // 放大本牌的特殊价值（作用于本牌其它价值）：翻倍/吸血→放大包，连击→强攻包
+      const sig = [['翻倍 ×2（12VP）→放大包', '#ff9fc0'], ['吸血 50%/100%（→放大包）', '#cf4f6a'], ['连击 +1 命中（6VP）→强攻包', '#e89030']];
 
       const rules = `<div class="codex-rules"><b>大规则</b>（词条＝付出「代价」换「价值」，按 1 能量 = 6 价值点计）：
         <li>· <b>价值 ≤ 代价</b>：每笔交易不亏本；强度来自把"富余/会浪费的"换成"急需的"。</li>
         <li>· <b>首石免代价</b>：一张牌第一颗宝石只取价值；同种代价<b>均摊</b>（多颗只付最高）。</li>
         <li>· 等级 <b>1换1 / 2换2 / 3换2</b>（3 级 = 同价值、半代价的高效"稀有"档）。</li>
-        <li>· <b>每回合(递归)价值 = 一次性 ×2</b>：如「2 能量 → 每回合 +1 能量」。</li>
-        <li>· <b>临时(本回合)价值 = 永久的一半 → 数量翻倍</b>：1 份永久 ≈ 2 份临时。</li>
-        <li>· <b>对偶</b>：自身减益既是代价(自残)，也能被「自身减益层数」回收成价值（越惨越强）；给自己 ↔ 给敌人镜像。</li></div>`;
+        <li>· <b>时点修饰器</b>：每个数值都有 <b>本回合 / 下回合 / 每回合</b> 三版本（各有独特名字）；VP <b>本回合=基准、下回合=半价、每回合=两倍</b>（每回合 2 回合回本、下回合延迟故便宜）。</li>
+        <li>· <b>条件即代价</b>：条件资源也有 VP，价值 = 该条件当前量 × 条件VP/价值VP × 等级（门型：达成给定额）。</li></div>`;
 
       html = rules +
         sub('代价 · 真资源（随等级 ×L）') + row(['energy', 'hp', 'gold', 'discard'].map(realChip).filter(Boolean)) +
         sub('代价 · 自我牺牲（自残/扣属性，可被回收）') + row(['selfVuln', 'selfWeak', 'selfFrail', 'loseStr', 'loseDex'].map(realChip).filter(Boolean)) +
-        sub('代价 · 条件 量型（价值 = 该量 × 等级）') + row(magIds.map(condChip)) +
+        sub('代价 · 条件 量型（价值 = 当前量 × 条件VP/价值VP × 等级）') + row(magIds.map(condChip)) +
         sub('代价 · 条件 门型（达成则给定额）') + row(gateIds.map(condChip)) +
-        valGroups +
+        sub('价值 · 本回合（打出即时结算）') + timingRow('now') +
+        sub('价值 · 下回合（下个回合开始结算一次）') + timingRow('next') +
+        sub('价值 · 每回合（每个回合开始重复结算）') + timingRow('every') +
+        sub('价值 · 无时点（治疗 / 元素 / 召唤 / 建筑 / 造牌）') + row(nonTurn.map(valChip).filter(Boolean)) +
         sub('放大本牌（翻倍/吸血→放大包、连击→强攻包；作用于本牌其它价值）') + row(sig.map(([l, c]) => chip(l, c)));
     } else if (tab === 'pack') {
       const names = vals => (vals || []).map(v => { const va = (CG.VALUE_ATOMS || {})[v] || {}; return `<span class="cx-aff">${va.name || v}</span>`; }).join('、');
