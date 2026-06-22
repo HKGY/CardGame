@@ -343,13 +343,28 @@ test('clampAffixLevel：把等级夹到该词条实际存在的等级', () => {
   assert.strictEqual(CG.clampAffixLevel('energy_damage', 3), 3);      // 普通词条 LV3 保留
 });
 
-test('rollGem 等级夹到该词条存在的等级（被 maxCount 卡死的包恒 LV1）', () => {
-  for (let i = 0; i < 60; i++) {
-    const food = CG.rollGem({ tier: 'boss', pack: 'cook' });        // 食材 maxCount=1：即便 boss tier 抬等级也只能 LV1
-    assert.strictEqual(food.affixes[0].level, 1, '食材应恒 LV1');
-    const any = CG.rollGem({ tier: 'boss', pack: 'elements' });     // 元素 [1,2,3]：等级合法即可
-    assert.ok(CG.affixLevels(any.affixes[0].id).includes(any.affixes[0].level));
+test('rollGem 等级只取该词条实际存在的等级', () => {
+  assert.strictEqual(CG.affixLevels('energy_food_veg').join(','), '1');   // 食材真资源词条 maxCount=1 → 恒 LV1
+  for (let i = 0; i < 80; i++) {
+    for (const pk of ['cook', 'elements', 'power', 'weaken']) {
+      const g = CG.rollGem({ tier: 'boss', pack: pk });
+      const a = g.affixes[0];
+      assert.ok(CG.affixLevels(a.id).includes(a.level), `${pk} 产出非法等级 ${a.id}@${a.level}`);
+    }
   }
+});
+
+test('主题隔离：未选主题的价值（含其条件型词条）抽不到', () => {
+  const valTheme = {};   // 价值原子 → 其所属主题（PACKS[p].values）
+  CG.PACK_IDS.forEach(p => p !== 'fusion' && (CG.PACKS[p].values || []).forEach(v => { if (!valTheme[v]) valTheme[v] = p; }));
+  new CG.Run('warrior', { packs: ['basic', 'power'] });   // 仅伤害/连击系
+  const sel = new Set(['basic', 'power']);
+  for (let i = 0; i < 2000; i++) {
+    const a = CG.AFFIXES[CG.rollGem({ tier: 'elite' }).affixes[0].id];
+    const vt = valTheme[a.value.atom];
+    assert.ok(!vt || sel.has(vt), `抽到未选主题 ${vt} 的价值 ${a.value.atom}（词条 ${a.value.sub}）`);
+  }
+  CG.setActivePacks(null);   // 复原全局态，避免影响后续用例
 });
 
 // ===== v3.1：去掉「条件代价只配 伤害/格挡/治疗」的限制 =====

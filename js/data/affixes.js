@@ -277,18 +277,15 @@ window.CG = window.CG || {};
     conjure:  P('术士包', '🎩', '#b59ad8', '造牌。', ['conjure']),
     amplify:  P('放大包', '✦', '#ff9fc0', '翻倍 / 吸血（放大本牌）。', ['mult', 'lifesteal']),
   };
-  // 兼容旧字段：把每个包展开成它的「真资源代价 × 主题价值」组合 id 列表（rollGem/fusion 读取）。
+  // 兼容旧字段：把每个包展开成「(真资源代价 ∪ 条件代价) × 主题价值」组合 id 列表（rollGem/fusion 读取）。
+  //   条件代价词条按其「价值」归入对应主题（而非一股脑塞进基础包）→ 不选某主题就抽不到其价值（含其条件型）＝主题隔离。
+  const COST_ALL = Object.keys(COST_REAL).concat(Object.keys(COST_COND));
   Object.keys(CG.PACKS).forEach(k => {
     const p = CG.PACKS[k];
-    p.affixes = []; Object.keys(COST_REAL).forEach(cid => p.values.forEach(vid => { if (A[cid + '_' + vid]) p.affixes.push(cid + '_' + vid); }));
+    p.affixes = [];
+    COST_ALL.forEach(cid => p.values.forEach(vid => { if (A[cid + '_' + vid]) p.affixes.push(cid + '_' + vid); }));
     p.buffs = p.affixes.slice(); p.debuffs = [];
   });
-  // 条件代价词条(借场上资源/越惨越强/时点门)此前不在任何包 → 暂注入基础包，让正常对局可达。
-  {
-    const condIds = Object.keys(A).filter(id => A[id].cost && A[id].cost.cond);
-    CG.PACKS.basic.affixes = CG.PACKS.basic.affixes.concat(condIds);
-    CG.PACKS.basic.buffs = CG.PACKS.basic.affixes.slice();
-  }
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
   /* === 词条分组（调试菜单/百科）=== */
