@@ -455,6 +455,7 @@ window.CG = window.CG || {};
   CG.valueEffects = function (atom, amount, level) {
     const va = CG.VALUE_ATOMS[atom], out = { now: [], every: [], next: [] };
     if (!va || !va.mech || !(amount > 0)) return out;
+    if (va.maxCount != null) amount = Math.min(va.maxCount, amount);   // 尊重价值 maxCount 上限（元素≤2 层、吸血≤100%、食材≤1）
     const f = va.mech(amount), L = level || 1;
     if (f.dmg)       out.now.push({ type: 'damage', value: f.dmg, hits: 1 });
     if (f.blk)       out.now.push({ type: 'block', value: f.blk });

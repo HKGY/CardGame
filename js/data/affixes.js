@@ -183,7 +183,10 @@ window.CG = window.CG || {};
   }
   function mkCond(costId, valId) {
     const va = VALUE_ATOMS[valId], cc = COST_COND[costId], gate = !!cc.gate;
-    const valVP = V[va.vpRes] || 6;
+    const valVP = V[va.vpRes] || 6, valMax = maxOf(va.maxCount);
+    // 该价值能否升档（同 mkReal 的 hasHi）：被 maxCount 卡成单一量(如食材)→ 条件型也只 LV1（去掉等级不变效果的冗余档）
+    const v1 = Math.min(valMax, Math.max(1, Math.floor(6 / valVP + 1e-9)));
+    const hasHi = Math.min(valMax, Math.max(v1 + 1, Math.floor(12 / valVP + 1e-9))) > v1;
     const mult = (cc.vp != null ? cc.vp : 6) / valVP;   // 每单位条件量换得的价值量
     const condBonus = { qty: cc.qty, atom: valId, mult, gate };
     if (!gate) { const fr = toFrac(mult); condBonus.fy = fr[0]; condBonus.fx = fr[1]; }   // 量型：整数「每有 fx 点条件 → fy 点价值」（门型走定额 floor(mult×等级)）
@@ -191,7 +194,7 @@ window.CG = window.CG || {};
       cost: { res: costId, cond: true }, costByLv: null,
       value: { res: va.vpRes, sub: valId, atom: valId, amt: null },
       color: valColor(valId), score: 4,
-      levels: gate ? [1, 3] : [1, 2, 3],   // 条件无真实代价 → 门型 LV2≡LV3 去其一；量型保留三档（等级缩放价值）
+      levels: !hasHi ? [1] : (gate ? [1, 3] : [1, 2, 3]),   // 尊重价值 maxCount：不能升档则只 LV1；否则 门型[1,3](LV2≡LV3 去一)、量型[1,2,3]
       condBonus,   // 打出时按 condBonus 算 amount，再喂给该价值原子的 mech 应用/调度
     };
   }
