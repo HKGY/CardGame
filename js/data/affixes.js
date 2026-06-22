@@ -146,6 +146,19 @@ window.CG = window.CG || {};
   //     打出时价值量 = floor(条件当前量 × mult × 等级)（门型：达成则当前量记 1、否则 0）。
   const A = {};
   const maxOf = m => (m != null ? m : Infinity);
+  // 把小数倍率 x 近似成整数分数 [Y, X]（Y/X ≤ x、分母有界）→ 量型条件显示/判定成「每有 X 点条件，获得 Y 点价值」。
+  function toFrac(x) {
+    if (!(x > 0)) return [1, 1];
+    const maxDenom = Math.max(Math.ceil(2 / x) + 1, 10);   // 够大以容纳小 x（如 0.06 需分母 ~17）
+    let minDiff = Infinity, fy = 1, fx = 1;
+    for (let d = 1; d <= maxDenom; d++) {
+      const n = Math.floor(x * d + 1e-9);                  // 取 ≤ x 的下近似（保证价值 ≤ 代价）
+      if (n < 1) continue;
+      const diff = x - n / d;
+      if (diff < minDiff - 1e-9) { minDiff = diff; fy = n; fx = d; }   // 误差最小者；同误差取最小分母（升序首达）
+    }
+    return [fy, fx];
+  }
   const numericVals = Object.keys(VALUE_ATOMS).filter(v => VALUE_ATOMS[v].numeric);
   function mkReal(costId, valId) {
     const va = VALUE_ATOMS[valId];
@@ -171,13 +184,15 @@ window.CG = window.CG || {};
   function mkCond(costId, valId) {
     const va = VALUE_ATOMS[valId], cc = COST_COND[costId], gate = !!cc.gate;
     const valVP = V[va.vpRes] || 6;
-    const mult = (cc.vp != null ? cc.vp : 6) / valVP;   // 每单位条件量换得的价值量（含小数；打出时 floor）
+    const mult = (cc.vp != null ? cc.vp : 6) / valVP;   // 每单位条件量换得的价值量
+    const condBonus = { qty: cc.qty, atom: valId, mult, gate };
+    if (!gate) { const fr = toFrac(mult); condBonus.fy = fr[0]; condBonus.fx = fr[1]; }   // 量型：整数「每有 fx 点条件 → fy 点价值」（门型走定额 floor(mult×等级)）
     A[costId + '_' + valId] = {
       cost: { res: costId, cond: true }, costByLv: null,
       value: { res: va.vpRes, sub: valId, atom: valId, amt: null },
       color: valColor(valId), score: 4,
-      levels: gate ? [1, 3] : [1, 2, 3],   // 条件无真实代价 → 门型 LV2≡LV3 去其一；量型保留三档（等级缩放倍率）
-      condBonus: { qty: cc.qty, atom: valId, mult, gate },   // 打出时：amount = floor(条件量 × mult × 等级)，再喂给该价值原子的 mech 应用/调度
+      levels: gate ? [1, 3] : [1, 2, 3],   // 条件无真实代价 → 门型 LV2≡LV3 去其一；量型保留三档（等级缩放价值）
+      condBonus,   // 打出时按 condBonus 算 amount，再喂给该价值原子的 mech 应用/调度
     };
   }
   const allVals = Object.keys(VALUE_ATOMS);
@@ -214,7 +229,7 @@ window.CG = window.CG || {};
     if (a.condBonus) {                                  // 条件代价：倍率 = 条件VP/价值VP（先于 combo/mult/lifesteal 特例，因其作条件价值时 v.amt 为 null）
       const cb = a.condBonus;
       if (cb.gate) return `${nm} ${Math.floor((cb.mult || 1) * vL + 1e-9)}（${condName(a.cost.res)}时）`;   // 门：达成给定额
-      return `${nm}＝${condName(a.cost.res)}×${Math.round((cb.mult || 1) * vL * 100) / 100}`;        // 量：随条件当前量
+      return `每有 ${cb.fx} 点${condName(a.cost.res)}，获得 ${(cb.fy || 0) * vL} 点${nm}`;        // 量：整数「每 X 点 A → Y 点 B」
     }
     if (v.atom === 'combo') return '攻击命中 +' + vL + ' 次';
     if (v.atom === 'mult') return `数值 ×${1 + vL}`;

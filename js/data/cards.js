@@ -165,7 +165,7 @@ window.CG = window.CG || {};
       if (d.prepDex)   prepDexN += d.prepDex * L;
       if (d.enemyStr) { if (d.enemyTemp) enemyStrTempN += d.enemyStr * L; else enemyStrN += d.enemyStr * L; }   // 敌失力量
       if (d.enemyDex) { if (d.enemyTemp) enemyDexTempN += d.enemyDex * L; else enemyDexN += d.enemyDex * L; }   // 敌失敏捷
-      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, atom: d.condBonus.atom, gate: d.condBonus.gate, mult: d.condBonus.mult, level: L });   // v3 条件代价（mult=条件VP/价值VP；playCard 按当前量结算）
+      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, atom: d.condBonus.atom, gate: d.condBonus.gate, mult: d.condBonus.mult, fy: d.condBonus.fy, fx: d.condBonus.fx, level: L });   // v3 条件代价（量型走 fy/fx 整数分数；门型走 mult 定额）
       if (d.everyTurn) d.everyTurn.forEach(e => everyTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));   // 每回合：按等级缩放后调度
       if (d.nextTurn)  d.nextTurn.forEach(e => nextTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));     // 下回合：同上
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费

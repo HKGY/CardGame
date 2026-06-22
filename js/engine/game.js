@@ -368,8 +368,10 @@ window.CG = window.CG || {};
           }
         };
         s.condBonus.forEach(cb => {
-          const q = cb.gate ? (gateMet(cb.qty) ? 1 : 0) : qtyOf(cb.qty);
-          const amount = Math.floor(q * (cb.mult || 1) * (cb.level || 1) + 1e-9);   // 价值数量 = floor(条件量 × 条件VP/价值VP × 等级)
+          // 门型：达成则给定额 floor(mult×等级)；量型：整数「每有 fx 点条件 → fy 点价值」= floor(条件量/fx) × fy × 等级
+          const amount = cb.gate
+            ? (gateMet(cb.qty) ? Math.floor((cb.mult || 1) * (cb.level || 1) + 1e-9) : 0)
+            : Math.floor(qtyOf(cb.qty) / (cb.fx || 1)) * (cb.fy || 0) * (cb.level || 1);
           if (amount <= 0) return;
           const ve = CG.valueEffects(cb.atom, amount, cb.level);   // 喂给该价值原子的 mech → 本回合/下回合/每回合 + 卡级修饰
           if (ve.now.length)  s = Object.assign({}, s, { effects: s.effects.concat(ve.now) });

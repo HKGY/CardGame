@@ -115,7 +115,20 @@ test('战斗：条件「当前格挡→伤害」按当前格挡造伤', () => {
   g.player.energy = 9; g.player.block = 7;
   const hp0 = g.enemy.hp;
   const c = spell([{ id: 'curBlock_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
-  assert.strictEqual(g.enemy.hp, hp0 - 4);   // 伤害 = floor(当前格挡 7 × 0.6) = 4（curBlock VP 0.6 / damage VP 1.0）
+  assert.strictEqual(g.enemy.hp, hp0 - 3);   // 整数分数：0.6≈3/5 → 每有 5 点格挡获得 3 → floor(7/5)×3 = 3
+});
+
+test('条件 VP → 整数「每有 X 点 A，获得 Y 点 B」（显示与判定都整数）', () => {
+  // curBlock(0.6) × 伤害(1.0)：0.6 = 3/5 → 每有 5 点当前格挡，获得 3 点打击
+  assert.strictEqual(CG.affixValueText('curBlock_damage', 1), '每有 5 点当前格挡，获得 3 点打击');
+  assert.strictEqual(CG.affixValueText('curBlock_damage', 2), '每有 5 点当前格挡，获得 6 点打击');   // 等级缩放 Y
+  // turnNum(1.0) × 瘟疫(每回合中毒, VP 3.0)：1/3 → 每有 3 回合，获得 1 点瘟疫（不再 ×0.33）
+  assert.strictEqual(CG.affixValueText('turnNum_poison_every', 1), '每有 3 点回合数，获得 1 点瘟疫');
+  // 判定整数：8 格挡 → floor(8/5)×3 = 3（按 5 一档）
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9; g.player.block = 8; const hp0 = g.enemy.hp;
+  const c = spell([{ id: 'curBlock_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.enemy.hp, hp0 - 3);
 });
 
 // ===== 条件原子（VP 模型 + 门型）=====
