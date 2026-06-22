@@ -20,6 +20,7 @@ window.CG = window.CG || {};
   let menuPacksInit = false;  // 首次渲染菜单时把默认主题填进去
   let selectedM = null;       // 开始菜单·敌人难度倍率（首次渲染时取 config 默认 0.7）
   let debugGem = [];          // 调试菜单·自定义宝石：构建中的词条 [{id, level}]
+  let debugCost = 'energy', debugValue = 'damage', debugLevel = 1;   // 自选组合：当前选中的 代价/价值/等级原子
 
   // 以撒式房间类型 → 图标 / 名称（普通房不剧透是否有敌人；清空后统一显示 ✓）
   const ICON  = { start: '🚩', normal: '', combat: '⚔️', elite: '👹', boss: '👑', shop: '🛒', treasure: '🎁', curse: '🩸', altar: '🔮' };
@@ -158,54 +159,66 @@ window.CG = window.CG || {};
   // ---------- 调试菜单：构建一颗任意词条的宝石并加入背包 ----------
   function openDebug() { if (!H.getRun()) return; renderDebug(); $('debug-modal').classList.remove('hidden'); }
   function closeDebug() { $('debug-modal').classList.add('hidden'); }
-  function debugLevelOf(id) { const a = debugGem.find(x => x.id === id); return a ? a.level : 0; }
   function renderDebug() {
     const run = H.getRun();
     if (!run) return;
     const preview = { affixes: debugGem };
-    const groups = (CG.AFFIX_GROUP_ORDER || []).map(key => {
-      const ids = (CG.AFFIX_ORDER || []).filter(id => CG.affixGroupOf(id) === key);
-      if (!ids.length) return '';
-      const meta = CG.affixGroupMeta(key);
-      const rows = ids.map(id => {
-        const a = CG.AFFIXES[id], cur = debugLevelOf(id);
-        const levels = [1, 2, 3].map(n =>
-          `<button class="dbg-lvl ${cur === n ? 'on' : ''}" data-affix="${id}" data-level="${n}">${n}</button>`).join('');
-        return `<div class="debug-affix ${cur ? 'sel' : ''}">
-            <span class="debug-affix-name" style="color:${a.color}">${CG.affixValueText(id, cur || 1)}</span>
-            <span class="debug-affix-desc">${CG.affixCostText(id, cur || 1)} →</span>
-            <span class="debug-levels">${levels}</span>
-          </div>`;
-      }).join('');
-      return `<div class="debug-group"><div class="debug-group-title" style="color:${meta.color}">${meta.icon} ${meta.name}</div>${rows}</div>`;
-    }).join('');
+    const composedId = (debugCost && debugValue) ? debugCost + '_' + debugValue : null;
+    const composed = composedId && CG.AFFIXES[composedId];
+    const atomBtn = (attr, id, name, on, dim) =>
+      `<button class="dbg-atom ${on ? 'on' : ''}" ${attr}="${id}"${dim ? ' style="opacity:.35"' : ''}>${name}</button>`;
+    const realCosts = Object.keys(CG.COST_REAL).map(id => atomBtn('data-dcost', id, CG.COST_REAL[id].name, debugCost === id)).join('');
+    const condCosts = Object.keys(CG.COST_COND).map(id => atomBtn('data-dcost', id, CG.COST_COND[id].name, debugCost === id)).join('');
+    // 价值原子：与当前代价组不成有效分子的 → 变暗提示（条件代价只配 伤/挡/治）
+    const valBtns = Object.keys(CG.VALUE_ATOMS).map(id =>
+      atomBtn('data-dvalue', id, CG.VALUE_ATOMS[id].name, debugValue === id, !CG.AFFIXES[debugCost + '_' + id])).join('');
+    const lvlBtns = [1, 2, 3].map(n => `<button class="dbg-lvl ${debugLevel === n ? 'on' : ''}" data-dlevel="${n}">${n}</button>`).join('');
+    const composedText = composed
+      ? `<b style="color:${composed.color}">${CG.affixCostText(composedId, debugLevel)} → ${CG.affixValueText(composedId, debugLevel)}</b>`
+      : (debugCost && debugValue ? '<span class="muted">该「代价 × 价值」不成词条（条件代价只配 伤害/格挡/治疗）</span>' : '<span class="muted">选一个代价 + 一个价值</span>');
+    const full = debugGem.length >= 3;
+    const chosen = debugGem.length
+      ? debugGem.map(g => `<button class="dbg-chosen" data-rmaffix="${g.id}" title="点击移除" style="border-color:${CG.AFFIXES[g.id].color}">${CG.affixValueText(g.id, g.level)} <small>${CG.affixCostText(g.id, g.level)}·L${g.level}</small> ✕</button>`).join('')
+      : '<span class="muted">（空——下面自选「代价×价值」添加词条）</span>';
     $('debug-body').innerHTML =
       `<div class="debug-build">
          <div class="debug-preview">${CG.UI.gemFace(preview)}</div>
          <div class="debug-build-side">
-           <div class="bench-hint">点词条的 <b>1/2/3</b> 选等级加入这颗宝石；点高亮的等级可移除。背包现有宝石 💎 ${run.gems.length}。加入后可在顶栏「💎 宝石」工作台镶嵌。</div>
+           <div class="bench-hint">自选「代价 × 价值 × 等级」组成词条，<b>＋添加</b>进这颗宝石（最多 3 条）。背包现有 💎 ${run.gems.length}，加入后可在顶栏工作台镶嵌。</div>
+           <div class="debug-chosen-row">${chosen}</div>
            <div class="debug-actions">
              <button class="big-btn" data-debugact="add" ${debugGem.length ? '' : 'disabled'}>加入背包</button>
              <button class="big-btn leave" data-debugact="clear" ${debugGem.length ? '' : 'disabled'}>清空</button>
            </div>
          </div>
        </div>
-       <div class="debug-affixes">${groups}</div>`;
+       <div class="debug-compose">
+         <div class="dbg-row"><span class="dbg-label">代价 · 真资源</span><div class="dbg-atoms">${realCosts}</div></div>
+         <div class="dbg-row"><span class="dbg-label">代价 · 条件</span><div class="dbg-atoms">${condCosts}</div></div>
+         <div class="dbg-row"><span class="dbg-label">价值</span><div class="dbg-atoms">${valBtns}</div></div>
+         <div class="dbg-row"><span class="dbg-label">等级</span><div class="dbg-atoms">${lvlBtns}</div>
+           <button class="big-btn dbg-addaffix" data-debugact="addaffix" ${composed && !full ? '' : 'disabled'}>＋ 添加这条词条</button></div>
+         <div class="dbg-compose-preview">${full ? '<span class="muted">已满 3 条；先移除一条或加入背包</span>' : composedText}</div>
+       </div>`;
   }
   function onDebugClick(ev) {
-    const lvl = ev.target.closest('[data-affix]');
-    if (lvl) {
-      const id = lvl.dataset.affix, n = +lvl.dataset.level;
-      const existing = debugGem.find(x => x.id === id);
-      if (existing && existing.level === n) debugGem = debugGem.filter(x => x.id !== id);   // 点高亮等级 → 移除
-      else if (existing) existing.level = n;                                                // 改等级
-      else debugGem.push({ id, level: n });                                                 // 新增
-      CG.Audio.play('select');
-      return renderDebug();
-    }
+    const pick = (sel, fn) => { const el = ev.target.closest(sel); if (el) { fn(el); CG.Audio.play('select'); renderDebug(); return true; } return false; };
+    if (pick('[data-dcost]', el => { debugCost = el.dataset.dcost; })) return;
+    if (pick('[data-dvalue]', el => { debugValue = el.dataset.dvalue; })) return;
+    if (pick('[data-dlevel]', el => { debugLevel = +el.dataset.dlevel; })) return;
+    if (pick('[data-rmaffix]', el => { debugGem = debugGem.filter(x => x.id !== el.dataset.rmaffix); })) return;
     const act = ev.target.closest('[data-debugact]');
     if (!act || act.disabled) return;
     const a = act.dataset.debugact;
+    if (a === 'addaffix') {
+      const id = debugCost + '_' + debugValue;
+      if (CG.AFFIXES[id] && debugGem.length < 3) {
+        const ex = debugGem.find(x => x.id === id);
+        if (ex) ex.level = debugLevel; else debugGem.push({ id, level: debugLevel });   // 同词条更新等级、否则新增
+        CG.Audio.play('select');
+      }
+      return renderDebug();
+    }
     if (a === 'add') { if (H.onDebugAddGem(debugGem)) { CG.Audio.play('upgrade'); debugGem = []; renderDebug(); } }
     else if (a === 'clear') { debugGem = []; CG.Audio.play('select'); renderDebug(); }
   }

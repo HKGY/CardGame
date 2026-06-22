@@ -807,6 +807,20 @@ button, .big-btn, .end-turn, .tarot-btn, .buy-btn { text-shadow: 0 1px 2px #0008
 .debug-levels { display: flex; gap: 4px; flex-shrink: 0; }
 .dbg-lvl { --oct-fill: var(--panel-2); --radius: 8px; width: 30px; padding: 5px 0; font-weight: 800; font-size: 12px; }
 .dbg-lvl.on { --oct-fill: var(--accent); color: #1a1d29; }
+/* 自定义宝石·自选组合（代价 × 价值 × 等级 → 添加词条） */
+.debug-compose { display: flex; flex-direction: column; gap: 7px; }
+.dbg-row { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.dbg-label { min-width: 78px; padding-top: 4px; font-weight: 800; color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.dbg-atoms { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.dbg-atom { padding: 3px 9px; border-radius: 6px; background: var(--panel-2); border: 1px solid #3a4159; color: var(--text); cursor: pointer; font-size: 12px; }
+.dbg-atom:hover { border-color: var(--accent); }
+.dbg-atom.on { background: var(--accent); color: #1a1d29; font-weight: 800; border-color: var(--accent); }
+.dbg-addaffix { padding: 5px 12px; font-size: 13px; }
+.dbg-compose-preview { padding: 5px 2px; font-size: 13px; min-height: 20px; }
+.debug-chosen-row { display: flex; gap: 6px; flex-wrap: wrap; min-height: 26px; align-items: center; }
+.dbg-chosen { padding: 3px 9px; border-radius: 6px; background: var(--panel-2); border: 1px solid #3a4159; color: var(--text); cursor: pointer; font-size: 12px; font-weight: 700; }
+.dbg-chosen small { color: var(--muted); font-weight: 600; font-size: 10px; margin-left: 3px; }
+.dbg-chosen:hover { border-color: #e0563a; }
 
 /* ===== 移动端适配 ===== */
 @media (max-width: 680px) {
