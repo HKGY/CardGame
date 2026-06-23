@@ -228,14 +228,10 @@ window.CG = window.CG || {};
     crack(game, eff)    { game.player.block = Math.max(0, game.player.block - eff.value); },                         // 崩裂（eff.value 已含 ×4）
     rust(game, eff)     { game._heat = Math.max(0, (game._heat || 0) - eff.value); },                                // 锈蚀（eff.value 已含 ×3）
     // === 召唤包 ===（己方召唤物 game.allies；toll 复用 loseHp）
-    summon(game, eff) {
-      const L = eff.value, A = (game.allies = game.allies || []);
-      const mk = (name, icon, hp, atk, opts) => Object.assign({ name, icon, hp, maxHp: hp, atk, taunt: false, giveBlock: 0 }, opts || {});
-      const add = a => { if (A.length < 3) A.push(a); };   // 召唤物上限 3
-      if (eff.what === 'skeleton') add(mk('骷髅', '💀', 2 * L, L));
-      else if (eff.what === 'guardian') add(mk('守护灵', '🛡️', 2 * L, L, { taunt: true }));
-      else if (eff.what === 'totem') add(mk('图腾', '🗿', 3 * L, 0, { giveBlock: L }));
-      else if (eff.what === 'swarm') for (let i = 0; i < L; i++) add(mk('小灵', '👻', 1, 1));
+    summon(game, eff, source) {   // 召唤：单骷髅「类玩家单位」。无骷髅→新建(血量上限 n)；有→ +血量上限 n（并回血 n）
+      const n = Math.max(1, eff.value), sk = game.skeleton;
+      if (sk && sk.hp > 0) { sk.maxHp += n; sk.hp += n; }
+      else game.skeleton = { hp: n, maxHp: n, block: 0, statuses: {} };
     },
     command(game, eff) { const A = game.allies || []; if (!A.length) return; const a = A[Math.floor(Math.random() * A.length)]; a.atk += eff.value; const t = game.currentTarget && game.currentTarget(); if (a.atk > 0 && t && t.hp > 0) { const before = t.hp, bb = t.block; game._dealRaw(t, a.atk); game._fire('damage', { side: 'enemy', ei: game._idxOf(t), hpLoss: before - t.hp, blocked: Math.min(bb, a.atk) }); } },   // 督战：随机一个召唤物 +攻并立即由它单独攻击一次（不再让全体多攻一轮）
     culling(game, eff) { const A = game.allies || []; for (let i = 0; i < eff.value && A.length; i++) A.splice(Math.floor(Math.random() * A.length), 1); },  // 折损

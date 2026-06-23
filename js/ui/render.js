@@ -598,12 +598,18 @@ window.CG = window.CG || {};
   }
 
   // ---------- 召唤包：己方召唤物栏（动态创建，只读展示）----------
-  function renderAllies(game) {
+  function renderAllies(game) {   // 召唤物：单骷髅单位（替你挡伤、靠召唤物词条出手）
     let bar = $('allies-bar');
     if (!bar) { bar = document.createElement('div'); bar.id = 'allies-bar'; bar.className = 'allies-bar hidden'; const sb = $('screen-battle'); if (sb) sb.appendChild(bar); }
-    const allies = game.allies || [];
-    if (!allies.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
-    bar.innerHTML = allies.map(a => `<div class="ally${a.taunt ? ' taunt' : ''}" title="${a.name}${a.taunt ? '（嘲讽）' : ''}">${a.icon} <b>${a.hp}</b>/${a.maxHp}${a.atk ? ` ⚔${a.atk}` : ''}${a.giveBlock ? ` 🛡${a.giveBlock}` : ''}</div>`).join('');
+    const sk = game.skeleton;
+    if (!sk || sk.hp <= 0) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    const st = sk.statuses || {};
+    const badges = Object.keys(st).filter(k => st[k]).map(k => { const m = STATUS_META[k]; return `<span class="badge ${m ? m.cls : ''}">${m ? m.label : k} ${st[k]}</span>`; }).join('');
+    bar.innerHTML =
+      `<div class="ally skeleton" title="召唤物（骷髅）：替你抵挡伤害、靠召唤物词条出手">
+         <div class="ally-sprite">${CG.Sprites.get('skeleton')}</div>
+         <div class="ally-stat"><b>${sk.hp}</b>/${sk.maxHp}${sk.block ? ` <span class="badge badge-block">🛡 ${sk.block}</span>` : ''} ${badges}</div>
+       </div>`;
     bar.classList.remove('hidden');
   }
 

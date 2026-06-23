@@ -374,7 +374,8 @@ test('条件配对：量型 × 全部48时点变体+治疗；门型(true/false) 
   // 量型(curBlock/enemyDebuff…)：48 时点变体（含每回合/下回合、电力、食材）+ 治疗 都成词条
   assert.ok(CG.AFFIXES['curBlock_damage_every'] && CG.AFFIXES['curBlock_damage_next'] && CG.AFFIXES['curBlock_power'] && CG.AFFIXES['curBlock_food_veg'] && CG.AFFIXES['curBlock_heal'] && CG.AFFIXES['enemyDebuff_strength']);
   // 量型不配「无时点·非数值」价值（召唤/元素/翻倍）
-  assert.ok(!CG.AFFIXES['curBlock_summon'] && !CG.AFFIXES['curBlock_fire'] && !CG.AFFIXES['curBlock_mult']);
+  assert.ok(CG.AFFIXES['curBlock_summon'] && CG.AFFIXES['curBlock_conjure'] && CG.AFFIXES['curBlock_thorns']);   // 召唤/造牌/荆棘 现为时点基值 → 量型也配
+  assert.ok(!CG.AFFIXES['curBlock_fire'] && !CG.AFFIXES['curBlock_mult'] && !CG.AFFIXES['curBlock_multi']);       // 元素/翻倍/多重 仍无时点非数值、量型不配
   // 门型(firstPlay/hurt/noBlock)：每一个价值都成词条（含召唤/元素/翻倍/连击/每回合…）
   assert.ok(CG.AFFIXES['firstPlay_summon'] && CG.AFFIXES['firstPlay_fire'] && CG.AFFIXES['firstPlay_mult'] && CG.AFFIXES['firstPlay_combo'] && CG.AFFIXES['firstPlay_damage_every'] && CG.AFFIXES['hurt_summon'] && CG.AFFIXES['noBlock_conjure']);
 });
@@ -392,7 +393,7 @@ test('门型 × 非数值价值：第一次打出→召唤 / 附元素', () => {
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
   const c = spell([{ id: 'firstPlay_summon', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
-  assert.strictEqual((g.allies || []).length, 1);   // 达成 → 召唤一个召唤物
+  assert.ok(g.skeleton && g.skeleton.maxHp >= 1);   // 达成 → 召唤骷髅单位
   const g2 = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g2.player.energy = 9;
   const c2 = spell([{ id: 'firstPlay_fire', level: 1 }]); g2.hand = [c2]; g2.playCard(c2.uid);
@@ -467,6 +468,29 @@ test('多重：消耗全部能量、整张牌打出「能量」次（耗费显�
 test('删建筑：building 价值原子与建造包均移除', () => {
   assert.ok(!CG.AFFIXES['energy_building'] && !CG.VALUE_ATOMS['building']);
   assert.ok(!CG.PACKS['build'] && !CG.PACK_IDS.includes('build'));
+});
+
+test('召唤重做：单骷髅单位（创建 / +血量上限）；时点基值 1.5VP', () => {
+  assert.strictEqual(CG.affixValueText('energy_summon', 1), '召唤物 4');   // val1=floor(6/1.5)=4
+  assert.strictEqual(lv('energy_summon'), '1,2,3');
+  assert.ok(CG.AFFIXES['energy_summon_next'] && CG.AFFIXES['energy_summon_every']);
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  g.hand = [spell([{ id: 'energy_summon', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.skeleton.maxHp, 4); assert.strictEqual(g.skeleton.hp, 4);   // 创建 4 血上限
+  g.player.energy = 9;
+  g.hand = [spell([{ id: 'energy_summon', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.skeleton.maxHp, 8); assert.strictEqual(g.skeleton.hp, 8);   // 已存在 → +4 血量上限
+});
+
+test('召唤物替玩家抵挡：召唤物格挡→玩家格挡→召唤物血→玩家血', () => {
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.skeleton = { hp: 5, maxHp: 5, block: 3, statuses: {} }; g.player.block = 2;
+  const php = g.player.hp;
+  g.dealAttackDamage(g.enemy, g.player, 12);   // 12 = 骷髅格挡 3 + 玩家格挡 2 + 骷髅血 5 + 玩家血 2
+  assert.strictEqual(g.skeleton, null);        // 骷髅血耗尽 → 被击碎（可重召）
+  assert.strictEqual(g.player.block, 0);
+  assert.strictEqual(php - g.player.hp, 2);    // 玩家只掉 2 血
 });
 
 // ===== 完整性 =====

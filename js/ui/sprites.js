@@ -36,6 +36,17 @@ window.CG = window.CG || {};
       <path d="M24 4 l2.4 6 -4.8 0z" fill="#f0c040"/><circle cx="24" cy="4" r="2" fill="#f0c040"/>
     </svg>`,
 
+    // 召唤物·骷髅（类玩家、体型稍小、骨色）
+    skeleton: `<svg viewBox="0 0 48 48" class="hero-token skeleton-token">
+      <ellipse cx="24" cy="43" rx="10" ry="3" fill="#0005"/>
+      <path d="M15 41 q-1 -15 9 -15 q10 0 9 15 q-9 4 -18 0z" fill="#e9e7d6" stroke="#bdbba8" stroke-width="1.1"/>
+      <rect x="18.5" y="30" width="11" height="1.8" rx="0.9" fill="#c3c1ad"/><rect x="18.5" y="33.5" width="11" height="1.8" rx="0.9" fill="#c3c1ad"/><rect x="18.5" y="37" width="11" height="1.8" rx="0.9" fill="#c3c1ad"/>
+      <path d="M9 26 q-2 6 0 11 q4 -2 4 -5.5 q0 -4 -4 -5.5z" fill="#e9e7d6" stroke="#bdbba8" stroke-width="1.1"/>
+      <circle cx="24" cy="18" r="8.5" fill="#f4f2e4" stroke="#c8c6b4" stroke-width="1.3"/>
+      <circle cx="20.6" cy="18" r="2.4" fill="#262620"/><circle cx="27.4" cy="18" r="2.4" fill="#262620"/>
+      <path d="M22 23 l1 2 1 -2 1 2 1 -2" stroke="#8a887a" stroke-width="1" fill="none"/>
+    </svg>`,
+
     // 颚虫
     worm: `<svg viewBox="0 0 120 140" class="char">
       <ellipse cx="60" cy="132" rx="38" ry="8" fill="#0003"/>

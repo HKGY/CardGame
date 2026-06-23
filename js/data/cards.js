@@ -128,8 +128,8 @@ window.CG = window.CG || {};
     let investN = 0, incomeN = 0, tradeN = 0, windfallN = 0, hireN = 0, taxN = 0, inflationN = 0, debtN = 0;       // 市场包（金币）
     let mineN = 0, blastN = 0, prospectN = 0, quarryN = 0, richveinN = 0, caveinN = 0, barrenN = 0, disasterN = 0;  // 矿工包（深度）
     let bellowsN = 0, emberN = 0, smeltN = 0, coolantN = 0, whitehotN = 0, overheatN = 0, crackN = 0, rustN = 0;   // 锻造包（热度）
-    const summonList = []; let commandN = 0, cullingN = 0, discordN = 0;   // 召唤包（toll 复用 hpLoss）
-    const buildList = []; let demolishN = 0, collapseN = 0, subsideN = 0;  // 建造包（hazard 复用 hpLoss）
+    let summonN = 0, commandN = 0, cullingN = 0, discordN = 0;   // 召唤包：summonN=召唤血量上限增量（重做后骷髅是单位）
+    let demolishN = 0, collapseN = 0, subsideN = 0;              // （建造包已删，命令/折损等为死码）
     let tossN = 0, siftN = 0, madnessN = 0, reclaimN = 0, dumpsterN = 0;   // 弃牌包（forget→clutch、waste→loseEnergy 复用）
     let conjureN = 0, daggersN = 0, duplicateN = 0, foresightN = 0, mindblastN = 0, clutterN = 0;   // 术士包
     let preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
@@ -242,10 +242,9 @@ window.CG = window.CG || {};
       if (d.bellows) bellowsN += d.bellows * L; if (d.ember) emberN += d.ember * L; if (d.smelt) smeltN += d.smelt * L; if (d.coolant) coolantN += d.coolant * L; if (d.whitehot) whitehotN += d.whitehot * L;
       if (d.overheat) overheatN += d.overheat * L; if (d.crack) crackN += d.crack * L; if (d.rust) rustN += d.rust * L;
       // —— 召唤包 ——
-      if (d.summon) summonList.push({ what: d.summon, level: L });
+      if (d.summon) summonN += d.summon * L;   // 召唤：血量上限增量
       if (d.command) commandN += d.command * L; if (d.culling) cullingN += d.culling * L; if (d.discord) discordN += d.discord * L;
       // —— 建造包 ——
-      if (d.build) buildList.push({ what: d.build, level: L });
       if (d.demolish) demolishN += d.demolish * L; if (d.collapse) collapseN += d.collapse * L; if (d.subside) subsideN += d.subside * L;
       // —— 弃牌包 ——
       if (d.toss) tossN += d.toss * L; if (d.sift) siftN += d.sift * L; if (d.madness) madnessN += d.madness * L; if (d.reclaim) reclaimN += d.reclaim * L; if (d.dumpster) dumpsterN += d.dumpster * L;
@@ -388,12 +387,11 @@ window.CG = window.CG || {};
     if (crackN)   effects.push({ type: 'crack', value: crackN });
     if (rustN)    effects.push({ type: 'rust', value: rustN });
     // === 召唤包 ===
-    summonList.forEach(s => effects.push({ type: 'summon', what: s.what, value: s.level }));
+    if (summonN) effects.push({ type: 'summon', value: summonN });   // 召唤：创建/+血量上限（骷髅单位）
     if (commandN) effects.push({ type: 'command', value: commandN });
     if (cullingN) effects.push({ type: 'culling', value: cullingN });
     if (discordN) effects.push({ type: 'discord', value: discordN });
-    // === 建造包 ===
-    buildList.forEach(s => effects.push({ type: 'build', what: s.what, value: s.level }));
+    // === 建造包（已删，以下为死码兜底）===
     if (demolishN) effects.push({ type: 'demolish', value: demolishN });
     if (collapseN) effects.push({ type: 'collapse', value: collapseN });
     if (subsideN)  effects.push({ type: 'subside', value: subsideN });
@@ -478,8 +476,7 @@ window.CG = window.CG || {};
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
     if (f.enemyDex)  out.now.push({ type: 'enemyStat', key: 'dexterity', value: f.enemyDex, temp: !!f.enemyTemp });
     if (f.give)      out.now.push({ type: 'give', what: f.give, value: 1 });
-    if (f.summon)    out.now.push({ type: 'summon', what: f.summon, value: L });
-    if (f.build)     out.now.push({ type: 'build', what: f.build, value: L });
+    if (f.summon)    out.now.push({ type: 'summon', value: f.summon });   // 召唤：血量上限增量
     if (f.conjure)   out.now.push({ type: 'conjure', value: f.conjure });
     if (f.everyTurn) out.every = f.everyTurn.slice();   // 每回合变体：mech 已产出待调度效果
     if (f.nextTurn)  out.next = f.nextTurn.slice();     // 下回合变体

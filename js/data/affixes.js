@@ -22,7 +22,7 @@ window.CG = window.CG || {};
   const V = {
     heal: 1.5,                                        // 治疗（排序铁律：治疗 > 格挡 > 伤害）
     fire: 6.0, water: 6.0, thunder: 6.0, ice: 6.0,    // 元素：1 层 = 6VP
-    summon: 3.0,                                      // building 已删；conjure 改为时点基值（VP 6，见 TURN_BASES）
+    // summon(1.5)/conjure(6)/thorns(2) 改为时点基值（VP 见 TURN_BASES）；building 已删
     mult: 12.0, lifesteal: 0.12, combo: 6.0, multi: 12.0,   // 翻倍/多重=12VP；吸血 0.12/%(≤100)；连击 6VP
     // —— 代价原子 ——（可玩数字：生命 2VP→3血、金币 1VP→6金）
     hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0,
@@ -50,7 +50,6 @@ window.CG = window.CG || {};
     water:    { name: '附水', vpRes: 'water', maxCount: 2, color: COLOR.water, mech: u => ({ element: 'water', elementBase: u }) },
     thunder:  { name: '附雷', vpRes: 'thunder', maxCount: 2, color: COLOR.thunder, mech: u => ({ element: 'thunder', elementBase: u }) },
     ice:      { name: '附冰', vpRes: 'ice', maxCount: 2, color: COLOR.ice, mech: u => ({ element: 'ice', elementBase: u }) },
-    summon:   { name: '召唤物', vpRes: 'summon', color: COLOR.summon, mech: () => ({ summon: 'skeleton' }) },
     mult:     { name: '翻倍', vpRes: 'mult', maxCount: 2, color: COLOR.mult, mech: u => ({ potent: u }) },   // ×(1+L)：LV1 ×2、LV2/3 ×3
     lifesteal:{ name: '吸血', vpRes: 'lifesteal', maxCount: 100, color: COLOR.lifesteal, mech: u => ({ lifesteal: u }) },   // 以 1% 计：LV1 50%、LV2/3 100%
     combo:    { name: '连击', vpRes: 'combo', color: COLOR.combo, mech: u => ({ multiHit: u }) },
@@ -79,6 +78,7 @@ window.CG = window.CG || {};
     poison:     sched(1.5, v => ({ type: 'poison', value: v }), v => ({ apply: { poison: v } }), { now: 'poison', next: 'poison_next', every: 'poison_every' }, '中毒', { num: true, prim: 'now', color: COLOR.poison }),
     thorns:     sched(2.0, v => ({ type: 'thorns', value: v }), v => ({ thorns: v }), { now: 'thorns', next: 'thorns_next', every: 'thorns_every' }, '荆棘', { num: true, prim: 'now', color: COLOR.thorns }),   // 受击反伤（自带反伤引擎）
     conjure:    sched(6.0, v => ({ type: 'conjure', value: v }), v => ({ conjure: v }), { now: 'conjure', next: 'conjure_next', every: 'conjure_every' }, '造牌', { num: true, prim: 'now', color: COLOR.conjure }),   // 造一张带随机 n 宝石的牌(本回合 0 费)
+    summon:     sched(1.5, v => ({ type: 'summon', value: v }), v => ({ summon: v }), { now: 'summon', next: 'summon_next', every: 'summon_every' }, '召唤物', { num: true, prim: 'now', color: COLOR.summon }),   // 召唤/壮大单骷髅(血量上限 n)
     food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, '素菜', { maxCount: 1, color: COLOR.food }),
     food_meat:  sched(2.0, v => ({ type: 'give', what: 'meat', value: v }), () => ({ give: 'meat' }), { now: 'food_meat', next: 'food_meat_next', every: 'food_meat_every' }, '荤菜', { maxCount: 1, color: COLOR.food }),
     food_season:sched(2.0, v => ({ type: 'give', what: 'season', value: v }), () => ({ give: 'season' }), { now: 'food_season', next: 'food_season_next', every: 'food_season_every' }, '调料', { maxCount: 1, color: COLOR.food }),
@@ -278,7 +278,7 @@ window.CG = window.CG || {};
     bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡（本/下回合）/ 本回合力量·敏捷 / 荆棘（受击反伤）。', ['block', 'block_next', 'tempStr', 'tempDex', 'thorns', 'thorns_next', 'thorns_every']),
     elec:     P('电力包', '⚡', '#f0d040', '电力（本/下/每回合三档）。', ['power', 'power_next', 'power_every']),
     produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（格挡 / 抽牌 / 能量）。', ['produce_draw', 'produce_block', 'produce_energy']),
-    summon:   P('召唤包', '👻', '#b0b0e0', '召唤物。', ['summon']),
+    summon:   P('召唤包', '👻', '#b0b0e0', '召唤物（本/下/每回合）。', ['summon', 'summon_next', 'summon_every']),
     conjure:  P('术士包', '🎩', '#b59ad8', '造牌（本/下/每回合）。', ['conjure', 'conjure_next', 'conjure_every']),
     amplify:  P('放大包', '✦', '#ff9fc0', '翻倍 / 吸血 / 多重（放大本牌）。', ['mult', 'lifesteal', 'multi']),
   };

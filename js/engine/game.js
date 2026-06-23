@@ -110,7 +110,7 @@ window.CG = window.CG || {};
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
-      this.allies = [];                         // 召唤：愚者重开时清空召唤物
+      this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
@@ -153,7 +153,7 @@ window.CG = window.CG || {};
       this._keepBlock = 0;                      // 死守包·重甲：剩余「格挡不清空」回合数（打出重甲后 = 等级 N）
       this._depth = 0;                         // 矿工包：本场挖矿深度
       this._heat = 0;                          // 锻造包：本场热度
-      this.allies = [];                        // 召唤包：己方召唤物（有血量、回合末攻击、可被打）
+      this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
@@ -198,6 +198,7 @@ window.CG = window.CG || {};
 
       if (this._rewindSnap) { this._restore(this._rewindSnap); this._rewindSnap = null; this.addLog('回溯：时间倒流，敌人这一回合被抹去。'); }   // 律动·回溯：回滚到打出回溯时的双方状态
       if (this._keepBlock > 0) { this._keepBlock--; this.player.block = Math.floor((this.player.block || 0) * 0.5); } else this.player.block = 0;   // 死守包·重甲：接下来 N 回合格挡减半保留（计数器；不再无限累积）
+      if (this.skeleton) this.skeleton.block = 0;   // 召唤物格挡每回合开始清空（同玩家）
       let energyBonus = 0, drawBonus = 0;          // 癌症/无神论者：每回合额外能量/抽牌
       this.relics.forEach(id => { const r = CG.RELICS[id]; energyBonus += r.turnEnergy || 0; drawBonus += r.turnDraw || 0; });
       this.player.energy = Math.max(0, this.player.maxEnergy - (this.nextEnergyPenalty || 0)) + energyBonus;
@@ -266,9 +267,8 @@ window.CG = window.CG || {};
         else if (kind === 'weak') { this.applyStatus(this.player, 'weak', 2); this.addLog('臭肉：自身虚弱 2。'); }
         else if (kind === 'vuln') { this.applyStatus(this.player, 'vulnerable', 2); this.addLog('烂菜：自身易伤 2。'); }
       });
-      this._allyAttack();                                              // 召唤包：回合末召唤物替你攻击
-      this._checkEnd();
-      if (this.phase === 'lost' || this.phase === 'won') { this._emit(); return; }   // 腐坏卡可能致死；召唤物可能终结战斗
+      this._checkEnd();                                                // 召唤物不再回合末自动攻击（靠召唤物词条出手）
+      if (this.phase === 'lost' || this.phase === 'won') { this._emit(); return; }   // 腐坏卡可能致死
       this.phase = 'enemy';
       this._emit();
     }
@@ -293,9 +293,7 @@ window.CG = window.CG || {};
           this.addLog(`${e.name} 使用了 ${move.name}。`);
           (move.effects || []).forEach(eff => {
             const se = this._scaleEff(eff, e);
-            const taunt = se.type === 'damage' ? this._tauntAlly() : null;   // 召唤包·嘲讽：伤害重定向到嘲讽召唤物
-            if (taunt) this._hitAlly(taunt, (se.value || 0) * (se.hits || 1));
-            else CG.Effects.apply(this, se, e, this.player);
+            CG.Effects.apply(this, se, e, this.player);   // 伤害类经 dealAttackDamage 自动走「召唤物→玩家」抵挡顺序
           });
         }
         this._tickStatuses(e);
@@ -788,13 +786,22 @@ window.CG = window.CG || {};
 
       this._fire('attack', { side: this._sideOf(source), ei: this._idxOf(source) });
       const beforeHp = target.hp, beforeBlock = target.block;
-      this._dealRaw(target, dmg);
+      if (target === this.player && source !== this.player && this.skeleton && this.skeleton.hp > 0) this._absorbToPlayer(dmg);   // 召唤物替玩家抵挡
+      else this._dealRaw(target, dmg);
       this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: beforeHp - target.hp, blocked: Math.min(beforeBlock, dmg) });
 
-      if (target === this.player && source !== this.player) {       // 荆棘：攻击你的敌人受反伤
-        const th = this._relicSum('thorns') + (this.player.statuses.thorns || 0);   // 遗物荆棘 + 荆棘词条
+      if (target === this.player && source !== this.player) {       // 荆棘：攻击你的敌人受反伤（玩家 + 召唤物的荆棘）
+        const th = this._relicSum('thorns') + (this.player.statuses.thorns || 0) + ((this.skeleton && this.skeleton.statuses.thorns) || 0);
         if (th > 0 && source.hp > 0) { const eh = source.hp, eb = source.block; this._dealRaw(source, th); this._fire('damage', { side: 'enemy', ei: this._idxOf(source), hpLoss: eh - source.hp, blocked: Math.min(eb, th) }); }
       }
+    }
+    // 召唤物替玩家抵挡：召唤物格挡 → 玩家格挡 → 召唤物血 → 玩家血
+    _absorbToPlayer(dmg) {
+      const sk = this.skeleton; let rem = dmg;
+      if (sk) { const a = Math.min(sk.block || 0, rem); sk.block -= a; rem -= a; }
+      const pb = Math.min(this.player.block || 0, rem); this.player.block -= pb; rem -= pb;
+      if (sk && rem > 0) { const a = Math.min(sk.hp, rem); sk.hp -= a; rem -= a; if (sk.hp <= 0) { this.skeleton = null; this.addLog('召唤物被击碎。'); } }
+      if (rem > 0) this.player.hp = Math.max(0, this.player.hp - rem);
     }
 
     _dealRaw(target, dmg) {
