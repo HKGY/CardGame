@@ -450,6 +450,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .badge-poison { background: #2e4a1e; color: #a8d860; }
 .badge-frozen { background: #1e3a4a; color: #7fd4ee; }
 .badge-incoming { background: #5a2330; color: #ff8a7a; font-weight: 700; border: 1px solid #8a3a48; }
+/* 待结算的每回合/下回合增益（让每个 pending buff 像「力量」一样明确显示） */
+.badge-every { background: #244a36; color: #8fe0b0; border: 1px solid #3a6a4e; }
+.badge-next  { background: #2c3a5a; color: #9fb8e8; border: 1px solid #3e5280; }
 /* 元素光环徽标（敌人身上至多一种） */
 .badge-fire    { background: #4a2316; color: #ff9a6a; font-weight: 700; }
 .badge-water   { background: #16304a; color: #6ab4ff; font-weight: 700; }

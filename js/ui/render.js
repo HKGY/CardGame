@@ -441,6 +441,28 @@ window.CG = window.CG || {};
       return `<span class="badge ${m.cls}">${m.label} ${s[k]}</span>`;
     }).join('');
   }
+  // 待结算效果(每回合/下回合)的短标签 —— 让每个 pending buff 像「力量」一样明确显示
+  const EFF_LABEL = {
+    damage: v => `⚔️${v}`, block: v => `🛡️${v}`, draw: v => `抽${v}`, energy: v => `⚡${v}`, gainPower: v => `🔌${v}`,
+    heal: v => `❤️${v}`, strength: v => `力量+${v}`, dexterity: v => `敏捷+${v}`, thorns: v => `荆棘${v}`,
+    tempStrength: v => `力量+${v}`, tempDexterity: v => `敏捷+${v}`, tempThorns: v => `荆棘${v}`,
+    vulnerable: v => `易伤${v}`, weak: v => `虚弱${v}`, frail: v => `脆弱${v}`, poison: v => `中毒${v}`, curse: v => `咒言${v}`,
+    loseHp: v => `失${v}血`, loseGold: v => `失${v}金`, losePower: v => `失${v}电`, clutter: v => `+${v}渣滓`,
+    summon: v => `召唤${v}`, conjure: () => `造牌`, give: () => `食材`,
+  };
+  function effLabel(eff) {
+    let s = (EFF_LABEL[eff.type] || (() => eff.type))(eff.value);
+    if (eff.type === 'selfStatus') s = `自${(STATUS_META[eff.status] || {}).label || eff.status}${eff.value}`;
+    if (eff.type === 'enemyStat') s = `敌${eff.key === 'dexterity' ? '敏捷' : '力量'}${eff.value}`;
+    if (eff.minion) s = '召唤物' + s;
+    return s;
+  }
+  function scheduleBadges(game) {   // 每回合(常驻) + 下回合(一次性) 待结算效果 → 徽标
+    let h = '';
+    (game._everyTurn || []).forEach(e => { h += `<span class="badge badge-every" title="每回合开始结算">每回合 ${effLabel(e)}</span>`; });
+    (game._nextTurn || []).forEach(e => { h += `<span class="badge badge-next" title="下回合开始结算一次">下回合 ${effLabel(e)}</span>`; });
+    return h;
+  }
   function intentHTML(game, e) {
     e = e || game.enemy;
     if (e.statuses.frozen) return `<div class="intent intent-buff">❄️ 冰冻 ${e.statuses.frozen}</div>`;
@@ -541,7 +563,7 @@ window.CG = window.CG || {};
     renderEnemies(game);
 
     const incoming = game.playerIncomingDamage();   // 本回合预计净伤害（随格挡实时变化）
-    const incBadge = incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '';
+    const incBadge = (incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '') + scheduleBadges(game);
     renderUnit('player', p, '你', '', incBadge);
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());

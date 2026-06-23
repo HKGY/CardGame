@@ -68,8 +68,8 @@ test('条件代价：当前格挡→伤害（cardStats 出 condBonus，值由 pl
 
 test('展示文字：代价 / 价值', () => {
   assert.strictEqual(CG.affixCostText(D, 1), '+1 费');
-  assert.strictEqual(CG.affixValueText(D, 1), '伤害 6');   // damage 默认形态(本回合)＝裸值名「伤害」
-  assert.strictEqual(CG.affixValueText(D, 2), '伤害 12');
+  assert.strictEqual(CG.affixValueText(D, 1), '对敌人造成 6 点伤害');   // damage 默认形态(本回合)＝裸值名「伤害」
+  assert.strictEqual(CG.affixValueText(D, 2), '对敌人造成 12 点伤害');
   assert.strictEqual(CG.affixCostText('curBlock_damage', 1), '当前格挡');
   assert.strictEqual(CG.affixCostText('hp_damage', 2), '失 6 血');
 });
@@ -120,10 +120,10 @@ test('战斗：条件「当前格挡→伤害」按当前格挡造伤', () => {
 
 test('条件 VP → 整数「每有 X 点 A，获得 Y 点 B」（显示与判定都整数）', () => {
   // curBlock(0.6) × 伤害(1.0)：0.6 = 3/5 → 每有 5 点当前格挡，获得 3 点伤害（伤害默认形态＝裸名）
-  assert.strictEqual(CG.affixValueText('curBlock_damage', 1), '每有 5 点当前格挡，获得 3 点伤害');
-  assert.strictEqual(CG.affixValueText('curBlock_damage', 2), '每有 5 点当前格挡，获得 6 点伤害');   // 等级缩放 Y
+  assert.strictEqual(CG.affixValueText('curBlock_damage', 1), '每有 5 点当前格挡，对敌人造成 3 点伤害');
+  assert.strictEqual(CG.affixValueText('curBlock_damage', 2), '每有 5 点当前格挡，对敌人造成 6 点伤害');   // 等级缩放 Y
   // turnNum(1.0) × 每回合中毒(VP 3.0)：1/3 → 每有 3 回合，获得 1 点每回合中毒（非默认形态带前缀；不再 ×0.33）
-  assert.strictEqual(CG.affixValueText('turnNum_poison_every', 1), '每有 3 点回合数，获得 1 点每回合中毒');
+  assert.strictEqual(CG.affixValueText('turnNum_poison_every', 1), '每过 3 个回合，每回合使敌人获得 1 点中毒');
   // 判定整数：8 格挡 → floor(8/5)×3 = 3（按 5 一档）
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9; g.player.block = 8; const hp0 = g.enemy.hp;
@@ -193,10 +193,10 @@ test('自身减益体系：myDebuff 把自己背的减益层数回收成伤害',
 });
 
 test('敌失力量/敏捷：每回合(永久)减；本回合(临时)版量翻倍且下回合复原', () => {
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseStr', 1), '敌失力量 2');             // 默认形态(每回合/永久)＝裸名
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseStrTemp', 1), '本回合敌失力量 4');   // 本回合(临时)＝永久 ×2、非默认带前缀
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseDex', 1), '敌失敏捷 2');             // 力量/敏捷对称
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseDexTemp', 1), '本回合敌失敏捷 4');
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseStr', 1), '使敌人失去 2 点力量');             // 默认形态(每回合/永久)＝裸名
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseStrTemp', 1), '本回合使敌人失去 4 点力量');   // 本回合(临时)＝永久 ×2、非默认带前缀
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseDex', 1), '使敌人失去 2 点敏捷');             // 力量/敏捷对称
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseDexTemp', 1), '本回合使敌人失去 4 点敏捷');
   // 永久：敌力量 -2
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9; g.applyStatus(g.enemy, 'strength', 5);
@@ -267,9 +267,9 @@ test('maxCount=1 食材给牌恒 LV1；每回合产出已通用化、随等级�
 
 test('元素 maxCount=2：LV1 附 1 层 / LV2 附 2 层（与旧 elementBase×lvVal 一致）', () => {
   assert.strictEqual(lv('energy_fire'), '1,2,3');
-  assert.strictEqual(CG.affixValueText('energy_fire', 1), '附火 1');
-  assert.strictEqual(CG.affixValueText('energy_fire', 2), '附火 2');
-  assert.strictEqual(CG.affixValueText('energy_fire', 3), '附火 2');   // L3＝廉价档（同 L2 价值）
+  assert.strictEqual(CG.affixValueText('energy_fire', 1), '给敌人附 1 层火');
+  assert.strictEqual(CG.affixValueText('energy_fire', 2), '给敌人附 2 层火');
+  assert.strictEqual(CG.affixValueText('energy_fire', 3), '给敌人附 2 层火');   // L3＝廉价档（同 L2 价值）
   const s = stat(spell([{ id: 'energy_fire', level: 2 }]));
   assert.strictEqual(s.elementLevel, 2);   // 附 2 层
 });
@@ -278,8 +278,8 @@ test('门型条件 → 只有 LV1+LV3（无 LV2）；量型条件 → LV1/2/3', 
   assert.strictEqual(lv('firstPlay_damage'), '1,3');
   assert.strictEqual(lv('noBlock_block'), '1,3');
   assert.strictEqual(lv('curBlock_damage'), '1,2,3');
-  assert.strictEqual(CG.affixValueText('firstPlay_damage', 1), '伤害 6（这张牌本场第一次打出时）');
-  assert.strictEqual(CG.affixValueText('firstPlay_damage', 3), '伤害 12（这张牌本场第一次打出时）');
+  assert.strictEqual(CG.affixValueText('firstPlay_damage', 1), '这张牌本场首次打出时，对敌人造成 6 点伤害');
+  assert.strictEqual(CG.affixValueText('firstPlay_damage', 3), '这张牌本场首次打出时，对敌人造成 12 点伤害');
 });
 
 test('时点修饰器：每回合伤害回合开始造伤、下回合格挡下个回合一次性给', () => {
@@ -329,8 +329,8 @@ test('吸血改以 1% 为单位：LV1 50% / LV2 100%（maxCount 100）', () => {
 
 test('翻倍 maxCount=2：×2 / ×3（不再更高）', () => {
   assert.strictEqual(lv('energy_mult'), '1,2,3');
-  assert.strictEqual(CG.affixValueText('energy_mult', 1), '数值 ×2');
-  assert.strictEqual(CG.affixValueText('energy_mult', 2), '数值 ×3');
+  assert.strictEqual(CG.affixValueText('energy_mult', 1), '本牌伤害/格挡/治疗 ×2');
+  assert.strictEqual(CG.affixValueText('energy_mult', 2), '本牌伤害/格挡/治疗 ×3');
 });
 
 test('costByLv 每级精确（ceil 逐级算，非 L1×倍率）：失血换抽 L2 = 5 血', () => {
@@ -421,8 +421,8 @@ test('自中毒 selfPoison 已删除', () => {
 });
 
 test('荆棘重构(#16-17)：荆棘(默认/永久,2VP) / 本回合荆棘(临时,1VP)；不再每回合递增', () => {
-  assert.strictEqual(CG.affixValueText('energy_thorns', 1), '荆棘 3');          // 默认=永久(every)、2VP→val3
-  assert.strictEqual(CG.affixValueText('energy_tempThorns', 1), '本回合荆棘 6');// 临时(now)、1VP→val6
+  assert.strictEqual(CG.affixValueText('energy_thorns', 1), '获得 3 点荆棘');          // 默认=永久(every)、2VP→val3
+  assert.strictEqual(CG.affixValueText('energy_tempThorns', 1), '本回合获得 6 点荆棘');// 临时(now)、1VP→val6
   assert.ok(!CG.AFFIXES['energy_thorns_every']);                               // 不再有「每回合荆棘」递增版
   // 永久荆棘：受击反伤、跨回合保留
   let g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
@@ -441,7 +441,7 @@ test('荆棘重构(#16-17)：荆棘(默认/永久,2VP) / 本回合荆棘(临时,
 
 test('造牌重做：生成带随机 n 宝石的本场牌、本回合 0 费；有本/下/每回合三档', () => {
   assert.strictEqual(lv('energy_conjure'), '1,2,3');
-  assert.strictEqual(CG.affixValueText('energy_conjure', 1), '造牌 1');
+  assert.strictEqual(CG.affixValueText('energy_conjure', 1), '生成 1 张带 1 颗随机宝石的牌（本回合 0 费）');
   assert.ok(CG.AFFIXES['energy_conjure_next'] && CG.AFFIXES['energy_conjure_every']);
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
@@ -453,7 +453,7 @@ test('造牌重做：生成带随机 n 宝石的本场牌、本回合 0 费；�
 
 test('多重：消耗全部能量、整张牌打出「能量」次（耗费显示 X）', () => {
   assert.strictEqual(lv('energy_multi'), '1');         // maxCount 1：单一档
-  assert.strictEqual(CG.affixValueText('energy_multi', 1), '多重 1');
+  assert.strictEqual(CG.affixValueText('energy_multi', 1), '消耗全部能量，整张牌打出等同能量的次数');
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 3; const hp = g.enemy.hp;
   const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_multi', level: 1 }]);   // 首石6伤 + 多重
@@ -468,7 +468,7 @@ test('删建筑：building 价值原子与建造包均移除', () => {
 });
 
 test('召唤重做：单骷髅单位（创建 / +血量上限）；时点基值 1.5VP', () => {
-  assert.strictEqual(CG.affixValueText('energy_summon', 1), '召唤物 4');   // val1=floor(6/1.5)=4
+  assert.strictEqual(CG.affixValueText('energy_summon', 1), '召唤骷髅或使其血量上限增加 4');   // val1=floor(6/1.5)=4
   assert.strictEqual(lv('energy_summon'), '1,2,3');
   assert.ok(CG.AFFIXES['energy_summon_next'] && CG.AFFIXES['energy_summon_every']);
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
@@ -482,10 +482,10 @@ test('召唤重做：单骷髅单位（创建 / +血量上限）；时点基值 
 
 test('召唤物修饰词：自身向价值改投骷髅、量×2（VP 减半）；无骷髅则跳过', () => {
   // 量翻倍：召唤物伤害=12(玩家6)、召唤物格挡=10(玩家5)、召唤物力量=4(玩家2)、召唤物治疗=8(玩家4)
-  assert.strictEqual(CG.affixValueText('energy_damage_m', 1), '召唤物伤害 12');
-  assert.strictEqual(CG.affixValueText('energy_block_m', 1), '召唤物格挡 10');
-  assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物力量 4');
-  assert.strictEqual(CG.affixValueText('energy_heal_m', 1), '召唤物治疗 8');
+  assert.strictEqual(CG.affixValueText('energy_damage_m', 1), '召唤物对敌人造成 12 点伤害');
+  assert.strictEqual(CG.affixValueText('energy_block_m', 1), '召唤物获得 10 点格挡');
+  assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物获得 4 点力量');
+  assert.strictEqual(CG.affixValueText('energy_heal_m', 1), '召唤物回复 8 点生命');
   // 只配自身向价值：能量/造牌/多重/敌减益 没有 _m 变体
   assert.ok(!CG.AFFIXES['energy_energy_m'] && !CG.AFFIXES['energy_conjure_m'] && !CG.AFFIXES['energy_vulnerable_m'] && !CG.AFFIXES['energy_poison_m']);
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
@@ -680,7 +680,7 @@ test('#32a 保留：回合结束不丢弃', () => {
 });
 
 test('#34 本回合打出牌数（量型）/ #35 活力（下一张伤害牌+n，非伤害牌不消耗）', () => {
-  assert.strictEqual(CG.affixValueText('playedThisTurn_damage', 1), '每有 1 点本回合打出牌数，获得 2 点伤害');
+  assert.strictEqual(CG.affixValueText('playedThisTurn_damage', 1), '本回合每打出 1 张牌，对敌人造成 2 点伤害');
   let g = bt(); g.player.energy = 30;
   g.hand = [spell([{ id: CG.STRIKE, level: 1 }])]; g.playCard(g.hand[0].uid);
   g.hand = [spell([{ id: CG.STRIKE, level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid);
@@ -721,7 +721,7 @@ test('#40 虚无代价：回合末仍在手则消耗', () => {
 });
 
 test('#41 咒言：层数 > 敌生命 → 敌回合末死亡', () => {
-  assert.strictEqual(CG.affixValueText('energy_curse', 1), '咒言 10');   // 0.6VP→10
+  assert.strictEqual(CG.affixValueText('energy_curse', 1), '使敌人获得 10 点咒言');   // 0.6VP→10
   const g = bt(); g.enemy.hp = 8; pg(g, [[{ id: 'energy_curse', level: 1 }]]);
   assert.strictEqual(g.enemy.statuses.curse, 10);
   g.endTurn(); g.runEnemyTurn(); assert.ok(!g.enemy.alive);   // 咒言10 > 8血 → 回合末死
@@ -779,6 +779,22 @@ test('#48 回收：消耗手牌中所有非初始牌、抽等量', () => {
   assert.ok(g.exhaustPile.some(c => c.base === 'dagger'));   // 非初始牌被消耗
   assert.ok(g.hand.some(c => c.uid === ini.uid));            // 初始牌保留
   assert.ok(!g.hand.some(c => c.base === 'dagger'));          // 生成牌已离手
+});
+
+// ===== v3.9 描述可读化 =====
+test('词条描述改为自然中文（对齐用户示例）+ 卡名用简短 chip 形', () => {
+  assert.strictEqual(CG.affixValueText('energy_makeDagger', 1), '生成 2 张匕首');
+  assert.strictEqual(CG.affixValueText('curBlock_enemyLoseStr', 1), '每有 5 点当前格挡，使敌人失去 1 点力量');
+  assert.strictEqual(CG.affixValueText('daggerPlayed_frail', 1), '本场每打出 3 张匕首，使敌人获得 2 点脆弱');
+  assert.strictEqual(CG.affixValueText('myDebuff_damage_next', 1), '自身每有 1 层减益，下回合对敌人造成 2 点伤害');
+  assert.strictEqual(CG.affixValueText('enemyVuln_block', 1), '敌人处于易伤时，获得 5 点格挡');
+  assert.strictEqual(CG.affixShort('energy_damage', 1), '伤害 6');
+  assert.strictEqual(CG.affixShort('energy_makeDagger', 1), '生成匕首 2');
+  assert.strictEqual(CG.affixShort('curBlock_damage', 1), '伤害*');
+  for (const id of CG.AFFIX_ORDER) {
+    const s = CG.affixValueText(id, 1);
+    assert.ok(s && !/\{[nx]\}|undefined|NaN/.test(s), `${id} → "${s}"`);
+  }
 });
 
 // ===== 完整性 =====

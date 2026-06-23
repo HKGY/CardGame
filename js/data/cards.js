@@ -92,7 +92,7 @@ window.CG = window.CG || {};
     const b = CG.BASE_CARDS[inst.base];
     if (CG.isFood(inst.base)) return CG.foodStats(inst);   // 厨艺食材：固定效果卡，不走宝石聚合
     const order = id => CG.AFFIX_ORDER.indexOf(id);
-    const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, debuff: false, name: CG.affixValueText(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: def.color, desc: CG.affixValueText(a.id, a.level) }; };
+    const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, debuff: false, name: CG.affixShort(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: def.color, desc: CG.affixValueText(a.id, a.level) }; };   // name=短形(卡名chip)、desc=自然句
     const bySort = (x, y) => order(x.id) - order(y.id);
     const sockets = inst.sockets || [];
 

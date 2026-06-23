@@ -49,6 +49,42 @@ window.CG = window.CG || {};
     mult: '#ff9fc0', lifesteal: '#cf4f6a', combo: '#e89030', multi: '#ff7fa0',
   };
 
+  /* —— 人类可读描述模板（v3.9）——
+   *  VALUE_TMPL：每个「价值基值/非时点原子」的**裸句子**（用 {n} 占位数量；系统自动拼「下回合/每回合」「召唤物」前缀）。
+   *  COND_TMPL：条件前半句（量型 q 用 {x}；门型 gate 是「…时」整句）。完整条件句＝前半句 + 「，」+ 价值句。
+   *  amount→显示数：多数为 v.amt×等级；少数有显示倍率（dmul，见 VALUE_ATOMS）：daggerUp×4 / scrapUp×3 / vulnAmp×25(%) / weakAmp×15(%) / detonateEvery×4；mult 显示 ×(1+量)。*/
+  const VALUE_TMPL = {
+    damage: '对敌人造成 {n} 点伤害', block: '获得 {n} 点格挡', draw: '抽 {n} 张牌', energy: '获得 {n} 点能量', power: '获得 {n} 点电力',
+    vulnerable: '使敌人获得 {n} 点易伤', weak: '使敌人获得 {n} 点虚弱', frail: '使敌人获得 {n} 点脆弱', poison: '使敌人获得 {n} 点中毒',
+    thorns: '获得 {n} 点荆棘', conjure: '生成 1 张带 {n} 颗随机宝石的牌（本回合 0 费）', summon: '召唤骷髅或使其血量上限增加 {n}',
+    strength: '获得 {n} 点力量', dexterity: '获得 {n} 点敏捷', enemyLoseStr: '使敌人失去 {n} 点力量', enemyLoseDex: '使敌人失去 {n} 点敏捷',
+    food_veg: '生成 {n} 张素菜', food_meat: '生成 {n} 张荤菜', food_season: '生成 {n} 张调料',
+    heal: '回复 {n} 点生命', fire: '给敌人附 {n} 层火', water: '给敌人附 {n} 层水', thunder: '给敌人附 {n} 层雷', ice: '给敌人附 {n} 层冰',
+    mult: '本牌伤害/格挡/治疗 ×{n}', lifesteal: '吸血 {n}%', combo: '本牌攻击额外命中 {n} 次', multi: '消耗全部能量，整张牌打出等同能量的次数',
+    copyDiscard: '将这张牌复制 {n} 份到弃牌堆', recallDiscard: '将弃牌堆中 {n} 张牌加入手牌', recycleDraw: '将弃牌堆中 {n} 张牌洗回抽牌堆',
+    playTopDraw: '打出抽牌堆顶 {n} 张牌', socketRand: '为 {n} 张有空位的手牌镶嵌随机宝石',
+    debuffMult: '使敌人所有减益层数 ×{n}', hitAll: '命中所有敌人',
+    vulnAmp: '本场敌方易伤受到的伤害额外 +{n}%', weakAmp: '本场敌方虚弱减少的攻击额外 +{n}%',
+    growDmg: '打出后本场这张牌伤害 +{n}', growBlk: '打出后本场这张牌格挡 +{n}', selfCostDown: '打出后本场这张牌能耗 -{n}',
+    freeNext: '接下来 {n} 张牌免费打出', playTwice: '接下来 {n} 张牌打出两次', keepBlockFull: '格挡跨回合保留',
+    makeDagger: '生成 {n} 张匕首', makeScrap: '生成 {n} 张甲片', daggerUp: '本场匕首伤害 +{n}', scrapUp: '本场甲片格挡 +{n}',
+    immune: '免疫接下来 {n} 次伤害', dmgCap1: '本回合受到的伤害降为 1', retain: '这张牌回合结束时不丢弃',
+    forge: '终末之剑伤害 +{n}（不论它在何处；没有则创造一张加入手牌）', vigor: '使下一张造成伤害的牌攻击 +{n}', parry: '终末之剑格挡 +{n}（不论它在何处）',
+    wish: '从抽牌堆中选择 {n} 张牌加入手牌', makePeek: '生成 {n} 张洞悉到抽牌堆',
+    curse: '使敌人获得 {n} 点咒言', curseStrike: '追加等同本牌伤害 ×{n} 的咒言给敌人', dmgToBlock: '获得等同本牌伤害 ×{n} 的格挡',
+    expandEvery: '每回合增益上限 +{n}', harvestEvery: '立即获得 {n} 次现有每回合增益', detonateEvery: '立即结算现有每回合增益 {n} 次后失去它们', recycle: '消耗手牌中所有非初始牌，并抽取等量的牌',
+  };
+  const COND_TMPL = {
+    curBlock: { q: '每有 {x} 点当前格挡' }, enemyDebuff: { q: '敌方每有 {x} 层减益' }, exhaustPile: { q: '消耗堆每有 {x} 张牌' },
+    handSize: { q: '手牌每有 {x} 张' }, emptyHand: { q: '手牌每空出 {x} 张' }, curGold: { q: '每持有 {x} 点金币' }, turnNum: { q: '每过 {x} 个回合' },
+    myDebuff: { q: '自身每有 {x} 层减益' }, hpLossCount: { q: '本场每失去 {x} 次生命' }, playedThisTurn: { q: '本回合每打出 {x} 张牌' },
+    daggerPlayed: { q: '本场每打出 {x} 张匕首' }, scrapPlayed: { q: '本场每打出 {x} 张甲片' }, peekPlayed: { q: '本场每打出 {x} 张洞悉' }, cardsMade: { q: '本场每生成 {x} 张牌' },
+    firstPlay: { gate: '这张牌本场首次打出时' }, hurt: { gate: '本场已受过伤时' }, noBlock: { gate: '没有格挡时' },
+    enemyVuln: { gate: '敌人处于易伤时' }, enemyWeak: { gate: '敌人处于虚弱时' }, enemyFrail: { gate: '敌人处于脆弱时' }, enemyPoison: { gate: '敌人处于中毒时' },
+    lostHpTurn: { gate: '本回合失去过生命时' }, exhaustedTurn: { gate: '本回合消耗过牌时' },
+  };
+  CG.VALUE_TMPL = VALUE_TMPL; CG.COND_TMPL = COND_TMPL;
+
   /* —— 价值原子 ——
    *  mech(u)=按数量 u 产出引擎机制字段；numeric=可被条件代价动态缩放（效果类型＝原子 id、值为可加量）。
    *  「无时点」原子在此手写；「本回合/下回合/每回合」时点原子由下方 TURN_BASES 生成器批量产出。
@@ -71,8 +107,8 @@ window.CG = window.CG || {};
     socketRand:   { name: '镶随机宝石', vpRes: 'socketRand', mech: u => ({ socketRand: u }) },            // #6 给 n 张有空位手牌镶随机宝石(本场)
     debuffMult:   { name: '敌减益翻倍', vpRes: 'debuffMult', maxCount: 2, mech: u => ({ debuffMult: u }) },// #3 敌人所有减益层数 ×(1+n)
     hitAll:       { name: '命中全体', vpRes: 'hitAll', maxCount: 1, mech: u => ({ aoe: u }) },            // #7 这张牌命中所有敌人
-    vulnAmp:      { name: '强化易伤', vpRes: 'vulnAmp', mech: u => ({ vulnAmp: u }) },                    // #13 敌易伤受伤额外 +25%×n（本场）
-    weakAmp:      { name: '强化虚弱', vpRes: 'weakAmp', maxCount: 1, mech: u => ({ weakAmp: u }) },       // #14 敌虚弱减攻额外 +15%（本场、不叠加）
+    vulnAmp:      { name: '强化易伤', vpRes: 'vulnAmp', dmul: 25, mech: u => ({ vulnAmp: u }) },           // #13 敌易伤受伤额外 +25%×n（本场）
+    weakAmp:      { name: '强化虚弱', vpRes: 'weakAmp', maxCount: 1, dmul: 15, mech: u => ({ weakAmp: u }) },// #14 敌虚弱减攻额外 +15%（本场、不叠加）
     growDmg:      { name: '本场伤害成长', vpRes: 'growDmg', mech: u => ({ growDmg: u }) },                // #10 打出后本场该牌伤害 +n
     growBlk:      { name: '本场格挡成长', vpRes: 'growBlk', mech: u => ({ growBlk: u }) },                // #11 打出后本场该牌格挡 +n
     selfCostDown: { name: '本场能耗降低', vpRes: 'selfCostDown', mech: u => ({ selfCostDown: u }) },      // #11a 打出后本场该牌能耗 −n
@@ -81,8 +117,8 @@ window.CG = window.CG || {};
     keepBlockFull:{ name: '格挡保留', vpRes: 'keepBlockFull', maxCount: 1, mech: u => ({ keepBlockFull: u }) },// #21 格挡跨回合保留(本场)
     makeDagger:   { name: '生成匕首', vpRes: 'makeDagger', mech: u => ({ makeDagger: u }) },              // #23 生成 n 张匕首
     makeScrap:    { name: '生成甲片', vpRes: 'makeScrap', mech: u => ({ makeScrap: u }) },                // #24 生成 n 张甲片
-    daggerUp:     { name: '匕首强化', vpRes: 'daggerUp', mech: u => ({ daggerUp: u }) },                  // #25 匕首伤害 +4×n（本场）
-    scrapUp:      { name: '甲片强化', vpRes: 'scrapUp', mech: u => ({ scrapUp: u }) },                    // #26 甲片格挡 +3×n（本场）
+    daggerUp:     { name: '匕首强化', vpRes: 'daggerUp', dmul: 4, mech: u => ({ daggerUp: u }) },          // #25 匕首伤害 +4×n（本场）
+    scrapUp:      { name: '甲片强化', vpRes: 'scrapUp', dmul: 3, mech: u => ({ scrapUp: u }) },            // #26 甲片格挡 +3×n（本场）
     immune:       { name: '免疫伤害', vpRes: 'immune', mech: u => ({ immune: u }) },                      // #27 免疫下 n 次伤害
     dmgCap1:      { name: '伤害降为1', vpRes: 'dmgCap1', maxCount: 1, mech: u => ({ dmgCap1: u }) },       // #28 本回合受到伤害降为 1
     // —— v3.7 ——
@@ -98,7 +134,7 @@ window.CG = window.CG || {};
     dmgToBlock:   { name: '伤害转格挡', vpRes: 'dmgToBlock', mech: u => ({ dmgToBlock: u }) },            // #51 获得＝伤害×n 的格挡
     expandEvery:  { name: '扩容', vpRes: 'expandEvery', mech: u => ({ expandEvery: u }) },                // #46 每回合增益上限 +n
     harvestEvery: { name: '收割', vpRes: 'harvestEvery', mech: u => ({ harvestEvery: u }) },              // #47 立即获得 n 次现有每回合增益
-    detonateEvery:{ name: '爆破', vpRes: 'detonateEvery', mech: u => ({ detonateEvery: u }) },            // #50 立即获得 4n 次现有每回合增益并失去
+    detonateEvery:{ name: '爆破', vpRes: 'detonateEvery', dmul: 4, mech: u => ({ detonateEvery: u }) },    // #50 立即获得 4n 次现有每回合增益并失去（显示数 ×4）
     recycle:      { name: '回收', vpRes: 'recycle', maxCount: 1, mech: u => ({ recycle: u }) },           // #48 消耗手牌中所有非初始牌，抽等量
   };
 
@@ -166,6 +202,19 @@ window.CG = window.CG || {};
   // 治疗（无时点）的召唤物变体：召唤物治疗（治骷髅、量×2）。
   V.heal_m = (V.heal || 1.5) / 2;
   VALUE_ATOMS.heal_m = { name: '召唤物治疗', vpRes: 'heal_m', color: COLOR.heal, minion: true, mech: v => ({ minionNow: { type: 'heal', value: v, minion: true } }) };
+  // v3.9：给每个价值原子绑定人类可读模板 `tmpl`（时点变体＝时点前缀+基值模板；召唤物变体加「召唤物」；非时点原子直接取 VALUE_TMPL）。
+  Object.keys(VALUE_ATOMS).forEach(id => {
+    const va = VALUE_ATOMS[id];
+    if (va.turnBase) {
+      const b = TURN_BASES[va.turnBase], prim = b.prim || 'now';
+      const base = VALUE_TMPL[va.turnBase] || (b.bname + ' {n}');
+      va.tmpl = (va.minion ? '召唤物' : '') + (va.timing === prim ? '' : TURN_PREFIX[va.timing]) + base;
+    } else if (id === 'heal_m') {
+      va.tmpl = '召唤物' + (VALUE_TMPL.heal || '治疗 {n}');
+    } else {
+      va.tmpl = VALUE_TMPL[id] || (va.name + ' {n}');
+    }
+  });
   const valColor = id => (VALUE_ATOMS[id] && VALUE_ATOMS[id].color) || COLOR[id] || '#cdd2e2';
 
   /* —— 代价原子 —— */
@@ -313,21 +362,43 @@ window.CG = window.CG || {};
     const prefix = c.timing === 'every' ? '每回合' : c.timing === 'next' ? '下回合' : '';   // 代价时点
     return prefix + (COST_REAL[c.res] ? COST_REAL[c.res].fmt : m => `${c.res} ${m}`)(n);
   };
+  // 价值句：把某价值原子在数量 n 下渲染成自然短句（含 mult 的 ×(1+n) 与 dmul 显示倍率）。
+  const valPhrase = (atomId, n) => {
+    const va = VALUE_ATOMS[atomId] || {};
+    if (atomId === 'mult') n = 1 + n;            // 翻倍：显示 ×(1+量)
+    else if (va.dmul) n = n * va.dmul;           // 显示倍率（daggerUp×4 / vulnAmp×25% / detonate×4 …）
+    const t = va.tmpl || ((va.name || atomId) + ' {n}');
+    return t.split('{n}').join(n);
+  };
+  CG.valPhrase = valPhrase;
   CG.affixValueText = function (id, level) {
     const a = A[id]; if (!a) return '';
     const v = a.value, vL = CG.lvVal(level);
-    const nm = (VALUE_ATOMS[v.atom] || {}).name || ({ mult: '翻倍', lifesteal: '吸血' }[v.atom]) || v.res;
-    if (a.condBonus) {                                  // 条件代价：倍率 = 条件VP/价值VP（先于 combo/mult/lifesteal 特例，因其作条件价值时 v.amt 为 null）
-      const cb = a.condBonus;
-      if (cb.gate) return `${nm} ${Math.floor((cb.mult || 1) * vL + 1e-9)}（${condName(a.cost.res)}时）`;   // 门：达成给定额
-      return `每有 ${cb.fx} 点${condName(a.cost.res)}，获得 ${(cb.fy || 0) * vL} 点${nm}`;        // 量：整数「每 X 点 A → Y 点 B」
+    if (a.condBonus) {                                  // 条件代价：前半句(条件) + 「，」 + 价值句
+      const cb = a.condBonus, ct = COND_TMPL[cb.qty] || {};
+      if (cb.gate) {                                     // 门：达成则给定额价值
+        const head = ct.gate || `${condName(a.cost.res)}时`;
+        return `${head}，${valPhrase(cb.atom, Math.floor((cb.mult || 1) * vL + 1e-9))}`;
+      }
+      const head = (ct.q || `每有 {x} 点${condName(a.cost.res)}`).split('{x}').join(cb.fx);   // 量：每有 X 点条件 → 价值
+      return `${head}，${valPhrase(cb.atom, (cb.fy || 0) * vL)}`;
     }
-    if (v.atom === 'combo') return '攻击命中 +' + vL + ' 次';
-    if (v.atom === 'mult') return `数值 ×${1 + vL}`;
-    if (v.atom === 'lifesteal') return '吸血 ' + (v.amt * vL) + '%';
-    return `${nm} ${v.amt * vL}`;
+    return valPhrase(v.atom, (v.amt || 0) * vL);
   };
   CG.affixDisplayName = (id, level) => CG.affixValueText(id, level);
+  // 简短形（卡名宝石 chip 用，避免长句撑破卡面）：价值原子名 + 数量；条件＝价值名+「*」。完整自然句见 affixValueText。
+  CG.affixShort = function (id, level) {
+    const a = A[id]; if (!a) return '';
+    const v = a.value, vL = CG.lvVal(level);
+    if (a.condBonus) return ((VALUE_ATOMS[a.condBonus.atom] || {}).name || a.condBonus.atom) + '*';
+    const va = VALUE_ATOMS[v.atom] || {}, nm = va.name || v.atom;
+    if (v.atom === 'mult') return `数值×${1 + (v.amt || 0) * vL}`;
+    if (v.atom === 'lifesteal') return `吸血${(v.amt || 0) * vL}%`;
+    if (v.atom === 'combo') return `连击+${(v.amt || 0) * vL}`;
+    if (v.atom === 'multi') return '多重';
+    let n = (v.amt || 0) * vL; if (va.dmul) n *= va.dmul;
+    return `${nm} ${n}`;
+  };
 
   /* === 元素 & 元素反应（保留）=== */
   CG.ELEMENT_IDS = ['fire', 'water', 'thunder', 'ice'];
