@@ -270,13 +270,24 @@ window.CG = window.CG || {};
     //   条件类代价(curBlock/emptyHand…)无真资源消耗，不在此扣（其约束体现在 playCard 求值）。
     // 代价均摊：若多颗宝石代价「种类」相同，只付其中最高的一个（同种不叠付）。
     const costMax = {};
+    // 代价时点（#2）：每回合/下回合 代价 → 调度成「自损」效果（价值仍当回合即得）。
+    const costLossEff = (res, amt) => {
+      if (res === 'hp') return { type: 'loseHp', value: amt };
+      if (res === 'gold') return { type: 'loseGold', value: amt };
+      const st = { selfVuln: 'vulnerable', selfWeak: 'weak', selfFrail: 'frail', selfPoison: 'poison' }[res];
+      return st ? { type: 'selfStatus', status: st, value: amt } : null;
+    };
     (sockets || []).forEach((g, si) => {
       if (si === 0 || g.purified) return;            // 首石免代价；净化过的宝石免代价
       (g.affixes || []).forEach(a => {
         const def = CG.AFFIXES[a.id]; if (!def || !def.cost || def.cost.cond) return;
         // v3.1：每级实际代价来自 def.costByLv（L3 是 L1 代价的高效档）；老路径兜底
         const amount = def.costByLv ? (def.costByLv[a.level] != null ? def.costByLv[a.level] : def.costByLv[1]) : (def.cost.amt || 1) * CG.lvCost(a.level);
-        costMax[def.cost.res] = Math.max(costMax[def.cost.res] || 0, amount);
+        const tm = def.cost.timing;
+        if (tm === 'every' || tm === 'next') {       // 代价时点：调度到 每回合/下回合（不进 costMax 即时付）
+          const e = costLossEff(def.cost.res, amount);
+          if (e) (tm === 'every' ? everyTurnList : nextTurnList).push(e);
+        } else costMax[def.cost.res] = Math.max(costMax[def.cost.res] || 0, amount);
       });
     });
     costD     += costMax.energy  || 0;

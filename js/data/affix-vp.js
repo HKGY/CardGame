@@ -36,7 +36,8 @@ window.CG = window.CG || {};
     if (v.res === 'lifesteal') gain = V.lifesteal * (a.lifesteal || 1) * vL;   // 吸血＝攻击全转回复：按 affix.lifesteal 比例×12VP
     // 代价 VP：真资源按代价倍率；条件类记机会预算（不随等级）
     const condCost = !!c.cond;
-    const cost = condCost ? COND_BUDGET : resVP(c.res, c.amt, cL);
+    const tmul = c.timing === 'every' ? 2 : c.timing === 'next' ? 0.5 : 1;   // 代价时点：每回合(递归)=2×、下回合(延迟)=0.5×
+    const cost = condCost ? COND_BUDGET : resVP(c.res, c.amt, cL) * tmul;
     return { id, level: L, gain: round(gain), cost: round(cost), condCost,
              rate: cost > 0 ? round(gain / cost) : null, note: CG.affixCostText(id, L) + ' → ' + CG.affixValueText(id, L) };
   };

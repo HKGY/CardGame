@@ -519,6 +519,40 @@ test('召唤物替玩家抵挡：召唤物格挡→玩家格挡→召唤物血�
   assert.strictEqual(php - g.player.hp, 2);    // 玩家只掉 2 血
 });
 
+// ===== 代价时点（#2）=====
+test('代价时点：每回合(递归·量减半) / 下回合(延迟·量加倍) / 本回合；能量·弃牌不时点化', () => {
+  assert.strictEqual(CG.affixCostText('hp_damage', 1), '失 3 血');
+  assert.strictEqual(CG.affixCostText('hpV_damage', 1), '每回合失 2 血');   // 递归：代价VP×2 → 量减半
+  assert.strictEqual(CG.affixCostText('hpN_damage', 1), '下回合失 6 血');   // 延迟：代价VP×0.5 → 量加倍
+  assert.ok(!CG.AFFIXES['energyV_damage'] && !CG.AFFIXES['discardV_damage'] && !CG.AFFIXES['loseStrV_damage']);   // 能量/弃牌/失力量 不时点化
+  assert.ok(CG.AFFIXES['selfPoisonV_block'] && CG.AFFIXES['goldN_heal'] && CG.AFFIXES['selfVulnV_damage']);       // 生命/金币/自减益 可时点化
+});
+
+test('代价时点·每回合：价值当回合即得、代价调度到 _everyTurn 反复付', () => {
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'hpV_damage', level: 1 }]);   // 首石strike(免) + 每回合失血→伤害
+  const hp0 = g.player.hp, ehp = g.enemy.hp;
+  g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(ehp - g.enemy.hp, 12);          // 价值即得：strike 6 + 该词条伤害 6
+  assert.strictEqual(hp0 - g.player.hp, 0);          // 代价当回合不付
+  assert.strictEqual(g._everyTurn.length, 1);        // 调度到 _everyTurn
+  g._startPlayerTurn(); assert.strictEqual(hp0 - g.player.hp, 2);   // 下回合开始：每回合失 2 血
+  g._startPlayerTurn(); assert.strictEqual(hp0 - g.player.hp, 4);   // 再下回合：再失 2 血（递归）
+});
+
+test('代价时点·下回合：延迟一次付（自中毒代价 → 下回合上自身中毒）', () => {
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfPoisonN_damage', level: 1 }]);   // 首石 + 下回合自中毒→伤害
+  g.hand = [c]; g.playCard(c.uid);
+  assert.ok(!g.player.statuses.poison);              // 当回合不付代价
+  assert.strictEqual(g._nextTurn.length, 1);
+  g._startPlayerTurn(); assert.ok(g.player.statuses.poison > 0);   // 下回合开始：上自身中毒
+  const p = g.player.statuses.poison;
+  g._startPlayerTurn(); assert.ok((g.player.statuses.poison || 0) <= p);   // 仅一次（_nextTurn 结算后清空，不再叠加）
+});
+
 // ===== 完整性 =====
 test('每个包的价值原子都在 VALUE_ATOMS / 组合存在于 AFFIXES', () => {
   for (const pid of CG.PACK_IDS) {

@@ -124,13 +124,13 @@ window.CG = window.CG || {};
   /* —— 代价原子 —— */
   const COST_REAL = {            // 真资源：按 amount 扣、首石免、×L
     energy:  { name: '能量', fmt: n => `+${n} 费` },
-    hp:      { name: '生命', fmt: n => `失 ${n} 血` },
-    gold:    { name: '金币', fmt: n => `失 ${n} 金` },
+    hp:      { name: '生命', fmt: n => `失 ${n} 血`, time: true },
+    gold:    { name: '金币', fmt: n => `失 ${n} 金`, time: true },
     discard: { name: '弃牌', fmt: n => `弃 ${n} 张` },
-    selfVuln:  { name: '自易伤', fmt: n => `自易伤 ${n}`, status: 'vulnerable' },
-    selfWeak:  { name: '自虚弱', fmt: n => `自虚弱 ${n}`, status: 'weak' },
-    selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail' },
-    selfPoison:{ name: '自中毒', fmt: n => `自中毒 ${n}`, status: 'poison' },   // 第 4 个自身减益代价（自残 DoT）
+    selfVuln:  { name: '自易伤', fmt: n => `自易伤 ${n}`, status: 'vulnerable', time: true },
+    selfWeak:  { name: '自虚弱', fmt: n => `自虚弱 ${n}`, status: 'weak', time: true },
+    selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail', time: true },
+    selfPoison:{ name: '自中毒', fmt: n => `自中毒 ${n}`, status: 'poison', time: true },   // 第 4 个自身减益代价（自残 DoT）
     loseStr:   { name: '失力量', fmt: n => `失 ${n} 力量` },
     loseDex:   { name: '失敏捷', fmt: n => `失 ${n} 敏捷` },
   };
@@ -180,10 +180,12 @@ window.CG = window.CG || {};
     return [fy, fx];
   }
   const numericVals = Object.keys(VALUE_ATOMS).filter(v => VALUE_ATOMS[v].numeric);
-  function mkReal(costId, valId) {
+  function mkReal(costId, valId, costT) {
+    costT = costT || 'now';
     const va = VALUE_ATOMS[valId];
     const valVP = V[va.vpRes] || 6, valMax = maxOf(va.maxCount);
-    const costVP = V[costId] || 6, costMax = maxOf(COST_REAL[costId].maxCount);
+    // 代价时点：每回合＝递归负担(代价VP×2→每回合量减半)、下回合＝延迟(×0.5→量加倍)。价值不变(当回合即得)。
+    const costVP = (V[costId] || 6) * (costT === 'now' ? 1 : TURN_MUL[costT]), costMax = maxOf(COST_REAL[costId].maxCount);
     const valAt  = budget => Math.min(valMax, Math.max(1, Math.floor(budget / valVP + 1e-9)));
     const costAt = vAmt   => Math.max(1, Math.ceil(vAmt * valVP / costVP - 1e-9));
     const val1 = valAt(6), cost1 = costAt(val1);
@@ -192,14 +194,14 @@ window.CG = window.CG || {};
     const hi = val2raw > val1, val2 = hi ? val2raw : val1, cost2 = costAt(val2);
     const levels = [1];
     if (hi) { if (cost2 <= costMax) levels.push(2); levels.push(3); }
-    const u = val1;
+    const u = val1, suf = costT === 'every' ? 'V' : costT === 'next' ? 'N' : '';
     const def = {
-      cost: { res: costId, amt: cost1 }, costByLv: { 1: cost1, 2: cost2, 3: cost1 },
+      cost: { res: costId, amt: cost1, timing: costT === 'now' ? undefined : costT }, costByLv: { 1: cost1, 2: cost2, 3: cost1 },
       value: { res: va.vpRes, sub: valId, atom: valId, amt: u },
       color: valColor(valId), score: 4, levels,
     };
     Object.assign(def, va.mech(u));   // 按 LV1 量烘焙机制（含 everyTurn/nextTurn 调度数组）
-    A[costId + '_' + valId] = def;
+    A[costId + suf + '_' + valId] = def;
   }
   function mkCond(costId, valId) {
     const va = VALUE_ATOMS[valId], cc = COST_COND[costId], gate = !!cc.gate;
@@ -219,7 +221,10 @@ window.CG = window.CG || {};
     };
   }
   const allVals = Object.keys(VALUE_ATOMS);
-  Object.keys(COST_REAL).forEach(cid => allVals.forEach(vid => mkReal(cid, vid)));
+  Object.keys(COST_REAL).forEach(cid => allVals.forEach(vid => {
+    mkReal(cid, vid);                                                       // 本回合（即时付）
+    if (COST_REAL[cid].time) { mkReal(cid, vid, 'next'); mkReal(cid, vid, 'every'); }   // 时点代价：下回合付 / 每回合付（递归负担）
+  }));
   // 量型条件 × 数值价值（48 时点变体 + 治疗）；门型条件(true/false) × 全部价值（达成则按 1 能量预算给该价值）
   Object.keys(COST_COND).forEach(cid => (COST_COND[cid].gate ? allVals : numericVals).forEach(vid => mkCond(cid, vid)));
 
@@ -243,7 +248,8 @@ window.CG = window.CG || {};
     const c = a.cost;
     if (c.cond) return condName(c.res);
     const n = a.costByLv ? (a.costByLv[level] != null ? a.costByLv[level] : a.costByLv[1]) : (c.amt || 1) * CG.lvCost(level);
-    return (COST_REAL[c.res] ? COST_REAL[c.res].fmt : m => `${c.res} ${m}`)(n);
+    const prefix = c.timing === 'every' ? '每回合' : c.timing === 'next' ? '下回合' : '';   // 代价时点
+    return prefix + (COST_REAL[c.res] ? COST_REAL[c.res].fmt : m => `${c.res} ${m}`)(n);
   };
   CG.affixValueText = function (id, level) {
     const a = A[id]; if (!a) return '';
@@ -306,7 +312,10 @@ window.CG = window.CG || {};
   Object.keys(CG.PACKS).forEach(k => {
     const p = CG.PACKS[k];
     p.affixes = [];
-    COST_ALL.forEach(cid => p.values.forEach(vid => { if (A[cid + '_' + vid]) p.affixes.push(cid + '_' + vid); }));
+    COST_ALL.forEach(cid => p.values.forEach(vid => {
+      if (A[cid + '_' + vid]) p.affixes.push(cid + '_' + vid);
+      if (COST_REAL[cid] && COST_REAL[cid].time) ['V', 'N'].forEach(suf => { if (A[cid + suf + '_' + vid]) p.affixes.push(cid + suf + '_' + vid); });   // 代价时点变体（每回合 V / 下回合 N）
+    }));
     p.buffs = p.affixes.slice(); p.debuffs = [];
   });
   CG.PACK_IDS = Object.keys(CG.PACKS);
