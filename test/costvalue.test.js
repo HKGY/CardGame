@@ -746,7 +746,7 @@ test('#43/#49 量型条件：打出匕首/甲片/洞悉次数、生成卡牌数'
 
 const KINDS = ['energy_produce_block', 'energy_produce_draw', 'energy_produce_energy', 'energy_damage_every'];   // 4 种不同的每回合增益
 const playEvery = (g, id) => { g.player.energy = 30; g.hand = [spell([{ id, level: 1 }])]; g.playCard(g.hand[0].uid); };
-const everyKinds = g => g._everyTurn.filter(e => !g._isEveryCost(e)).length;
+const everyKinds = g => g._everyTurn.length;   // 上限按「全部每回合效果（增益+代价）」的条数算
 
 test('#45 每回合增益上限(默认3)：打第4种(不同种)时最旧立即结算两次并失去 / #46 扩容', () => {
   let g = bt(); g.player.block = 0;
@@ -774,6 +774,15 @@ test('多个「每回合X」合并为一条（收益与代价都合并）', () =
   for (let i = 0; i < 2; i++) { const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'hpV_damage', level: 1 }]); g.hand = [c]; g.player.energy = 30; g.playCard(c.uid); }
   const losses = g._everyTurn.filter(e => e.type === 'loseHp');
   assert.strictEqual(losses.length, 1); assert.strictEqual(losses[0].value, 4);   // 2+2 合并
+});
+
+test('每回合上限也约束「减益/代价类」（修复其一直累加）', () => {
+  const g = bt(); g.enemy.hp = 999; g.enemy.maxHp = 999;
+  // 5 种不同的「每回合代价」（失血/失金/自易伤/自虚弱/自脆弱），用 block 价值避免误杀敌人
+  ['hpV_block', 'goldV_block', 'selfVulnV_block', 'selfWeakV_block', 'selfFrailV_block'].forEach(id => {
+    g.player.energy = 30; const c = spell([{ id: CG.GUARD, level: 1 }], [{ id, level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  });
+  assert.strictEqual(g._everyTurn.length, 3);   // 代价类也只保留最新 3 种（不再一直累加）
 });
 
 test('#47 收割(n次) / #50 爆破(4n次并失去)', () => {

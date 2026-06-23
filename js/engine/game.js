@@ -816,16 +816,13 @@ window.CG = window.CG || {};
       this._everyTurn = this._everyTurn || [];
       const k = this._everyKey(eff);
       const ex = this._everyTurn.find(e => this._everyKey(e) === k);
-      if (ex) { ex.value = (ex.value || 0) + (eff.value || 0); return; }   // 合并同种「每回合」（不占新名额）
+      if (ex) { ex.value = (ex.value || 0) + (eff.value || 0); return; }   // 合并同种「每回合」（不占新名额，代价与收益都合并）
       const ne = Object.assign({}, eff);                                    // 存副本，避免别名被外部修改
-      if (this._isEveryCost(ne)) { this._everyTurn.push(ne); return; }      // 代价类不受上限
       const cap = this._everyCap || 3;
-      while (this._everyTurn.filter(e => !this._isEveryCost(e)).length >= cap) {
-        const i = this._everyTurn.findIndex(e => !this._isEveryCost(e));
-        if (i < 0) break;
-        const old = this._everyTurn.splice(i, 1)[0];
-        for (let j = 0; j < 2; j++) CG.Effects.apply(this, old, this._everySrc(old), this.currentTarget());   // 最旧增益立即结算两次（本回合收益）
-        this.addLog('每回合增益已满：最旧的一种立即结算两次并失去。');
+      while (this._everyTurn.length >= cap) {   // 每回合效果（增益+代价）合计最多 cap 种；超出→最旧的一种立即结算两次后失去
+        const old = this._everyTurn.shift();
+        if (!(old.minion && !this.skeleton)) for (let j = 0; j < 2; j++) CG.Effects.apply(this, old, this._everySrc(old), this.currentTarget());
+        this.addLog('每回合效果已满：最旧的一种立即结算两次并失去。');
       }
       this._everyTurn.push(ne);
     }
