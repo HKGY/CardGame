@@ -36,15 +36,23 @@ window.CG = window.CG || {};
       <path d="M24 4 l2.4 6 -4.8 0z" fill="#f0c040"/><circle cx="24" cy="4" r="2" fill="#f0c040"/>
     </svg>`,
 
-    // 召唤物·骷髅（类玩家、体型稍小、骨色）
-    skeleton: `<svg viewBox="0 0 48 48" class="hero-token skeleton-token">
-      <ellipse cx="24" cy="43" rx="10" ry="3" fill="#0005"/>
-      <path d="M15 41 q-1 -15 9 -15 q10 0 9 15 q-9 4 -18 0z" fill="#e9e7d6" stroke="#bdbba8" stroke-width="1.1"/>
-      <rect x="18.5" y="30" width="11" height="1.8" rx="0.9" fill="#c3c1ad"/><rect x="18.5" y="33.5" width="11" height="1.8" rx="0.9" fill="#c3c1ad"/><rect x="18.5" y="37" width="11" height="1.8" rx="0.9" fill="#c3c1ad"/>
-      <path d="M9 26 q-2 6 0 11 q4 -2 4 -5.5 q0 -4 -4 -5.5z" fill="#e9e7d6" stroke="#bdbba8" stroke-width="1.1"/>
-      <circle cx="24" cy="18" r="8.5" fill="#f4f2e4" stroke="#c8c6b4" stroke-width="1.3"/>
-      <circle cx="20.6" cy="18" r="2.4" fill="#262620"/><circle cx="27.4" cy="18" r="2.4" fill="#262620"/>
-      <path d="M22 23 l1 2 1 -2 1 2 1 -2" stroke="#8a887a" stroke-width="1" fill="none"/>
+    // 召唤物·骷髅（与玩家角色同样式的全身立绘 .char、体型稍小、骨色）
+    skeleton: `<svg viewBox="0 0 120 140" class="char">
+      <ellipse cx="60" cy="133" rx="28" ry="6.5" fill="#0003"/>
+      <rect x="51" y="96" width="7" height="37" rx="3.5" fill="#e6e4d3" stroke="#bdbba8" stroke-width="1.4"/>
+      <rect x="62" y="96" width="7" height="37" rx="3.5" fill="#dcdac9" stroke="#bdbba8" stroke-width="1.4"/>
+      <rect x="32" y="56" width="6.5" height="42" rx="3.2" fill="#e6e4d3" stroke="#bdbba8" stroke-width="1.3" transform="rotate(7 35 77)"/>
+      <rect x="81.5" y="56" width="6.5" height="42" rx="3.2" fill="#dcdac9" stroke="#bdbba8" stroke-width="1.3" transform="rotate(-7 85 77)"/>
+      <rect x="57" y="54" width="6" height="46" rx="3" fill="#e0decd"/>
+      <path d="M46 94 q14 7 28 0 l-3 9 q-11 4 -22 0z" fill="#e6e4d3" stroke="#bdbba8" stroke-width="1.3"/>
+      <g fill="none" stroke="#efedde" stroke-width="3.6" stroke-linecap="round">
+        <path d="M49 58 q11 6 22 0"/><path d="M48 66 q12 6 24 0"/><path d="M48 74 q12 6 24 0"/><path d="M49 82 q11 6 22 0"/>
+      </g>
+      <ellipse cx="60" cy="32" rx="16" ry="17" fill="#f5f3e6" stroke="#c8c6b4" stroke-width="2"/>
+      <path d="M53 47 h14 v5 q-7 3.5 -14 0z" fill="#f5f3e6"/>
+      <ellipse cx="53.5" cy="31" rx="4.6" ry="5.6" fill="#28281f"/><ellipse cx="66.5" cy="31" rx="4.6" ry="5.6" fill="#28281f"/>
+      <path d="M57.5 38 l2.5 4.5 2.5 -4.5z" fill="#28281f"/>
+      <path d="M54 49 l1.8 3.4 1.8 -3.4 1.8 3.4 1.8 -3.4 1.8 3.4 1.8 -3.4" stroke="#9a9788" stroke-width="1.2" fill="none"/>
     </svg>`,
 
     // 颚虫

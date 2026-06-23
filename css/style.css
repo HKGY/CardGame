@@ -321,6 +321,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .combatant { flex: 0 0 33%; display: flex; flex-direction: column; align-items: center; gap: 6px; }   /* 左 1/3 我方 */
 .combatant .info { width: 100%; max-width: 200px; }
 .combatant .stage { flex: none; width: 330px; height: 350px; }
+/* 召唤物·骷髅：画在玩家右侧、体型稍小，其余与玩家一致 */
+.side-skeleton { flex: 0 0 22%; }
+.side-skeleton.hidden { display: none; }
+.side-skeleton .info { max-width: 150px; }
+.side-skeleton .stage { width: 230px; height: 250px; }
+.side-skeleton .sprite { height: 244px; max-width: 230px; }
 
 /* 多敌人：敌人组横排，按强度调体积（普通小 / 精英中 / 首领大），高亮当前目标 */
 .enemy-group { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 12px; flex-wrap: wrap; }   /* 右 2/3 敌方、居中 */

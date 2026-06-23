@@ -598,19 +598,15 @@ window.CG = window.CG || {};
   }
 
   // ---------- 召唤包：己方召唤物栏（动态创建，只读展示）----------
-  function renderAllies(game) {   // 召唤物：单骷髅单位（替你挡伤、靠召唤物词条出手）
-    let bar = $('allies-bar');
-    if (!bar) { bar = document.createElement('div'); bar.id = 'allies-bar'; bar.className = 'allies-bar hidden'; const sb = $('screen-battle'); if (sb) sb.appendChild(bar); }
+  // 召唤物：单骷髅，作为「类玩家单位」画在玩家右侧、体型稍小、其余渲染与玩家一致（立绘 + 血条信息框）
+  function renderAllies(game) {
+    const wrap = $('skeleton-combatant'); if (!wrap) return;
     const sk = game.skeleton;
-    if (!sk || sk.hp <= 0) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
-    const st = sk.statuses || {};
-    const badges = Object.keys(st).filter(k => st[k]).map(k => { const m = STATUS_META[k]; return `<span class="badge ${m ? m.cls : ''}">${m ? m.label : k} ${st[k]}</span>`; }).join('');
-    bar.innerHTML =
-      `<div class="ally skeleton" title="召唤物（骷髅）：替你抵挡伤害、靠召唤物词条出手">
-         <div class="ally-sprite">${CG.Sprites.get('skeleton')}</div>
-         <div class="ally-stat"><b>${sk.hp}</b>/${sk.maxHp}${sk.block ? ` <span class="badge badge-block">🛡 ${sk.block}</span>` : ''} ${badges}</div>
-       </div>`;
-    bar.classList.remove('hidden');
+    if (!sk || sk.hp <= 0) { wrap.classList.add('hidden'); return; }
+    const spr = $('skeleton-sprite');
+    if (spr && !spr.dataset.built) { spr.innerHTML = CG.Sprites.get('skeleton'); spr.dataset.built = '1'; }   // 立绘 DOM 持久（同敌人，避免清掉受击动画）
+    renderUnit('skeleton', sk, '召唤物', '', '');   // 与玩家同款：名字 + 血条 + 格挡/状态徽标
+    wrap.classList.remove('hidden');
   }
 
   // ---------- 战斗内浮层：做菜选料（craft）/ 消耗包选牌（pick：燃烧 / 重生）----------
