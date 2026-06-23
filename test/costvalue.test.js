@@ -703,6 +703,84 @@ test('#37 许愿：从抽牌堆选择一张加入手牌（pick）', () => {
   assert.ok(g.hand.some(c => c.uid === top.uid) && !g.drawPile.some(c => c.uid === top.uid));
 });
 
+// ===== v3.8（38-51）=====
+const EB = 'energy_produce_block';   // 每回合格挡 buff 分子（produce_block 值=2）
+
+test('#38/#39 洞悉牌(0费抽2消耗) + 生成洞悉到抽牌堆', () => {
+  assert.ok(CG.BASE_CARDS.peek && CG.BASE_CARDS.peek.cost === 0);
+  assert.deepStrictEqual(CG.cardStats(CG.makeFoodCard('peek')).effects.map(e => e.type + e.value).join(','), 'draw2');
+  const g = bt(); pg(g, [[{ id: 'energy_makePeek', level: 1 }]]);
+  assert.strictEqual(g.drawPile.filter(c => c.base === 'peek').length, 2);   // 3VP→val2
+});
+
+test('#40 虚无代价：回合末仍在手则消耗', () => {
+  const eth = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'ethereal_damage', level: 1 }]);
+  assert.strictEqual(CG.cardStats(eth).ethereal, true);
+  const g = bt(); g.hand = [eth]; g.endTurn();
+  assert.ok(!g.hand.some(c => c.uid === eth.uid) && g.exhaustPile.some(c => c.uid === eth.uid));
+});
+
+test('#41 咒言：层数 > 敌生命 → 敌回合末死亡', () => {
+  assert.strictEqual(CG.affixValueText('energy_curse', 1), '咒言 10');   // 0.6VP→10
+  const g = bt(); g.enemy.hp = 8; pg(g, [[{ id: 'energy_curse', level: 1 }]]);
+  assert.strictEqual(g.enemy.statuses.curse, 10);
+  g.endTurn(); g.runEnemyTurn(); assert.ok(!g.enemy.alive);   // 咒言10 > 8血 → 回合末死
+});
+
+test('#42 召唤物血量代价 / #44 追加咒言 / #51 伤害转格挡', () => {
+  let g = bt(); g.skeleton = { hp: 6, maxHp: 6, block: 0, statuses: {} };
+  pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'minionHp_damage', level: 1 }]]);
+  assert.strictEqual(g.skeleton.hp, 2);   // 消耗 4 召唤物血
+  g = bt(); pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_curseStrike', level: 1 }]]);
+  assert.strictEqual(g.enemy.statuses.curse, 6);   // 追加＝伤害6 的咒言
+  g = bt(); pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_dmgToBlock', level: 1 }]]);
+  assert.strictEqual(g.player.block, 6);   // 获得＝伤害6 的格挡
+});
+
+test('#43/#49 量型条件：打出匕首/甲片/洞悉次数、生成卡牌数', () => {
+  assert.ok(CG.AFFIXES['daggerPlayed_damage'] && CG.AFFIXES['scrapPlayed_block'] && CG.AFFIXES['peekPlayed_draw'] && CG.AFFIXES['cardsMade_damage']);
+  let g = bt(); g.player.energy = 30; const d = CG.makeFoodCard('dagger'); g.hand = [d]; g.playCard(d.uid);
+  assert.strictEqual(g._basePlays.dagger, 1);
+  g = bt(); pg(g, [[{ id: 'energy_makePeek', level: 1 }]]); assert.strictEqual(g._cardsMade, 2);   // 生成 2 张洞悉
+});
+
+test('#45 每回合增益上限(默认3)：打第4个时最旧立即结算两次并失去 / #46 扩容', () => {
+  let g = bt(); g.player.block = 0;
+  for (let i = 0; i < 3; i++) { g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid); }
+  assert.strictEqual(g._everyTurn.filter(e => !g._isEveryCost(e)).length, 3);
+  const before = g.player.block;
+  g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid);   // 第 4 个
+  assert.strictEqual(g._everyTurn.filter(e => !g._isEveryCost(e)).length, 3);   // 仍 3 种
+  assert.strictEqual(g.player.block - before, 4);   // 最旧(每回合格挡2)结算 2 次 = +4
+  // 扩容 +1 → cap 4
+  g = bt(); g.player.energy = 30; g.hand = [spell([{ id: 'energy_expandEvery', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g._everyCap, 4);
+  for (let i = 0; i < 4; i++) { g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid); }
+  assert.strictEqual(g._everyTurn.filter(e => !g._isEveryCost(e)).length, 4);   // 4 种都在
+});
+
+test('#47 收割(n次) / #50 爆破(4n次并失去)', () => {
+  let g = bt(); g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid);
+  let b = g.player.block; g.player.energy = 30; g.hand = [spell([{ id: 'energy_harvestEvery', level: 2 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.player.block - b, 4);   // 收割 2 次 × 每回合格挡2
+  g = bt(); g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid);
+  b = g.player.block; g.player.energy = 30; g.hand = [spell([{ id: 'energy_detonateEvery', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.player.block - b, 8);   // 爆破 4 次 × 2
+  assert.strictEqual(g._everyTurn.filter(e => !g._isEveryCost(e)).length, 0);   // 增益失去
+});
+
+test('#48 回收：消耗手牌中所有非初始牌、抽等量', () => {
+  const g = bt();
+  const ini = spell([{ id: CG.STRIKE, level: 1 }]); ini._initial = true;
+  const made = CG.makeFoodCard('dagger');   // 非初始（生成牌）
+  g.drawPile.push(spell([{ id: CG.STRIKE, level: 1 }])); g.drawPile.forEach(c => c._initial = true);
+  const rc = spell([{ id: 'energy_recycle', level: 1 }]); rc._initial = true;
+  g.hand = [ini, made, rc]; g.player.energy = 30; g.playCard(rc.uid);
+  assert.ok(g.exhaustPile.some(c => c.base === 'dagger'));   // 非初始牌被消耗
+  assert.ok(g.hand.some(c => c.uid === ini.uid));            // 初始牌保留
+  assert.ok(!g.hand.some(c => c.base === 'dagger'));          // 生成牌已离手
+});
+
 // ===== 完整性 =====
 test('每个包的价值原子都在 VALUE_ATOMS / 组合存在于 AFFIXES', () => {
   for (const pid of CG.PACK_IDS) {

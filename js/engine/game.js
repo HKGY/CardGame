@@ -111,7 +111,7 @@ window.CG = window.CG || {};
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0;   // v3.6/3.7 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {};   // v3.6/3.7/3.8 新批战斗态
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
@@ -121,7 +121,7 @@ window.CG = window.CG || {};
       this._ampDebuff = 0; this._ampBuff = 0;    // 放大：本回合 倍损/倍益（applyStatus 翻倍）
       this._rewindSnap = null;                   // 律动·回溯：待恢复的战斗快照
       this.nextEnergyPenalty = 0; this.nextCardDmgMult = 1; this._tempStrength = 0; this._tempDex = 0;
-      this.drawPile = shuffle(this._deck.map(cloneCard));
+      this.drawPile = shuffle(this._deck.map(cloneCard)); this.drawPile.forEach(c => c._initial = true);   // 标记初始牌（#48 回收据此区分生成牌）
       this.hand = []; this.discardPile = []; this.exhaustPile = [];
       this.turn = 0; this.phase = 'player';
       this.addLog('重新开始了战斗。');
@@ -155,7 +155,7 @@ window.CG = window.CG || {};
       this._depth = 0;                         // 矿工包：本场挖矿深度
       this._heat = 0;                          // 锻造包：本场热度
       this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0;   // v3.6/3.7 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {};   // v3.6/3.7/3.8 新批战斗态
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
@@ -176,7 +176,7 @@ window.CG = window.CG || {};
       this.target = 0;
       this.enemy = this.enemies[0];            // this.enemy 始终指向「当前目标」，兼容遗物/塔罗
       this._computeCardMult();                 // 达摩克利斯
-      this.drawPile = shuffle(deck.map(cloneCard));  // 克隆副本：洗牌不影响原牌组
+      this.drawPile = shuffle(deck.map(cloneCard)); this.drawPile.forEach(c => c._initial = true);  // 克隆副本：洗牌不影响原牌组；标记初始牌(#48)
       this.drawPile.sort((a, b) => (CG.cardStats(a).innate ? 1 : 0) - (CG.cardStats(b).innate ? 1 : 0));   // 律动·固有：带固有的牌排到末尾＝开局首抽
       this.hand = [];
       this.discardPile = [];
@@ -265,7 +265,7 @@ window.CG = window.CG || {};
       }
       // === 留置包 ===：保留(retain)的牌不进弃牌堆，留在手里跨回合（沉重 heavyhold 也算 retain）。
       const kept = [];
-      for (const c of this.hand) { if (CG.cardStats(c).retain) kept.push(c); else this.discardPile.push(c); }
+      for (const c of this.hand) { const cs = CG.cardStats(c); if (cs.ethereal) this._exhaustCard(c); else if (cs.retain) kept.push(c); else this.discardPile.push(c); }   // #40 虚无：回合末仍在手则消耗；否则保留/弃牌
       this.hand = kept;
       this._tickStatuses(this.player);
       spoiled.forEach(kind => {
@@ -303,6 +303,10 @@ window.CG = window.CG || {};
           });
         }
         this._tickStatuses(e);
+        if (e.alive && e.hp > 0 && (e.statuses.curse || 0) > e.hp) {   // #41 咒言：回合结束时层数 > 生命 → 立刻死亡
+          const lost = e.hp; e.hp = 0; this.addLog(`${e.name} 被咒言吞噬！`);
+          this._fire('damage', { side: 'enemy', ei: this._idxOf(e), hpLoss: lost, blocked: 0 });
+        }
         this._checkEnd();
         if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
       }
@@ -363,6 +367,10 @@ window.CG = window.CG || {};
             case 'myDebuff':    return ['vulnerable', 'weak', 'frail'].reduce((s, k) => s + (this.player.statuses[k] || 0), 0);   // 自身减益体系：回收自己背的减益
             case 'hpLossCount': return this._hpLossCount || 0;   // #18 本场失去生命次数
             case 'playedThisTurn': return this._playedThisTurn || 0;   // #34 本回合已打出牌数
+            case 'daggerPlayed': return (this._basePlays && this._basePlays.dagger) || 0;   // #43 本场打出匕首/甲片/洞悉 次数
+            case 'scrapPlayed':  return (this._basePlays && this._basePlays.scrap) || 0;
+            case 'peekPlayed':   return (this._basePlays && this._basePlays.peek) || 0;
+            case 'cardsMade':    return this._cardsMade || 0;          // #49 本场生成卡牌数
             default:            return 0;
           }
         };
@@ -388,7 +396,7 @@ window.CG = window.CG || {};
           if (amount <= 0) return;
           const ve = CG.valueEffects(cb.atom, amount, cb.level);   // 喂给该价值原子的 mech → 本回合/下回合/每回合 + 卡级修饰
           if (ve.now.length)  s = Object.assign({}, s, { effects: s.effects.concat(ve.now) });
-          ve.every.forEach(e => (this._everyTurn = this._everyTurn || []).push(e));
+          ve.every.forEach(e => this._addEveryTurn(e));   // 经上限约束
           ve.next.forEach(e => (this._nextTurn = this._nextTurn || []).push(e));
           if (ve.potent)    s = Object.assign({}, s, { potent: (s.potent || 0) + ve.potent });
           if (ve.lifesteal) s = Object.assign({}, s, { lifesteal: (s.lifesteal || 0) + ve.lifesteal });
@@ -548,6 +556,8 @@ window.CG = window.CG || {};
       }
       // 吸血：按对主目标造成的伤害回血（含连击多段）
       if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal / 100)); }   // 吸血以 1% 计
+      if (s.curseStrike > 0 && target.hp > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.applyStatus(target, 'curse', dealt * s.curseStrike); }   // #44 追加＝伤害×n 的咒言
+      if (s.dmgToBlock > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.gainBlock(this.player, dealt * s.dmgToBlock); }   // #51 获得＝伤害×n 的格挡
       // 元素结算（新模型：敌人至多 1 种 1 层）：有反应→消耗敌方元素并触发一次；附两层(elemLv≥2)则反应后再附 1 层新的；无反应→取代为本元素 1 层。
       if (elem && elemLv > 0) {
         if (reaction) {
@@ -564,6 +574,7 @@ window.CG = window.CG || {};
       // 回响：打出后使本回合接下来若干张牌免费；连击：本回合打出牌计数 +1
       if (s.freeNext) this.freeCards = (this.freeCards || 0) + s.freeNext;
       this._playedThisTurn = (this._playedThisTurn || 0) + 1;
+      this._basePlays = this._basePlays || {}; this._basePlays[card.base] = (this._basePlays[card.base] || 0) + 1;   // #43 按基底计本场打出次数（匕首/甲片/洞悉）
 
       // === 强化包 / v3.6 本牌成长 ===（成长挂在被打出的 card 实例上＝本场永久）
       if (s.temper > 0) card.growth = (card.growth || 0) + s.temper;     // 锤炼：本牌数值永久 +L
@@ -795,8 +806,28 @@ window.CG = window.CG || {};
     _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数
     _refreshWeapon(base, bonus) { [...this.hand, ...this.drawPile, ...this.discardPile, ...this.exhaustPile].forEach(c => { if (c.base === base) c._bonus = bonus; }); }   // 兵械：强化时刷新所有该类临时牌的本场加成
     _refreshEndsword() { [...this.hand, ...this.drawPile, ...this.discardPile, ...this.exhaustPile].forEach(c => { if (c.base === 'endsword') { c._bonus = this._endswordDmg || 0; c._blk = this._endswordBlk || 0; } }); }   // 终末之剑：刷新所有处的伤害(锻造)/格挡(招架)加成
+    // #45 每回合增益上限：增益类每回合效果最多 _everyCap 种；超出时把最旧的一种立即结算两次(本回合)并移除。代价类(失血等)不计入、不淘汰。
+    _isEveryCost(eff) { return ['loseHp', 'loseGold', 'selfStatus', 'losePower', 'clutter', 'loseMinionHp'].includes(eff.type); }
+    _everySrc(eff) { return (eff.minion && this.skeleton) ? this.skeleton : this.player; }
+    _addEveryTurn(eff) {
+      this._everyTurn = this._everyTurn || [];
+      if (this._isEveryCost(eff)) { this._everyTurn.push(eff); return; }   // 代价类不受上限
+      const cap = this._everyCap || 3;
+      while (this._everyTurn.filter(e => !this._isEveryCost(e)).length >= cap) {
+        const i = this._everyTurn.findIndex(e => !this._isEveryCost(e));
+        if (i < 0) break;
+        const old = this._everyTurn.splice(i, 1)[0];
+        for (let k = 0; k < 2; k++) CG.Effects.apply(this, old, this._everySrc(old), this.currentTarget());   // 最旧增益立即结算两次（本回合收益）
+        this.addLog('每回合增益已满：最旧的一种立即结算两次并失去。');
+      }
+      this._everyTurn.push(eff);
+    }
+    _resolveEveryBuffs(times, remove) {   // 收割(#47)/爆破(#50)：现有「增益类」每回合效果立即结算 times 次；remove=true 随后失去
+      (this._everyTurn || []).filter(e => !this._isEveryCost(e)).forEach(e => { for (let k = 0; k < times; k++) CG.Effects.apply(this, e, this._everySrc(e), this.currentTarget()); });
+      if (remove) this._everyTurn = (this._everyTurn || []).filter(e => this._isEveryCost(e));
+    }
     _addToHand(card) { if (this.hand.length < HAND_LIMIT) this.hand.push(card); else this.discardPile.push(card); }   // 术士包等：造牌进手（满则进弃牌堆）
-    _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和
+    _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'curse'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和（含咒言）
     // 律动·回溯：拍下/恢复一份「完整战斗快照」（双方生命/格挡/电力/状态，元素光环亦在 statuses 内）
     _snapshot() {
       return {

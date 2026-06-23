@@ -98,7 +98,7 @@ window.CG = window.CG || {};
     give(game, eff)     { if (game.giveFoodCard) game.giveFoodCard(eff.what, eff.value); },   // 厨艺：打出后获得食材卡
     freeNext(game, eff) { game.freeCards = (game.freeCards || 0) + eff.value; },              // 回响：接下来若干张牌免费
     // —— 时点修饰器（本回合/下回合/每回合）——
-    scheduleEvery(game, eff) { (game._everyTurn = game._everyTurn || []).push(eff.eff); },     // 每回合：回合开始重复结算该效果
+    scheduleEvery(game, eff) { game._addEveryTurn(eff.eff); },     // 每回合：经 _addEveryTurn（增益受「最多 N 种」上限约束）
     scheduleNext(game, eff)  { (game._nextTurn  = game._nextTurn  || []).push(eff.eff); },     // 下回合：下个回合开始结算一次
     exhaustHand(game)   { if (game.exhaustAllHand) game.exhaustAllHand(); },                  // 爆燃：消耗其余手牌
     nightmare(game)     { if (game.fillNightmare) game.fillNightmare(); },                    // 噩梦：渣滓塞满手牌
@@ -293,6 +293,14 @@ window.CG = window.CG || {};
       if (!exists) { const c = CG.makeFoodCard('endsword'); c._bonus = game._endswordDmg; c._blk = game._endswordBlk || 0; game._addToHand(c); }
     },
     parry(game, eff) { game._endswordBlk = (game._endswordBlk || 0) + eff.value; game._refreshEndsword(); },   // #36 招架：终末之剑 +n 格挡（不论何处）
+    // === v3.8 ===
+    curse(game, eff, source, target) { game.applyStatus(target || game.enemy, 'curse', eff.value); },   // #41 咒言：层数 > 敌人生命则其回合末死亡
+    makePeek(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('peek'); game._cardsMade = (game._cardsMade || 0) + 1; game.drawPile.splice(Math.floor(Math.random() * (game.drawPile.length + 1)), 0, c); } },   // #39 生成 n 张洞悉到抽牌堆
+    loseMinionHp(game, eff) { const sk = game.skeleton; if (sk) { sk.hp = Math.max(0, sk.hp - eff.value); if (sk.hp <= 0) game.skeleton = null; } },   // #42 消耗召唤物血量代价
+    expandEvery(game, eff) { game._everyCap = (game._everyCap || 3) + eff.value; },   // #46 扩容：每回合增益上限 +n
+    harvestEvery(game, eff) { game._resolveEveryBuffs(eff.value, false); },           // #47 收割：立即获得 n 次现有每回合增益
+    detonateEvery(game, eff) { game._resolveEveryBuffs(4 * eff.value, true); },       // #50 爆破：立即获得 4n 次并失去
+    recycle(game, eff) { const made = game.hand.filter(c => !c._initial); game.hand = game.hand.filter(c => c._initial); made.forEach(c => game._exhaustCard(c)); game.drawCards(made.length); },   // #48 回收：消耗手牌中非初始牌、抽等量
     // === 猎杀包 ===（处决/引爆减益/收割；prey/insight 是 playCard 加成）
     exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 12 * eff.value); },
     reaping(game, eff) { game._reaping = (game._reaping || 0) + 3 * eff.value; },

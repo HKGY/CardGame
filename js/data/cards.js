@@ -43,10 +43,11 @@ window.CG = window.CG || {};
     dagger:  { name: '匕首',   cost: 0, type: 'attack', kind: 'dagger', icon: '🔪' },             // 兵械包：0 费、造 4(+强化)伤害、打出即消耗
     scrap:   { name: '甲片',   cost: 0, type: 'skill',  kind: 'scrap',  icon: '🛡️' },             // 兵械包：0 费、获得 3(+强化)格挡、打出即消耗
     endsword:{ name: '终末之剑', cost: 2, type: 'attack', kind: 'endsword', icon: '⚔️' },          // 兵械包·锻造创造：2 费、造 10(+锻造)伤害(+招架格挡)、保留
+    peek:    { name: '洞悉',   cost: 0, type: 'skill',  kind: 'peek',  icon: '🔮' },               // 机巧包：0 费、抽 2 张、打出即消耗
   };
   // 食材分类（随机生成用）
   CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'] };
-  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword')); };
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -141,8 +142,8 @@ window.CG = window.CG || {};
     let multiN = 0;      // 多重：消耗全部能量、整张牌重复（次数=能量）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry' };   // 注：vigor 走既有 vigorN 路径（line 263），不在此重复
-    const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish'];
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle' };   // 注：vigor 走既有 vigorN 路径，不在此重复
+    const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
     let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
     all.forEach(({ def: d, level: rawL }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -329,6 +330,7 @@ window.CG = window.CG || {};
     if (goldCostN) effects.push({ type: 'loseGold', value: goldCostN });   // v3 金币代价
     if (costMax.losePower) effects.push({ type: 'losePower', value: costMax.losePower });   // #29 消耗电力代价
     if (costMax.makeDross) effects.push({ type: 'clutter', value: costMax.makeDross });     // #31 生成渣滓代价
+    if (costMax.minionHp) effects.push({ type: 'loseMinionHp', value: costMax.minionHp });  // #42 消耗召唤物血量代价
     if (silenceLv) effects.push({ type: 'silence', value: silenceLv });
     const strDelta = addStrN - sapStr - (costMax.loseStr || 0);   // v3 力量价值 - 减力量 - 失力量代价
     sapDex += (costMax.loseDex || 0);                  // 失敏捷代价（并入 dexDelta）
@@ -471,6 +473,7 @@ window.CG = window.CG || {};
       innate: innateN, allin: allinN, surplus: surplusN,                          // 律动包（innate=开局抽序、allin/surplus=playCard）
       potent: potentN, multiHit: multiHitN, multi: multiN,                        // 放大包(potent/多重)+强攻包(连击 multiHit) playCard 加成
       copyToDiscard: NB.copyToDiscard || 0, growDmg: NB.growDmg || 0, growBlk: NB.growBlk || 0, selfCostDown: NB.selfCostDown || 0, aoe: NB.aoe || 0, playTwice: NB.playTwice || 0, wish: NB.wish || 0,   // 新批卡级字段（playCard 用）
+      curseStrike: NB.curseStrike || 0, dmgToBlock: NB.dmgToBlock || 0, ethereal: !!costMax.ethereal,   // v3.8：追加咒言/伤害转格挡（playCard）+ 虚无(endTurn 消耗)
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -495,9 +498,9 @@ window.CG = window.CG || {};
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
     // 新批价值字段（v3.6）：条件 × 这些价值时，按同一映射拆成效果 / 卡级字段（与 cardStats 一致）
-    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry' };
+    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle' };
     for (const k in NBE) if (f[k]) out.now.push({ type: NBE[k], value: f[k] });
-    for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish']) if (f[k]) out[k] = (out[k] || 0) + f[k];
+    for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock']) if (f[k]) out[k] = (out[k] || 0) + f[k];
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
     if (f.enemyDex)  out.now.push({ type: 'enemyStat', key: 'dexterity', value: f.enemyDex, temp: !!f.enemyTemp });
     if (f.give)      out.now.push({ type: 'give', what: f.give, value: 1 });
@@ -616,6 +619,8 @@ window.CG = window.CG || {};
       s.type = 'attack'; s.kind = 'damage'; s.cost = 2; s.value = dmg; s.retain = true;
       s.effects = [{ type: 'damage', value: dmg }].concat(blk > 0 ? [{ type: 'block', value: blk }] : []);
       s.baseText = `终末之剑：造成 ${dmg} 点伤害${blk > 0 ? `、获得 ${blk} 格挡` : ''}，保留`;
+    } else if (b.kind === 'peek') {
+      s.type = 'skill'; s.kind = 'skill'; s.exhaust = true; s.effects = [{ type: 'draw', value: 2 }]; s.baseText = '洞悉：抽 2 张牌，打出即消耗';
     }
     return s;
   };
