@@ -99,7 +99,7 @@ window.CG = window.CG || {};
     freeNext(game, eff) { game.freeCards = (game.freeCards || 0) + eff.value; },              // 回响：接下来若干张牌免费
     // —— 时点修饰器（本回合/下回合/每回合）——
     scheduleEvery(game, eff) { game._addEveryTurn(eff.eff); },     // 每回合：经 _addEveryTurn（增益受「最多 N 种」上限约束）
-    scheduleNext(game, eff)  { (game._nextTurn  = game._nextTurn  || []).push(eff.eff); },     // 下回合：下个回合开始结算一次
+    scheduleNext(game, eff)  { game._addNextTurn(eff.eff); },     // 下回合：经 _addNextTurn（同种合并）
     exhaustHand(game)   { if (game.exhaustAllHand) game.exhaustAllHand(); },                  // 爆燃：消耗其余手牌
     nightmare(game)     { if (game.fillNightmare) game.fillNightmare(); },                    // 噩梦：渣滓塞满手牌
     // —— 电力包 ——

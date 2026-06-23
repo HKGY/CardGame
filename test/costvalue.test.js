@@ -744,19 +744,36 @@ test('#43/#49 量型条件：打出匕首/甲片/洞悉次数、生成卡牌数'
   g = bt(); pg(g, [[{ id: 'energy_makePeek', level: 1 }]]); assert.strictEqual(g._cardsMade, 2);   // 生成 2 张洞悉
 });
 
-test('#45 每回合增益上限(默认3)：打第4个时最旧立即结算两次并失去 / #46 扩容', () => {
+const KINDS = ['energy_produce_block', 'energy_produce_draw', 'energy_produce_energy', 'energy_damage_every'];   // 4 种不同的每回合增益
+const playEvery = (g, id) => { g.player.energy = 30; g.hand = [spell([{ id, level: 1 }])]; g.playCard(g.hand[0].uid); };
+const everyKinds = g => g._everyTurn.filter(e => !g._isEveryCost(e)).length;
+
+test('#45 每回合增益上限(默认3)：打第4种(不同种)时最旧立即结算两次并失去 / #46 扩容', () => {
   let g = bt(); g.player.block = 0;
-  for (let i = 0; i < 3; i++) { g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid); }
-  assert.strictEqual(g._everyTurn.filter(e => !g._isEveryCost(e)).length, 3);
+  KINDS.slice(0, 3).forEach(id => playEvery(g, id));   // 3 种不同
+  assert.strictEqual(everyKinds(g), 3);
   const before = g.player.block;
-  g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid);   // 第 4 个
-  assert.strictEqual(g._everyTurn.filter(e => !g._isEveryCost(e)).length, 3);   // 仍 3 种
-  assert.strictEqual(g.player.block - before, 4);   // 最旧(每回合格挡2)结算 2 次 = +4
-  // 扩容 +1 → cap 4
-  g = bt(); g.player.energy = 30; g.hand = [spell([{ id: 'energy_expandEvery', level: 1 }])]; g.playCard(g.hand[0].uid);
+  playEvery(g, KINDS[3]);                               // 第 4 种 → 淘汰最旧(每回合格挡2)、结算两次
+  assert.strictEqual(everyKinds(g), 3);                 // 仍 3 种
+  assert.strictEqual(g.player.block - before, 4);       // 每回合格挡 2 ×2 = +4
+  // 扩容 +1 → cap 4 → 4 种都在
+  g = bt(); playEvery(g, 'energy_expandEvery');
   assert.strictEqual(g._everyCap, 4);
-  for (let i = 0; i < 4; i++) { g.player.energy = 30; g.hand = [spell([{ id: EB, level: 1 }])]; g.playCard(g.hand[0].uid); }
-  assert.strictEqual(g._everyTurn.filter(e => !g._isEveryCost(e)).length, 4);   // 4 种都在
+  KINDS.forEach(id => playEvery(g, id));
+  assert.strictEqual(everyKinds(g), 4);
+});
+
+test('多个「每回合X」合并为一条（收益与代价都合并）', () => {
+  // 收益：打 3 次每回合格挡 → 合并成 1 条（不占 3 个名额）
+  let g = bt(); for (let i = 0; i < 3; i++) playEvery(g, EB);
+  const merged = g._everyTurn.filter(e => e.type === 'block' && !e.minion);
+  assert.strictEqual(merged.length, 1); assert.strictEqual(merged[0].value, 6);   // 2×3 合并
+  assert.strictEqual(everyKinds(g), 1);   // 只算 1 种 → 不触发上限
+  // 代价：打 2 次「每回合失血」→ 合并成 1 条
+  g = bt(); g.player.energy = 30;
+  for (let i = 0; i < 2; i++) { const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'hpV_damage', level: 1 }]); g.hand = [c]; g.player.energy = 30; g.playCard(c.uid); }
+  const losses = g._everyTurn.filter(e => e.type === 'loseHp');
+  assert.strictEqual(losses.length, 1); assert.strictEqual(losses[0].value, 4);   // 2+2 合并
 });
 
 test('#47 收割(n次) / #50 爆破(4n次并失去)', () => {

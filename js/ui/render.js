@@ -668,11 +668,12 @@ window.CG = window.CG || {};
     }
     if (game.pick) {
       const pool = (game.pick.type === 'burn' || game.pick.type === 'discardCost' || game.pick.type === 'exhaustCost') ? game.hand : game.pick.type === 'reclaim' ? game.discardPile : game.pick.type === 'wish' ? game.drawPile : game.exhaustPile;
+      const noSkip = !!game.pick.noSkip;   // 丢弃/消耗手牌：必须选一张、不给「跳过」
       const cards = pool.length
         ? pool.map(c => cardFace(c, { clickable: true, data: { pick: c.uid } })).join('')
-        : '<p class="empty-note">没有可选的，点「跳过」。</p>';
+        : `<p class="empty-note">没有可选的${noSkip ? '。' : '，点「跳过」。'}</p>`;
       ov.innerHTML = `<div class="craft-box"><h3>🔥 ${game.pick.title}</h3><div class="craft-cards">${cards}</div>
-        <div class="craft-actions"><button class="big-btn leave" data-pick="skip">跳过</button></div></div>`;
+        ${noSkip ? '' : '<div class="craft-actions"><button class="big-btn leave" data-pick="skip">跳过</button></div>'}</div>`;
       ov.classList.remove('hidden'); return;
     }
     ov.classList.add('hidden'); ov.innerHTML = '';

@@ -397,7 +397,7 @@ window.CG = window.CG || {};
           const ve = CG.valueEffects(cb.atom, amount, cb.level);   // 喂给该价值原子的 mech → 本回合/下回合/每回合 + 卡级修饰
           if (ve.now.length)  s = Object.assign({}, s, { effects: s.effects.concat(ve.now) });
           ve.every.forEach(e => this._addEveryTurn(e));   // 经上限约束
-          ve.next.forEach(e => (this._nextTurn = this._nextTurn || []).push(e));
+          ve.next.forEach(e => this._addNextTurn(e));   // 同种下回合合并
           if (ve.potent)    s = Object.assign({}, s, { potent: (s.potent || 0) + ve.potent });
           if (ve.lifesteal) s = Object.assign({}, s, { lifesteal: (s.lifesteal || 0) + ve.lifesteal });
           if (ve.multiHit)  s = Object.assign({}, s, { multiHit: (s.multiHit || 0) + ve.multiHit });
@@ -619,7 +619,7 @@ window.CG = window.CG || {};
         if (cont) cont(); else this._emit();
         return;
       }
-      this.pick = { type: 'discardCost', title: `弃牌代价：选择要丢弃的牌（剩 ${this._discardLeft}）` };
+      this.pick = { type: 'discardCost', title: `弃牌代价：选择要丢弃的牌（剩 ${this._discardLeft}）`, noSkip: true };   // 代价：不允许跳过
       this._emit();
     }
     // #15 消耗代价：逐张让玩家自选消耗（进消耗堆），全部选完后执行 cont。
@@ -630,7 +630,7 @@ window.CG = window.CG || {};
         if (cont) cont(); else this._emit();
         return;
       }
-      this.pick = { type: 'exhaustCost', title: `消耗代价：选择要消耗的牌（剩 ${this._exhaustLeft}）` };
+      this.pick = { type: 'exhaustCost', title: `消耗代价：选择要消耗的牌（剩 ${this._exhaustLeft}）`, noSkip: true };   // 代价：不允许跳过
       this._emit();
     }
 
@@ -712,7 +712,7 @@ window.CG = window.CG || {};
         const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : this.exhaustPile;
         if (!cands.length) continue;
         const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌' };
-        this.pick = { type: t, title: titles[t] };
+        this.pick = { type: t, title: titles[t], noSkip: t === 'burn' };   // 燃烧＝消耗手牌，不允许跳过
         this._emit();
         return;
       }
@@ -722,6 +722,7 @@ window.CG = window.CG || {};
     }
     pickResolve(uid) {                            // UI 回调：uid=null 跳过本次
       if (!this.pick) return;
+      if (this.pick.noSkip && uid == null) return;   // 丢弃/消耗手牌：不允许跳过（必须选一张）
       const t = this.pick.type;
       if (t === 'discardCost') {                  // 弃牌代价：自选丢弃一张 → 计数 -1 → 继续提示 / 结算
         if (uid != null) { const i = this.hand.findIndex(c => c.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this._discard(c); this.addLog(`弃牌代价：丢弃了 ${CG.cardStats(c).name}。`); } }
@@ -809,18 +810,31 @@ window.CG = window.CG || {};
     // #45 每回合增益上限：增益类每回合效果最多 _everyCap 种；超出时把最旧的一种立即结算两次(本回合)并移除。代价类(失血等)不计入、不淘汰。
     _isEveryCost(eff) { return ['loseHp', 'loseGold', 'selfStatus', 'losePower', 'clutter', 'loseMinionHp'].includes(eff.type); }
     _everySrc(eff) { return (eff.minion && this.skeleton) ? this.skeleton : this.player; }
+    // 同种判定：同效果类型 + 同状态/键 + 同目标(召唤物)＝「一种」，多个合并成一条（代价与收益都合并）。
+    _everyKey(eff) { return eff.type + (eff.status ? ':' + eff.status : '') + (eff.key ? ':' + eff.key : '') + (eff.minion ? ':m' : ''); }
     _addEveryTurn(eff) {
       this._everyTurn = this._everyTurn || [];
-      if (this._isEveryCost(eff)) { this._everyTurn.push(eff); return; }   // 代价类不受上限
+      const k = this._everyKey(eff);
+      const ex = this._everyTurn.find(e => this._everyKey(e) === k);
+      if (ex) { ex.value = (ex.value || 0) + (eff.value || 0); return; }   // 合并同种「每回合」（不占新名额）
+      const ne = Object.assign({}, eff);                                    // 存副本，避免别名被外部修改
+      if (this._isEveryCost(ne)) { this._everyTurn.push(ne); return; }      // 代价类不受上限
       const cap = this._everyCap || 3;
       while (this._everyTurn.filter(e => !this._isEveryCost(e)).length >= cap) {
         const i = this._everyTurn.findIndex(e => !this._isEveryCost(e));
         if (i < 0) break;
         const old = this._everyTurn.splice(i, 1)[0];
-        for (let k = 0; k < 2; k++) CG.Effects.apply(this, old, this._everySrc(old), this.currentTarget());   // 最旧增益立即结算两次（本回合收益）
+        for (let j = 0; j < 2; j++) CG.Effects.apply(this, old, this._everySrc(old), this.currentTarget());   // 最旧增益立即结算两次（本回合收益）
         this.addLog('每回合增益已满：最旧的一种立即结算两次并失去。');
       }
-      this._everyTurn.push(eff);
+      this._everyTurn.push(ne);
+    }
+    _addNextTurn(eff) {   // 下回合：同种也合并成一条
+      this._nextTurn = this._nextTurn || [];
+      const k = this._everyKey(eff);
+      const ex = this._nextTurn.find(e => this._everyKey(e) === k);
+      if (ex) { ex.value = (ex.value || 0) + (eff.value || 0); return; }
+      this._nextTurn.push(Object.assign({}, eff));
     }
     _resolveEveryBuffs(times, remove) {   // 收割(#47)/爆破(#50)：现有「增益类」每回合效果立即结算 times 次；remove=true 随后失去
       (this._everyTurn || []).filter(e => !this._isEveryCost(e)).forEach(e => { for (let k = 0; k < times; k++) CG.Effects.apply(this, e, this._everySrc(e), this.currentTarget()); });
