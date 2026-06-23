@@ -420,18 +420,23 @@ test('自中毒 selfPoison 已删除', () => {
   assert.ok(!CG.AFFIXES['selfPoison_damage'] && !CG.COST_REAL['selfPoison'] && CG.VALUES['selfPoison'] == null);
 });
 
-test('荆棘 thorns：受击反伤；有本/下/每回合三档', () => {
-  assert.strictEqual(lv('energy_thorns'), '1,2,3');
-  assert.strictEqual(CG.affixValueText('energy_thorns', 1), '荆棘 3');        // val1=floor(6/2)=3
-  assert.strictEqual(CG.affixValueText('energy_thorns_every', 1), '每回合荆棘 1');
-  // 战斗：上荆棘后，敌人攻击你 → 敌人受荆棘反伤
-  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+test('荆棘重构(#16-17)：荆棘(默认/永久,2VP) / 本回合荆棘(临时,1VP)；不再每回合递增', () => {
+  assert.strictEqual(CG.affixValueText('energy_thorns', 1), '荆棘 3');          // 默认=永久(every)、2VP→val3
+  assert.strictEqual(CG.affixValueText('energy_tempThorns', 1), '本回合荆棘 6');// 临时(now)、1VP→val6
+  assert.ok(!CG.AFFIXES['energy_thorns_every']);                               // 不再有「每回合荆棘」递增版
+  // 永久荆棘：受击反伤、跨回合保留
+  let g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
-  const c = spell([{ id: 'energy_thorns', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
-  assert.strictEqual(g.player.statuses.thorns || 0, 3);
-  const ehp = g.enemy.hp;
-  g.dealAttackDamage(g.enemy, g.player, 4);   // 敌人打你 4
-  assert.strictEqual(ehp - g.enemy.hp, 3);    // 敌人受 3 荆棘反伤
+  g.hand = [spell([{ id: 'energy_thorns', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.player.statuses.thorns, 3);
+  const ehp = g.enemy.hp; g.dealAttackDamage(g.enemy, g.player, 4); assert.strictEqual(ehp - g.enemy.hp, 3);   // 反伤 3
+  g.endTurn(); assert.strictEqual(g.player.statuses.thorns, 3);                // 永久：回合末仍在
+  // 本回合荆棘：临时、回合末移除
+  g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  g.hand = [spell([{ id: 'energy_tempThorns', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.player.statuses.thorns, 6);
+  g.endTurn(); assert.ok(!g.player.statuses.thorns);                           // 临时：回合末移除
 });
 
 test('造牌重做：生成带随机 n 宝石的本场牌、本回合 0 费；有本/下/每回合三档', () => {
@@ -543,6 +548,96 @@ test('代价时点·下回合：延迟一次付（自易伤代价 → 下回合�
   g._startPlayerTurn(); assert.ok(g.player.statuses.vulnerable > 0);   // 下回合开始：上自身易伤
   const p = g.player.statuses.vulnerable;
   g._startPlayerTurn(); assert.ok((g.player.statuses.vulnerable || 0) <= p);   // 仅一次（_nextTurn 结算后清空，不再叠加）
+});
+
+// ===== v3.6 新批 28 项 =====
+const bt = (n) => CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]), enemies: n });
+const pg = (g, gems) => { g.player.energy = 30; const c = CG.makeCard('spell', Math.max(1, gems.length), gems.map(x => CG.makeGem(x))); g.hand = [c]; g.playCard(c.uid); return c; };
+
+test('#2 复制到弃牌 / #4 弃牌回手 / #5 弃牌洗回库', () => {
+  let g = bt(); pg(g, [[{ id: 'energy_copyDiscard', level: 1 }]]);
+  assert.strictEqual(g.discardPile.length, 2);   // 本牌 + 1 复制
+  g = bt(); g.discardPile = [spell([{ id: CG.STRIKE, level: 1 }]), spell([{ id: CG.STRIKE, level: 1 }])];
+  pg(g, [[{ id: 'energy_recallDiscard', level: 1 }]]); assert.ok(g.hand.length >= 1);   // 回手 1 张
+  g = bt(); g.discardPile = [spell([{ id: CG.STRIKE, level: 1 }]), spell([{ id: CG.STRIKE, level: 1 }]), spell([{ id: CG.STRIKE, level: 1 }])];
+  const dp = g.drawPile.length; pg(g, [[{ id: 'energy_recycleDraw', level: 1 }]]); assert.strictEqual(g.drawPile.length - dp, 2);   // 洗回 2 张
+});
+
+test('#3 敌减益翻倍 ×(1+n) / #13 强化易伤 +25%n / #14 强化虚弱 +15%(不叠加)', () => {
+  assert.strictEqual(lv('energy_debuffMult'), '1,2,3');   // maxCount 2 → ×2/×3
+  let g = bt(); g.enemy.statuses.vulnerable = 2; g.enemy.statuses.weak = 3;
+  pg(g, [[{ id: 'energy_debuffMult', level: 1 }]]); assert.strictEqual(g.enemy.statuses.vulnerable, 4); assert.strictEqual(g.enemy.statuses.weak, 6);
+  g = bt(); g.enemy.statuses.vulnerable = 1; pg(g, [[{ id: 'energy_vulnAmp', level: 1 }]]);
+  let eh = g.enemy.hp; g.dealAttackDamage(g.player, g.enemy, 8); assert.strictEqual(eh - g.enemy.hp, 14);   // 8×(1.5+0.25)=14
+  g = bt(); g.enemy.statuses.weak = 1; pg(g, [[{ id: 'energy_weakAmp', level: 1 }]]);
+  let ph = g.player.hp; g.dealAttackDamage(g.enemy, g.player, 10); assert.strictEqual(ph - g.player.hp, 6);   // 10×(0.75-0.15)=6
+});
+
+test('#6 镶随机宝石 / #7 命中全体 / #19 打出牌库顶', () => {
+  let g = bt(); const sock = CG.makeCard('spell', 2, [CG.makeGem([{ id: CG.STRIKE, level: 1 }])]);
+  g.player.energy = 30; const sr = spell([{ id: 'energy_socketRand', level: 1 }]); g.hand = [sr, sock]; g.playCard(sr.uid);
+  assert.strictEqual(sock.sockets.length, 2);   // 空位被镶上随机宝石
+  g = bt(2); const hp0 = g.enemies.map(e => e.hp);
+  pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_hitAll', level: 1 }]]); assert.ok(g.enemies.every((e, i) => e.hp < hp0[i]));   // 全体受伤
+  g = bt(); g.drawPile.push(spell([{ id: CG.STRIKE, level: 1 }])); const eh = g.enemy.hp;
+  pg(g, [[{ id: 'energy_playTopDraw', level: 1 }]]); assert.ok(eh - g.enemy.hp > 0);   // 打出牌库顶 strike
+});
+
+test('#10 本场伤害成长 / #11 本场格挡成长 / #11a 本场能耗降低', () => {
+  let g = bt(); let c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_growDmg', level: 1 }]); g.player.energy = 30; g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(c.growth, 6); assert.ok(CG.cardStats(c).value >= 12);   // 打出后本场伤害 +6
+  g = bt(); c = spell([{ id: CG.GUARD, level: 1 }], [{ id: 'energy_growBlk', level: 1 }]); g.player.energy = 30; g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(c.blockGrowth, 6);
+  g = bt(); c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_selfCostDown', level: 1 }]); g.player.energy = 30; g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(c.costDown, 1);
+});
+
+test('#12 后续免费 / #20 后续打两次 / #21 格挡跨回合保留', () => {
+  let g = bt(); g.player.energy = 30; const fc = spell([{ id: 'energy_freeNext', level: 1 }]); g.hand = [fc]; g.playCard(fc.uid);
+  assert.ok(g.freeCards >= 1);   // 下一张免费
+  g = bt(); g.player.energy = 30; const pt = spell([{ id: 'energy_playTwice', level: 1 }]); g.hand = [pt]; g.playCard(pt.uid);
+  const eh = g.enemy.hp; const atk = spell([{ id: CG.STRIKE, level: 1 }]); g.hand = [atk]; g.player.energy = 30; g.playCard(atk.uid);
+  assert.strictEqual(eh - g.enemy.hp, 12);   // strike 6 打两次
+  g = bt(); pg(g, [[{ id: 'energy_keepBlockFull', level: 1 }]]); g.player.block = 12; g._startPlayerTurn(); assert.strictEqual(g.player.block, 12);   // 跨回合保留
+});
+
+test('#22-26 兵械：匕首/甲片 生成与强化', () => {
+  let g = bt(); pg(g, [[{ id: 'energy_makeDagger', level: 1 }]]);
+  const dg = g.hand.find(c => c.base === 'dagger'); assert.ok(dg); assert.strictEqual(CG.cardStats(dg).value, 4);
+  g.player.energy = 30; const up = spell([{ id: 'energy_daggerUp', level: 1 }]); g.hand.push(up); g.playCard(up.uid);
+  assert.strictEqual(CG.cardStats(g.hand.find(c => c.base === 'dagger')).value, 8);   // +4 强化
+  g = bt(); pg(g, [[{ id: 'energy_makeScrap', level: 1 }]]);
+  const sc = g.hand.find(c => c.base === 'scrap'); assert.ok(sc); assert.strictEqual(CG.cardStats(sc).value, 3);
+});
+
+test('#27 免疫下n次伤害 / #28 本回合伤害降为1', () => {
+  let g = bt(); pg(g, [[{ id: 'energy_immune', level: 1 }]]); const ph = g.player.hp;
+  g.dealAttackDamage(g.enemy, g.player, 10); assert.strictEqual(ph - g.player.hp, 0); assert.strictEqual(g._immuneHits, 0);
+  g = bt(); pg(g, [[{ id: 'energy_dmgCap1', level: 1 }]]); const ph2 = g.player.hp;
+  g.dealAttackDamage(g.enemy, g.player, 10); assert.strictEqual(ph2 - g.player.hp, 1);
+});
+
+test('#1/#8/#9/#18 新条件', () => {
+  assert.ok(CG.AFFIXES['enemyDebuffed_damage'] && CG.AFFIXES['lostHpTurn_damage'] && CG.AFFIXES['exhaustedTurn_damage'] && CG.AFFIXES['hpLossCount_damage']);
+  // #1 敌人具有减益（gate）
+  let g = bt(); g.enemy.statuses.vulnerable = 1; let eh = g.enemy.hp; pg(g, [[{ id: 'enemyDebuffed_damage', level: 1 }]]); assert.ok(eh - g.enemy.hp > 0);
+  g = bt(); eh = g.enemy.hp; pg(g, [[{ id: 'enemyDebuffed_damage', level: 1 }]]); assert.strictEqual(eh - g.enemy.hp, 0);   // 无减益 → 0
+  // #8 本回合失去过生命（gate）+ #18 计数
+  g = bt(); g.dealAttackDamage(g.enemy, g.player, 5); assert.ok(g._lostHpThisTurn); assert.strictEqual(g._hpLossCount, 1);
+  eh = g.enemy.hp; pg(g, [[{ id: 'lostHpTurn_damage', level: 1 }]]); assert.ok(eh - g.enemy.hp > 0);
+  // #9 本回合消耗过牌（gate）：打出一张消耗牌后达成
+  g = bt(); g.player.energy = 30; const d = CG.makeFoodCard('dagger'); g.hand = [d]; g.playCard(d.uid); assert.ok(g._exhaustedThisTurn);
+});
+
+test('#15 消耗手牌代价（pick 型，类弃牌代价）', () => {
+  assert.ok(CG.AFFIXES['exhaustCard_damage']);
+  const g = bt(); g.player.energy = 30;
+  const ec = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'exhaustCard_damage', level: 1 }]);
+  const filler = spell([{ id: CG.STRIKE, level: 1 }]);
+  g.hand = [ec, filler]; g.playCard(ec.uid);
+  assert.ok(g.pick && g.pick.type === 'exhaustCost');   // 进入消耗代价选牌
+  g.pickResolve(filler.uid);
+  assert.ok(g.exhaustPile.some(c => c.uid === filler.uid)); assert.ok(!g.pick);   // filler 被消耗、结算继续
 });
 
 // ===== 完整性 =====

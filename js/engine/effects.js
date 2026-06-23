@@ -45,7 +45,10 @@ window.CG = window.CG || {};
       game.applyStatus(source, pool[Math.floor(Math.random() * pool.length)], eff.value);
     },
     loseHp(game, eff, source) {
-      source.hp = Math.max(0, source.hp - eff.value);  // 腐化：直接失去生命（不经格挡）
+      const u = source || game.player;
+      const before = u.hp;
+      u.hp = Math.max(0, u.hp - eff.value);  // 腐化/代价：直接失去生命（不经格挡）
+      if (u === game.player && u.hp < before) game._countHpLoss();   // #8/#18 计入失去生命
     },
     strength(game, eff, source) {
       game.applyStatus(source, 'strength', eff.value);
@@ -268,6 +271,22 @@ window.CG = window.CG || {};
     foresight(game) { if (game.drawPile.length) { const c = game.drawPile.pop(); game._applyCardEffects(c); game.discardPile.push(c); } },   // 灵视：免费打出牌堆顶
     mindblast(game, eff) { [...game.drawPile, ...game.discardPile, ...game.hand].forEach(c => { const b = CG.BASE_CARDS[c.base]; if (b && b.type === 'attack') c.growth = (c.growth || 0) + eff.value; }); },   // 心灵震慑：牌库攻击牌永久+伤害（复用 growth）
     clutter(game, eff) { for (let i = 0; i < eff.value; i++) game._addToHand(CG.makeFoodCard('dross')); },                          // 谵妄：塞渣滓
+    // === 新批价值效果（v3.6）===
+    recallDiscard(game, eff) { for (let i = 0; i < eff.value && game.discardPile.length; i++) game._addToHand(game.discardPile.pop()); },   // #4 弃牌区 n 张 → 手牌
+    recycleDraw(game, eff) { for (let i = 0; i < eff.value && game.discardPile.length; i++) { const j = Math.floor(Math.random() * game.discardPile.length); const c = game.discardPile.splice(j, 1)[0]; game.drawPile.splice(Math.floor(Math.random() * (game.drawPile.length + 1)), 0, c); } },   // #5 弃牌区 n 张 → 随机洗回抽牌堆
+    playFromDraw(game, eff) { for (let i = 0; i < eff.value && game.drawPile.length; i++) { const c = game.drawPile.pop(); game._applyCardEffects(c); game.discardPile.push(c); } },   // #19 打出抽牌堆顶 n 张（免费）
+    socketRandom(game, eff) { let n = eff.value; for (const c of game.hand) { if (n <= 0) break; if (CG.isFood(c.base)) continue; const st = CG.cardStats(c); if (st.emptySockets > 0) { c.sockets = (c.sockets || []).concat(CG.rollGem({ tier: 'monster' })); n--; } } },   // #6 给 n 张有空位手牌镶随机宝石(本场)
+    debuffMult(game, eff, source, target) { const t = target || game.enemy; if (!t) return; const f = 1 + eff.value; ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => { if (t.statuses[k]) t.statuses[k] = Math.floor(t.statuses[k] * f); }); },   // #3 敌人所有减益层数 ×(1+n)
+    immune(game, eff) { game._immuneHits = (game._immuneHits || 0) + eff.value; },                  // #27 免疫下 n 次伤害
+    vulnAmp(game, eff) { game._vulnAmp = (game._vulnAmp || 0) + eff.value; },                       // #13 敌易伤受伤额外 +25%×n（本场）
+    weakAmp(game, eff) { game._weakAmp = true; },                                                   // #14 敌虚弱减攻额外 +15%（本场、不叠加）
+    keepBlockFull(game, eff) { game._blockRetain = true; },                                         // #21 格挡跨回合保留（本场）
+    dmgCap1(game, eff) { game._dmgCap1 = true; },                                                   // #28 本回合受到伤害降为 1
+    tempThorns(game, eff, source) { const u = source || game.player; game.applyStatus(u, 'thorns', eff.value); if (u === game.player) game._tempThorns = (game._tempThorns || 0) + eff.value; },   // 本回合荆棘（回合末移除）
+    makeDagger(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('dagger'); c._bonus = game._daggerBonus || 0; game._addToHand(c); } },   // #23 生成 n 张匕首（带当前强化）
+    makeScrap(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('scrap'); c._bonus = game._scrapBonus || 0; game._addToHand(c); } },     // #24 生成 n 张甲片
+    daggerUp(game, eff) { game._daggerBonus = (game._daggerBonus || 0) + 4 * eff.value; game._refreshWeapon('dagger', game._daggerBonus); },   // #25 匕首伤害 +4×n（本场，刷新所有匕首）
+    scrapUp(game, eff) { game._scrapBonus = (game._scrapBonus || 0) + 3 * eff.value; game._refreshWeapon('scrap', game._scrapBonus); },        // #26 甲片格挡 +3×n（本场）
     // === 猎杀包 ===（处决/引爆减益/收割；prey/insight 是 playCard 加成）
     exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 12 * eff.value); },
     reaping(game, eff) { game._reaping = (game._reaping || 0) + 3 * eff.value; },
