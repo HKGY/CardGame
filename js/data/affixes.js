@@ -67,8 +67,8 @@ window.CG = window.CG || {};
   const sched = (vp, eff, nowMech, ids, bname, opt) => Object.assign({ vp, kind: 'sched', eff, nowMech, ids, bname }, opt || {});
   const statB = (vp, nowMech, everyMech, nextEff, ids, bname, color) => ({ vp, kind: 'stat', nowMech, everyMech, nextEff, ids, bname, prim: 'every', color });
   const TURN_BASES = {
-    damage:     sched(1.0, v => ({ type: 'damage', value: v, hits: 1 }), v => ({ dmg: v }), { now: 'damage', next: 'damage_next', every: 'damage_every' }, '伤害', { num: true, prim: 'now', color: COLOR.damage }),
-    block:      sched(1.2, v => ({ type: 'block', value: v }), v => ({ blk: v }), { now: 'block', next: 'block_next', every: 'produce_block' }, '格挡', { num: true, prim: 'now', color: COLOR.block }),
+    damage:     sched(1.0, v => ({ type: 'damage', value: v, hits: 1 }), v => ({ dmg: v }), { now: 'damage', next: 'damage_next', every: 'damage_every' }, '伤害', { num: true, prim: 'now', color: COLOR.damage, minion: true }),
+    block:      sched(1.2, v => ({ type: 'block', value: v }), v => ({ blk: v }), { now: 'block', next: 'block_next', every: 'produce_block' }, '格挡', { num: true, prim: 'now', color: COLOR.block, minion: true }),
     draw:       sched(2.5, v => ({ type: 'draw', value: v }), v => ({ draw: v }), { now: 'draw', next: 'draw_next', every: 'produce_draw' }, '抽牌', { num: true, prim: 'now', color: COLOR.draw }),
     energy:     sched(6.0, v => ({ type: 'energy', value: v }), v => ({ energy: v }), { now: 'energy', next: 'energy_next', every: 'produce_energy' }, '能量', { num: true, prim: 'now', color: COLOR.energy }),
     power:      sched(1.0, v => ({ type: 'gainPower', value: v }), v => ({ gainPower: v }), { now: 'power', next: 'power_next', every: 'power_every' }, '电力', { color: COLOR.power }),
@@ -76,7 +76,7 @@ window.CG = window.CG || {};
     weak:       sched(1.5, v => ({ type: 'weak', value: v }), v => ({ apply: { weak: v } }), { now: 'weak', next: 'weak_next', every: 'weak_every' }, '虚弱', { num: true, prim: 'now', color: COLOR.weak }),
     frail:      sched(1.5, v => ({ type: 'frail', value: v }), v => ({ apply: { frail: v } }), { now: 'frail', next: 'frail_next', every: 'frail_every' }, '脆弱', { num: true, prim: 'now', color: COLOR.frail }),
     poison:     sched(1.5, v => ({ type: 'poison', value: v }), v => ({ apply: { poison: v } }), { now: 'poison', next: 'poison_next', every: 'poison_every' }, '中毒', { num: true, prim: 'now', color: COLOR.poison }),
-    thorns:     sched(2.0, v => ({ type: 'thorns', value: v }), v => ({ thorns: v }), { now: 'thorns', next: 'thorns_next', every: 'thorns_every' }, '荆棘', { num: true, prim: 'now', color: COLOR.thorns }),   // 受击反伤（自带反伤引擎）
+    thorns:     sched(2.0, v => ({ type: 'thorns', value: v }), v => ({ thorns: v }), { now: 'thorns', next: 'thorns_next', every: 'thorns_every' }, '荆棘', { num: true, prim: 'now', color: COLOR.thorns, minion: true }),   // 受击反伤（自带反伤引擎）
     conjure:    sched(6.0, v => ({ type: 'conjure', value: v }), v => ({ conjure: v }), { now: 'conjure', next: 'conjure_next', every: 'conjure_every' }, '造牌', { num: true, prim: 'now', color: COLOR.conjure }),   // 造一张带随机 n 宝石的牌(本回合 0 费)
     summon:     sched(1.5, v => ({ type: 'summon', value: v }), v => ({ summon: v }), { now: 'summon', next: 'summon_next', every: 'summon_every' }, '召唤物', { num: true, prim: 'now', color: COLOR.summon }),   // 召唤/壮大单骷髅(血量上限 n)
     food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, '素菜', { maxCount: 1, color: COLOR.food }),
@@ -87,7 +87,10 @@ window.CG = window.CG || {};
     enemyLoseStr: statB(1.5, v => ({ enemyStr: v, enemyTemp: true }), v => ({ enemyStr: v }), v => ({ type: 'enemyStat', key: 'strength', value: v, temp: true }), { now: 'enemyLoseStrTemp', next: 'enemyLoseStr_next', every: 'enemyLoseStr' }, '敌失力量', COLOR.enemyLoseStr),
     enemyLoseDex: statB(1.5, v => ({ enemyDex: v, enemyTemp: true }), v => ({ enemyDex: v }), v => ({ type: 'enemyStat', key: 'dexterity', value: v, temp: true }), { now: 'enemyLoseDexTemp', next: 'enemyLoseDex_next', every: 'enemyLoseDex' }, '敌失敏捷', COLOR.enemyLoseDex),
   };
-  // 生成 16 基值 ×3 时点 = 48 价值原子，并把三档 VP 写入 V。
+  // 持续型(力量/敏捷)也可加召唤物修饰词：补一个标准 perm 效果 eff 供 minion 变体复用。
+  TURN_BASES.strength.minion = true; TURN_BASES.strength.eff = v => ({ type: 'strength', value: v });
+  TURN_BASES.dexterity.minion = true; TURN_BASES.dexterity.eff = v => ({ type: 'dexterity', value: v });
+  // 生成 16 基值 ×3 时点 = 48 价值原子；带 minion 的基值另生成「召唤物X」变体（VP 减半→量×2、效果投给骷髅）。
   CG.TURN_BASES = TURN_BASES;
   Object.keys(TURN_BASES).forEach(base => {
     const b = TURN_BASES[base], prim = b.prim || 'now';   // 默认形态（即时型=本回合、持续型=每回合）：名字用裸值名、不带时点前缀
@@ -100,8 +103,22 @@ window.CG = window.CG || {};
       if (b.kind === 'sched') atom.mech = t === 'now' ? b.nowMech : t === 'every' ? (v => ({ everyTurn: [b.eff(v)] })) : (v => ({ nextTurn: [b.eff(v)] }));
       else atom.mech = t === 'now' ? b.nowMech : t === 'every' ? b.everyMech : (v => ({ nextTurn: [b.nextEff(v)] }));
       VALUE_ATOMS[id] = atom;
+      // 召唤物修饰变体：效果改投骷髅（minion:true）、VP 减半 → 同能量下量翻倍。
+      //   即时型(sched)：全 3 时点（now 立即 / every·next 调度）；持续型(stat)：只默认档、永久即时投给骷髅。
+      if (b.minion && (b.kind === 'sched' || t === prim)) {
+        const mid = id + '_m';
+        V[mid] = b.vp * TURN_MUL[t] / 2;
+        const mEff = v => Object.assign({}, b.eff(v), { minion: true });
+        const mMech = (b.kind === 'stat' || t === 'now') ? (v => ({ minionNow: mEff(v) }))
+                    : t === 'every' ? (v => ({ everyTurn: [mEff(v)] }))
+                    : (v => ({ nextTurn: [mEff(v)] }));
+        VALUE_ATOMS[mid] = { name: '召唤物' + atom.name, vpRes: mid, timing: t, turnBase: base, color: b.color || '#cdd2e2', minion: true, mech: mMech };
+      }
     });
   });
+  // 治疗（无时点）的召唤物变体：召唤物治疗（治骷髅、量×2）。
+  V.heal_m = (V.heal || 1.5) / 2;
+  VALUE_ATOMS.heal_m = { name: '召唤物治疗', vpRes: 'heal_m', color: COLOR.heal, minion: true, mech: v => ({ minionNow: { type: 'heal', value: v, minion: true } }) };
   const valColor = id => (VALUE_ATOMS[id] && VALUE_ATOMS[id].color) || COLOR[id] || '#cdd2e2';
 
   /* —— 代价原子 —— */
@@ -278,7 +295,8 @@ window.CG = window.CG || {};
     bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡（本/下回合）/ 本回合力量·敏捷 / 荆棘（受击反伤）。', ['block', 'block_next', 'tempStr', 'tempDex', 'thorns', 'thorns_next', 'thorns_every']),
     elec:     P('电力包', '⚡', '#f0d040', '电力（本/下/每回合三档）。', ['power', 'power_next', 'power_every']),
     produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（格挡 / 抽牌 / 能量）。', ['produce_draw', 'produce_block', 'produce_energy']),
-    summon:   P('召唤包', '👻', '#b0b0e0', '召唤物（本/下/每回合）。', ['summon', 'summon_next', 'summon_every']),
+    summon:   P('召唤包', '👻', '#b0b0e0', '召唤物 + 召唤物修饰词（攻/防/增益投给骷髅、量×2）。', ['summon', 'summon_next', 'summon_every',
+      'damage_m', 'damage_next_m', 'damage_every_m', 'block_m', 'block_next_m', 'produce_block_m', 'thorns_m', 'thorns_next_m', 'thorns_every_m', 'strength_m', 'dexterity_m', 'heal_m']),
     conjure:  P('术士包', '🎩', '#b59ad8', '造牌（本/下/每回合）。', ['conjure', 'conjure_next', 'conjure_every']),
     amplify:  P('放大包', '✦', '#ff9fc0', '翻倍 / 吸血 / 多重（放大本牌）。', ['mult', 'lifesteal', 'multi']),
   };

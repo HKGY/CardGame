@@ -109,7 +109,7 @@ window.CG = window.CG || {};
         enemyStrN = 0, enemyStrTempN = 0, enemyDexN = 0, enemyDexTempN = 0;
     let addDexN = 0, prepDexN = 0;   // 敏捷价值/临时敏捷价值（与力量对称）   // 敌失力量/敏捷（永久/临时）
     const condBonusList = [];   // v3：条件代价 → 动态缩放数值价值（playCard 结算）
-    const everyTurnList = [], nextTurnList = [];   // v3.1 时点修饰器：每回合/下回合 调度的效果（值已按等级缩放）
+    const everyTurnList = [], nextTurnList = [], minionNowList = [];   // v3.1 时点：每回合/下回合 调度；minionNow=本回合召唤物效果（投给骷髅）
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
@@ -170,6 +170,7 @@ window.CG = window.CG || {};
       if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, atom: d.condBonus.atom, gate: d.condBonus.gate, mult: d.condBonus.mult, fy: d.condBonus.fy, fx: d.condBonus.fx, level: L });   // v3 条件代价（量型走 fy/fx 整数分数；门型走 mult 定额）
       if (d.everyTurn) d.everyTurn.forEach(e => everyTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));   // 每回合：按等级缩放后调度
       if (d.nextTurn)  d.nextTurn.forEach(e => nextTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));     // 下回合：同上
+      if (d.minionNow) minionNowList.push(Object.assign({}, d.minionNow, { value: (d.minionNow.value || 0) * L }));         // 召唤物·本回合：投给骷髅的效果（minion:true）
       if (d.freeNext)  freeNextN += d.freeNext * L;     // 回响：后续若干张牌免费
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.element) { elementId = d.element; elementLevel = (d.elementBase || 1) * L; }   // 元素附着：附 (base×L) 层（放电=2×L）
@@ -421,6 +422,7 @@ window.CG = window.CG || {};
     // v3.1 时点修饰器（真资源代价的 每回合/下回合 价值）：包成调度效果（playCard→effects 推入 game._everyTurn/_nextTurn，_startPlayerTurn 结算）
     everyTurnList.forEach(e => effects.push({ type: 'scheduleEvery', eff: e }));
     nextTurnList.forEach(e => effects.push({ type: 'scheduleNext', eff: e }));
+    minionNowList.forEach(e => effects.push(e));   // 召唤物·本回合：带 minion:true，playCard 以骷髅为 source 结算
 
     const baseText = ({
       damage:   `造成 ${value} 点伤害` + (hits > 1 ? ` ×${hits}` : '') + '。',

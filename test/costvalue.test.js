@@ -483,6 +483,32 @@ test('召唤重做：单骷髅单位（创建 / +血量上限）；时点基值 
   assert.strictEqual(g.skeleton.maxHp, 8); assert.strictEqual(g.skeleton.hp, 8);   // 已存在 → +4 血量上限
 });
 
+test('召唤物修饰词：自身向价值改投骷髅、量×2（VP 减半）；无骷髅则跳过', () => {
+  // 量翻倍：召唤物伤害=12(玩家6)、召唤物格挡=10(玩家5)、召唤物力量=4(玩家2)、召唤物治疗=8(玩家4)
+  assert.strictEqual(CG.affixValueText('energy_damage_m', 1), '召唤物伤害 12');
+  assert.strictEqual(CG.affixValueText('energy_block_m', 1), '召唤物格挡 10');
+  assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物力量 4');
+  assert.strictEqual(CG.affixValueText('energy_heal_m', 1), '召唤物治疗 8');
+  // 只配自身向价值：能量/造牌/多重/敌减益 没有 _m 变体
+  assert.ok(!CG.AFFIXES['energy_energy_m'] && !CG.AFFIXES['energy_conjure_m'] && !CG.AFFIXES['energy_vulnerable_m'] && !CG.AFFIXES['energy_poison_m']);
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 30; g.skeleton = { hp: 6, maxHp: 6, block: 0, statuses: {} };
+  // 召唤物格挡 → 骷髅 +10 block（非玩家）
+  g.hand = [spell([{ id: 'energy_block_m', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.skeleton.block, 10); assert.strictEqual(g.player.block, 0);
+  // 召唤物伤害 → 骷髅攻击敌人 12
+  const hp = g.enemy.hp;
+  g.hand = [spell([{ id: 'energy_damage_m', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(hp - g.enemy.hp, 12);
+  // 召唤物力量 → 骷髅永久 +4 力量（立即）
+  g.hand = [spell([{ id: 'energy_strength_m', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.skeleton.statuses.strength, 4);
+  // 无骷髅 → 召唤物效果跳过、不报错、不落到玩家
+  g.skeleton = null; g.player.block = 0;
+  g.hand = [spell([{ id: 'energy_block_m', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.player.block, 0);
+});
+
 test('召唤物替玩家抵挡：召唤物格挡→玩家格挡→召唤物血→玩家血', () => {
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.skeleton = { hp: 5, maxHp: 5, block: 3, statuses: {} }; g.player.block = 2;

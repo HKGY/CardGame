@@ -234,8 +234,9 @@ window.CG = window.CG || {};
       this.drawCards(CARDS_PER_TURN + drawBonus);
       // === 时点修饰器：每回合(常驻重复) + 下回合(一次性) ===（壁垒/耕作/引擎/箭塔/蓄击… 统一在此结算）
       const tgt = this.currentTarget();
-      (this._everyTurn || []).forEach(e => CG.Effects.apply(this, e, this.player, tgt));   // 每回合：重复结算、跨回合保留
-      if (this._nextTurn && this._nextTurn.length) { const q = this._nextTurn; this._nextTurn = []; q.forEach(e => CG.Effects.apply(this, e, this.player, this.currentTarget())); }   // 下回合：结算一次后清空
+      const _src = e => (e.minion ? this.skeleton : this.player);   // 召唤物效果以骷髅为 source
+      (this._everyTurn || []).forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), tgt); });   // 每回合：重复结算、跨回合保留
+      if (this._nextTurn && this._nextTurn.length) { const q = this._nextTurn; this._nextTurn = []; q.forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), this.currentTarget()); }); }   // 下回合：结算一次后清空
       this._buildingsTick();                     // 建造包：回合开始触发所有建筑
       this._checkEnd();                          // 箭塔等可能终结战斗
       this._emit();
@@ -509,20 +510,23 @@ window.CG = window.CG || {};
       // 穿刺：额外命中当前目标右侧的若干存活敌人（仅伤害类效果）
       const pierce = s.pierce || 0;
       const extra = pierce > 0 ? this.enemies.slice(this.target + 1).filter(e => e.alive && e.hp > 0).slice(0, pierce) : [];
+      // 召唤物修饰：eff.minion 的效果以骷髅为 source（无骷髅则跳过）
+      const srcOf = eff => (eff.minion ? this.skeleton : this.player);
       // 重复：整组效果结算 repeatTimes 次
       for (let r = 0; r < s.repeatTimes; r++) {
         (s.effects || []).forEach(eff => {
-          CG.Effects.apply(this, eff, this.player, target);
-          if (eff.type === 'damage') extra.forEach(t => { if (t.hp > 0) CG.Effects.apply(this, eff, this.player, t); });
+          if (eff.minion && !this.skeleton) return;
+          CG.Effects.apply(this, eff, srcOf(eff), target);
+          if (eff.type === 'damage') extra.forEach(t => { if (t.hp > 0) CG.Effects.apply(this, eff, srcOf(eff), t); });
         });
         if (this.player.hp <= 0 || this.aliveEnemies().length === 0) break;
       }
       // 强攻包·连击：本牌「伤害」效果额外命中 multiHit 次（仅伤害，不重复格挡/治疗/状态）
       for (let k = 0; k < (s.multiHit || 0) && this.aliveEnemies().length > 0; k++) {
         (s.effects || []).forEach(eff => {
-          if (eff.type !== 'damage') return;
-          CG.Effects.apply(this, eff, this.player, target);
-          extra.forEach(t => { if (t.hp > 0) CG.Effects.apply(this, eff, this.player, t); });
+          if (eff.type !== 'damage' || (eff.minion && !this.skeleton)) return;
+          CG.Effects.apply(this, eff, srcOf(eff), target);
+          extra.forEach(t => { if (t.hp > 0) CG.Effects.apply(this, eff, srcOf(eff), t); });
         });
       }
       // 吸血：按对主目标造成的伤害回血（含连击多段）
