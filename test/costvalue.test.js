@@ -416,16 +416,8 @@ test('门条件 × 力量：第一次打出达成 → +力量定额', () => {
 });
 
 // ===== 新词条：自中毒代价 / 荆棘 / 删建筑 =====
-test('自中毒 selfPoison：第 4 个自身减益代价（首石免、非首石才上自中毒）', () => {
-  assert.ok(CG.AFFIXES.selfPoison_damage);
-  assert.strictEqual(CG.affixCostText('selfPoison_damage', 1), '自中毒 3');
-  const first = stat(spell([{ id: 'selfPoison_damage', level: 1 }]));   // 首石免代价
-  assert.ok(!first.effects.some(e => e.type === 'selfStatus'));
-  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
-  g.player.energy = 9;
-  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfPoison_damage', level: 1 }]);   // 首石strike + 自中毒代价
-  g.hand = [c]; g.playCard(c.uid);
-  assert.strictEqual(g.player.statuses.poison || 0, 3);   // 非首石付：自中毒 3
+test('自中毒 selfPoison 已删除', () => {
+  assert.ok(!CG.AFFIXES['selfPoison_damage'] && !CG.COST_REAL['selfPoison'] && CG.VALUES['selfPoison'] == null);
 });
 
 test('荆棘 thorns：受击反伤；有本/下/每回合三档', () => {
@@ -525,7 +517,7 @@ test('代价时点：每回合(递归·量减半) / 下回合(延迟·量加倍)
   assert.strictEqual(CG.affixCostText('hpV_damage', 1), '每回合失 2 血');   // 递归：代价VP×2 → 量减半
   assert.strictEqual(CG.affixCostText('hpN_damage', 1), '下回合失 6 血');   // 延迟：代价VP×0.5 → 量加倍
   assert.ok(!CG.AFFIXES['energyV_damage'] && !CG.AFFIXES['discardV_damage'] && !CG.AFFIXES['loseStrV_damage']);   // 能量/弃牌/失力量 不时点化
-  assert.ok(CG.AFFIXES['selfPoisonV_block'] && CG.AFFIXES['goldN_heal'] && CG.AFFIXES['selfVulnV_damage']);       // 生命/金币/自减益 可时点化
+  assert.ok(CG.AFFIXES['selfWeakV_block'] && CG.AFFIXES['goldN_heal'] && CG.AFFIXES['selfVulnV_damage']);          // 生命/金币/自减益 可时点化
 });
 
 test('代价时点·每回合：价值当回合即得、代价调度到 _everyTurn 反复付', () => {
@@ -541,16 +533,16 @@ test('代价时点·每回合：价值当回合即得、代价调度到 _everyTu
   g._startPlayerTurn(); assert.strictEqual(hp0 - g.player.hp, 4);   // 再下回合：再失 2 血（递归）
 });
 
-test('代价时点·下回合：延迟一次付（自中毒代价 → 下回合上自身中毒）', () => {
+test('代价时点·下回合：延迟一次付（自易伤代价 → 下回合上自身易伤）', () => {
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
-  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfPoisonN_damage', level: 1 }]);   // 首石 + 下回合自中毒→伤害
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfVulnN_damage', level: 1 }]);   // 首石 + 下回合自易伤→伤害
   g.hand = [c]; g.playCard(c.uid);
-  assert.ok(!g.player.statuses.poison);              // 当回合不付代价
+  assert.ok(!g.player.statuses.vulnerable);          // 当回合不付代价
   assert.strictEqual(g._nextTurn.length, 1);
-  g._startPlayerTurn(); assert.ok(g.player.statuses.poison > 0);   // 下回合开始：上自身中毒
-  const p = g.player.statuses.poison;
-  g._startPlayerTurn(); assert.ok((g.player.statuses.poison || 0) <= p);   // 仅一次（_nextTurn 结算后清空，不再叠加）
+  g._startPlayerTurn(); assert.ok(g.player.statuses.vulnerable > 0);   // 下回合开始：上自身易伤
+  const p = g.player.statuses.vulnerable;
+  g._startPlayerTurn(); assert.ok((g.player.statuses.vulnerable || 0) <= p);   // 仅一次（_nextTurn 结算后清空，不再叠加）
 });
 
 // ===== 完整性 =====

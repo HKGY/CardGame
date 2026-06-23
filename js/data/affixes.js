@@ -26,7 +26,7 @@ window.CG = window.CG || {};
     mult: 12.0, lifesteal: 0.12, combo: 6.0, multi: 12.0,   // 翻倍/多重=12VP；吸血 0.12/%(≤100)；连击 6VP
     // —— 代价原子 ——（可玩数字：生命 2VP→3血、金币 1VP→6金）
     hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0,
-    selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0, selfPoison: 2.0,   // 自身减益代价（2VP/层；自中毒＝自残 DoT）
+    selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,     // 自身减益代价（2VP/层）
     loseStr: 3.0, loseDex: 3.0,                       // 扣自身力量/敏捷（可为负，真代价）
   };
   CG.VALUES = V;
@@ -130,7 +130,6 @@ window.CG = window.CG || {};
     selfVuln:  { name: '自易伤', fmt: n => `自易伤 ${n}`, status: 'vulnerable', time: true },
     selfWeak:  { name: '自虚弱', fmt: n => `自虚弱 ${n}`, status: 'weak', time: true },
     selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail', time: true },
-    selfPoison:{ name: '自中毒', fmt: n => `自中毒 ${n}`, status: 'poison', time: true },   // 第 4 个自身减益代价（自残 DoT）
     loseStr:   { name: '失力量', fmt: n => `失 ${n} 力量` },
     loseDex:   { name: '失敏捷', fmt: n => `失 ${n} 敏捷` },
   };

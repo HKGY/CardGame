@@ -274,7 +274,7 @@ window.CG = window.CG || {};
     const costLossEff = (res, amt) => {
       if (res === 'hp') return { type: 'loseHp', value: amt };
       if (res === 'gold') return { type: 'loseGold', value: amt };
-      const st = { selfVuln: 'vulnerable', selfWeak: 'weak', selfFrail: 'frail', selfPoison: 'poison' }[res];
+      const st = { selfVuln: 'vulnerable', selfWeak: 'weak', selfFrail: 'frail' }[res];
       return st ? { type: 'selfStatus', status: st, value: amt } : null;
     };
     (sockets || []).forEach((g, si) => {
@@ -334,7 +334,6 @@ window.CG = window.CG || {};
     if (costMax.selfVuln)  effects.push({ type: 'selfStatus', status: 'vulnerable', value: costMax.selfVuln });
     if (costMax.selfWeak)  effects.push({ type: 'selfStatus', status: 'weak', value: costMax.selfWeak });
     if (costMax.selfFrail) effects.push({ type: 'selfStatus', status: 'frail', value: costMax.selfFrail });
-    if (costMax.selfPoison) effects.push({ type: 'selfStatus', status: 'poison', value: costMax.selfPoison });   // 自中毒代价
     if (thornsN) effects.push({ type: 'thorns', value: thornsN });   // 荆棘：给自己上荆棘（受击反伤）
     if (enemyStrN)     effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrN });           // 敌失力量（永久）
     if (enemyStrTempN) effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrTempN, temp: true });
