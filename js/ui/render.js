@@ -403,11 +403,15 @@ window.CG = window.CG || {};
       const pc = s.cost * oc;
       ok = game.phase === 'player' && (game.player.power || 0) >= pc && !s.noPlay && !blocked;
       s = Object.assign({}, s, { cost: pc, _power: true });     // 卡面耗费显示为电力
+    } else if (s.multi) {
+      ok = game.phase === 'player' && !s.noPlay && !blocked;    // 多重：耗费＝全部能量、恒可打出，耗能显示 X
+      s = Object.assign({}, s, { cost: 'X' });
     } else {
       const free = (game.freeCards || 0) > 0;
-      const payCost = free ? 0 : s.cost;
+      const conjured = inst.conjuredTurn === game.turn;         // 术士·造牌：本回合 0 费
+      const payCost = (free || conjured) ? 0 : s.cost;
       ok = game.phase === 'player' && payCost <= game.player.energy && !s.noPlay && !blocked;
-      if (free) s = Object.assign({}, s, { cost: 0, _free: true });
+      if (free || conjured) s = Object.assign({}, s, { cost: 0, _free: true });
     }
     return `<div class="card type-${s.type} ${ok ? '' : 'disabled'} ${paralyzed ? 'paralyzed' : ''}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
   }

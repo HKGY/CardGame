@@ -135,6 +135,8 @@ window.CG = window.CG || {};
     let preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
     let vigorN = 0, innateN = 0, inspireN = 0, allinN = 0, surplusN = 0, rewindN = 0;   // 律动包（innate/allin/surplus 由 game/playCard 读取）
     let multiHitN = 0;   // 强攻包·连击：每层+1次攻击命中
+    let thornsN = 0;     // 荆棘：受击反伤（自带反伤引擎）
+    let multiN = 0;      // 多重：消耗全部能量、整张牌重复（次数=能量）
     let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
     all.forEach(({ def: d, level: rawL }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -255,6 +257,8 @@ window.CG = window.CG || {};
       if (d.vigor) vigorN += d.vigor * L; if (d.innate) innateN += d.innate * L; if (d.inspire) inspireN += d.inspire * L; if (d.allin) allinN += d.allin * L; if (d.surplus) surplusN += d.surplus * L; if (d.rewind) rewindN += d.rewind * L;
       // —— 放大包 ——
       if (d.multiHit) multiHitN += d.multiHit * L;
+      if (d.thorns)   thornsN += d.thorns * L;
+      if (d.multi)    multiN += d.multi;   // 多重为标志位（maxCount 1、不随等级）
       if (d.potent) potentN += d.potent * L; if (d.amppain) amppainN += d.amppain * L; if (d.ampgain) ampgainN += d.ampgain * L; if (d.boon) boonN += d.boon * L; if (d.polarize) polarizeN += d.polarize * L;
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
@@ -319,6 +323,8 @@ window.CG = window.CG || {};
     if (costMax.selfVuln)  effects.push({ type: 'selfStatus', status: 'vulnerable', value: costMax.selfVuln });
     if (costMax.selfWeak)  effects.push({ type: 'selfStatus', status: 'weak', value: costMax.selfWeak });
     if (costMax.selfFrail) effects.push({ type: 'selfStatus', status: 'frail', value: costMax.selfFrail });
+    if (costMax.selfPoison) effects.push({ type: 'selfStatus', status: 'poison', value: costMax.selfPoison });   // 自中毒代价
+    if (thornsN) effects.push({ type: 'thorns', value: thornsN });   // 荆棘：给自己上荆棘（受击反伤）
     if (enemyStrN)     effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrN });           // 敌失力量（永久）
     if (enemyStrTempN) effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrTempN, temp: true });
     if (enemyDexN)     effects.push({ type: 'enemyStat', key: 'dexterity', value: enemyDexN });
@@ -444,7 +450,7 @@ window.CG = window.CG || {};
       reclaim: reclaimN, dumpster: dumpsterN, discardCost: clutchN,                                     // 弃牌包（reclaim 选牌队列、dumpster playCard 加成）
       prey: preyN, insight: insightN,                                             // 猎杀包（playCard 加成）
       innate: innateN, allin: allinN, surplus: surplusN,                          // 律动包（innate=开局抽序、allin/surplus=playCard）
-      potent: potentN, multiHit: multiHitN,                                       // 放大包(potent)+强攻包(连击 multiHit) playCard 加成
+      potent: potentN, multiHit: multiHitN, multi: multiN,                        // 放大包(potent/多重)+强攻包(连击 multiHit) playCard 加成
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -468,6 +474,7 @@ window.CG = window.CG || {};
     if (f.addDex)    out.now.push({ type: 'dexterity', value: f.addDex });
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
+    if (f.thorns)    out.now.push({ type: 'thorns', value: f.thorns });
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
     if (f.enemyDex)  out.now.push({ type: 'enemyStat', key: 'dexterity', value: f.enemyDex, temp: !!f.enemyTemp });
     if (f.give)      out.now.push({ type: 'give', what: f.give, value: 1 });
@@ -479,6 +486,7 @@ window.CG = window.CG || {};
     if (f.potent)    out.potent = f.potent;             // 卡级修饰（合并进 s，由 playCard 应用到本牌其它价值）
     if (f.lifesteal) out.lifesteal = f.lifesteal;
     if (f.multiHit)  out.multiHit = f.multiHit;
+    if (f.multi)     out.multi = f.multi;
     if (f.element)   { out.element = f.element; out.elementLevel = f.elementBase; }
     return out;
   };

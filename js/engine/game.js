@@ -328,9 +328,10 @@ window.CG = window.CG || {};
       const free = oc ? false : (this.freeCards || 0) > 0;             // 回响：本张免费打出（超频时不适用）
       let payCost = oc ? 0 : (free ? 0 : s.cost);
       if (!oc && !free && s.surplus > 0 && this.player.energy >= Math.max(2, 4 - s.surplus)) payCost = 0;   // 律动·余裕：能量充裕时本牌免费
+      if (card.conjuredTurn === this.turn) payCost = 0;               // 术士·造牌：本回合 0 费
       const payPower = oc ? s.cost * oc : 0;
       if (oc && payPower > (this.player.power || 0)) { this.addLog('电力不足。'); this._emit(); return; }
-      if (!oc && payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }
+      if (!oc && !s.multi && payCost > this.player.energy) { this.addLog('能量不足。'); this._emit(); return; }   // 多重：耗费=全部能量，恒可打出
       if (oc > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value * oc }) : e) });
 
       // 力量塔罗：下一张攻击牌造成 N 倍伤害（用后清除）
@@ -380,6 +381,7 @@ window.CG = window.CG || {};
           if (ve.potent)    s = Object.assign({}, s, { potent: (s.potent || 0) + ve.potent });
           if (ve.lifesteal) s = Object.assign({}, s, { lifesteal: (s.lifesteal || 0) + ve.lifesteal });
           if (ve.multiHit)  s = Object.assign({}, s, { multiHit: (s.multiHit || 0) + ve.multiHit });
+          if (ve.multi)     s = Object.assign({}, s, { multi: (s.multi || 0) + ve.multi });
           if (ve.element)   s = Object.assign({}, s, { element: ve.element, elementLevel: ve.elementLevel });
         });
       }
@@ -495,6 +497,8 @@ window.CG = window.CG || {};
         }
       }
 
+      // 多重：消耗全部剩余能量，整张牌打出「能量」次（手牌耗费显示 X）。在所有加成/条件结算后定。
+      if (s.multi > 0 && !oc) { payCost = this.player.energy || 0; s = Object.assign({}, s, { repeatTimes: Math.max(1, payCost) }); }
       if (oc > 0) this.player.power -= payPower;                       // 改造：扣电力
       else { if (free) this.freeCards -= 1; this.player.energy -= payCost; }   // 否则扣能量（回响免费）
       this.hand.splice(idx, 1);

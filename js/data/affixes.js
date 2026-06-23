@@ -22,11 +22,11 @@ window.CG = window.CG || {};
   const V = {
     heal: 1.5,                                        // 治疗（排序铁律：治疗 > 格挡 > 伤害）
     fire: 6.0, water: 6.0, thunder: 6.0, ice: 6.0,    // 元素：1 层 = 6VP
-    summon: 3.0, building: 5.0, conjure: 4.0,
-    mult: 12.0, lifesteal: 0.12, combo: 6.0,          // 翻倍=12VP；吸血以「1% 为单位」(0.12VP/%、上限100%)；连击=6VP
+    summon: 3.0,                                      // building 已删；conjure 改为时点基值（VP 6，见 TURN_BASES）
+    mult: 12.0, lifesteal: 0.12, combo: 6.0, multi: 12.0,   // 翻倍/多重=12VP；吸血 0.12/%(≤100)；连击 6VP
     // —— 代价原子 ——（可玩数字：生命 2VP→3血、金币 1VP→6金）
     hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0,
-    selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,     // 自身减益代价（2VP/层）
+    selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0, selfPoison: 2.0,   // 自身减益代价（2VP/层；自中毒＝自残 DoT）
     loseStr: 3.0, loseDex: 3.0,                       // 扣自身力量/敏捷（可为负，真代价）
   };
   CG.VALUES = V;
@@ -36,8 +36,8 @@ window.CG = window.CG || {};
     strength: '#e0563a', tempStr: '#c8a0d8', dexterity: '#4a86e0', tempDex: '#7fb0d8', vulnerable: '#e05550', weak: '#3fae62', frail: '#4a86e0', poison: '#8ab84a',
     fire: '#ff7a4a', water: '#4aa8ff', thunder: '#e8c84a', ice: '#8fe0ec',
     enemyLoseStr: '#3fae62', enemyLoseStrTemp: '#3fae62', enemyLoseDex: '#4a86e0', enemyLoseDexTemp: '#4a86e0',
-    food: '#e0a45a', summon: '#b0b0e0', building: '#c0a060', produce: '#b6d36a', conjure: '#b59ad8',
-    mult: '#ff9fc0', lifesteal: '#cf4f6a', combo: '#e89030',
+    food: '#e0a45a', summon: '#b0b0e0', produce: '#b6d36a', conjure: '#b59ad8', thorns: '#5fae6a',
+    mult: '#ff9fc0', lifesteal: '#cf4f6a', combo: '#e89030', multi: '#ff7fa0',
   };
 
   /* —— 价值原子 ——
@@ -51,11 +51,10 @@ window.CG = window.CG || {};
     thunder:  { name: '附雷', vpRes: 'thunder', maxCount: 2, color: COLOR.thunder, mech: u => ({ element: 'thunder', elementBase: u }) },
     ice:      { name: '附冰', vpRes: 'ice', maxCount: 2, color: COLOR.ice, mech: u => ({ element: 'ice', elementBase: u }) },
     summon:   { name: '召唤物', vpRes: 'summon', color: COLOR.summon, mech: () => ({ summon: 'skeleton' }) },
-    building: { name: '建筑', vpRes: 'building', color: COLOR.building, mech: () => ({ build: 'arrowtower' }) },
-    conjure:  { name: '造牌', vpRes: 'conjure', color: COLOR.conjure, mech: () => ({ conjure: 1 }) },
     mult:     { name: '翻倍', vpRes: 'mult', maxCount: 2, color: COLOR.mult, mech: u => ({ potent: u }) },   // ×(1+L)：LV1 ×2、LV2/3 ×3
     lifesteal:{ name: '吸血', vpRes: 'lifesteal', maxCount: 100, color: COLOR.lifesteal, mech: u => ({ lifesteal: u }) },   // 以 1% 计：LV1 50%、LV2/3 100%
     combo:    { name: '连击', vpRes: 'combo', color: COLOR.combo, mech: u => ({ multiHit: u }) },
+    multi:    { name: '多重', vpRes: 'multi', maxCount: 1, color: COLOR.multi, mech: u => ({ multi: u }) },   // 消耗全部能量、整张牌重复（次数=能量）；手牌耗能显示 X
   };
 
   /* —— 通用「本回合(now)/下回合(next)/每回合(every)」时点修饰器 ——
@@ -78,6 +77,8 @@ window.CG = window.CG || {};
     weak:       sched(1.5, v => ({ type: 'weak', value: v }), v => ({ apply: { weak: v } }), { now: 'weak', next: 'weak_next', every: 'weak_every' }, '虚弱', { num: true, prim: 'now', color: COLOR.weak }),
     frail:      sched(1.5, v => ({ type: 'frail', value: v }), v => ({ apply: { frail: v } }), { now: 'frail', next: 'frail_next', every: 'frail_every' }, '脆弱', { num: true, prim: 'now', color: COLOR.frail }),
     poison:     sched(1.5, v => ({ type: 'poison', value: v }), v => ({ apply: { poison: v } }), { now: 'poison', next: 'poison_next', every: 'poison_every' }, '中毒', { num: true, prim: 'now', color: COLOR.poison }),
+    thorns:     sched(2.0, v => ({ type: 'thorns', value: v }), v => ({ thorns: v }), { now: 'thorns', next: 'thorns_next', every: 'thorns_every' }, '荆棘', { num: true, prim: 'now', color: COLOR.thorns }),   // 受击反伤（自带反伤引擎）
+    conjure:    sched(6.0, v => ({ type: 'conjure', value: v }), v => ({ conjure: v }), { now: 'conjure', next: 'conjure_next', every: 'conjure_every' }, '造牌', { num: true, prim: 'now', color: COLOR.conjure }),   // 造一张带随机 n 宝石的牌(本回合 0 费)
     food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, '素菜', { maxCount: 1, color: COLOR.food }),
     food_meat:  sched(2.0, v => ({ type: 'give', what: 'meat', value: v }), () => ({ give: 'meat' }), { now: 'food_meat', next: 'food_meat_next', every: 'food_meat_every' }, '荤菜', { maxCount: 1, color: COLOR.food }),
     food_season:sched(2.0, v => ({ type: 'give', what: 'season', value: v }), () => ({ give: 'season' }), { now: 'food_season', next: 'food_season_next', every: 'food_season_every' }, '调料', { maxCount: 1, color: COLOR.food }),
@@ -112,6 +113,7 @@ window.CG = window.CG || {};
     selfVuln:  { name: '自易伤', fmt: n => `自易伤 ${n}`, status: 'vulnerable' },
     selfWeak:  { name: '自虚弱', fmt: n => `自虚弱 ${n}`, status: 'weak' },
     selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail' },
+    selfPoison:{ name: '自中毒', fmt: n => `自中毒 ${n}`, status: 'poison' },   // 第 4 个自身减益代价（自残 DoT）
     loseStr:   { name: '失力量', fmt: n => `失 ${n} 力量` },
     loseDex:   { name: '失敏捷', fmt: n => `失 ${n} 敏捷` },
   };
@@ -273,13 +275,12 @@ window.CG = window.CG || {};
     vitality: P('生机包', '🌿', '#7fd6a0', '治疗 / 力量 / 敏捷（力量·敏捷含下回合版）。', ['heal', 'strength', 'strength_next', 'dexterity', 'dexterity_next']),
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发反应。', ['fire', 'water', 'thunder', 'ice']),
     cook:     P('厨艺包', '🍳', '#e0a45a', '食材（本/下/每回合三档）。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
-    bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡（本/下回合）/ 本回合力量·敏捷。', ['block', 'block_next', 'tempStr', 'tempDex']),
+    bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡（本/下回合）/ 本回合力量·敏捷 / 荆棘（受击反伤）。', ['block', 'block_next', 'tempStr', 'tempDex', 'thorns', 'thorns_next', 'thorns_every']),
     elec:     P('电力包', '⚡', '#f0d040', '电力（本/下/每回合三档）。', ['power', 'power_next', 'power_every']),
     produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（格挡 / 抽牌 / 能量）。', ['produce_draw', 'produce_block', 'produce_energy']),
     summon:   P('召唤包', '👻', '#b0b0e0', '召唤物。', ['summon']),
-    build:    P('建造包', '🏗️', '#c0a060', '建筑。', ['building']),
-    conjure:  P('术士包', '🎩', '#b59ad8', '造牌。', ['conjure']),
-    amplify:  P('放大包', '✦', '#ff9fc0', '翻倍 / 吸血（放大本牌）。', ['mult', 'lifesteal']),
+    conjure:  P('术士包', '🎩', '#b59ad8', '造牌（本/下/每回合）。', ['conjure', 'conjure_next', 'conjure_every']),
+    amplify:  P('放大包', '✦', '#ff9fc0', '翻倍 / 吸血 / 多重（放大本牌）。', ['mult', 'lifesteal', 'multi']),
   };
   // 兼容旧字段：把每个包展开成「(真资源代价 ∪ 条件代价) × 主题价值」组合 id 列表（rollGem/fusion 读取）。
   //   条件代价词条按其「价值」归入对应主题（而非一股脑塞进基础包）→ 不选某主题就抽不到其价值（含其条件型）＝主题隔离。

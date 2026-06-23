@@ -56,6 +56,9 @@ window.CG = window.CG || {};
     dexterity(game, eff, source) {
       game.applyStatus(source, 'dexterity', eff.value);
     },
+    thorns(game, eff, source) {                        // 荆棘：受击反伤（_dealRaw 里已结算反弹）
+      game.applyStatus(source, 'thorns', eff.value);
+    },
     vulnerable(game, eff, source, target) {
       game.applyStatus(target, 'vulnerable', eff.value);
     },
@@ -252,7 +255,13 @@ window.CG = window.CG || {};
     sift(game) { game._discardRandom(2); game.drawCards(2); },                                       // 整理：弃 2 抽 2
     madness(game) { const n = game.hand.length; game._discardRandom(n); if (n > 0) game.applyStatus(game.player, 'strength', n); },   // 疯狂：弃光手牌·每张+1力量
     // === 术士包 ===（造牌/复制/灵视/牌库强化；clutter 塞渣滓）
-    conjure(game, eff) { for (let i = 0; i < 1 + eff.value; i++) game._addToHand(CG.makeCard('spell', 1, [CG.makeGem([{ id: Math.random() < 0.5 ? CG.STRIKE : CG.GUARD, level: 1 }])])); },   // 演卡：印一张攻/防法术
+    conjure(game, eff) {                                                            // 造牌：生成一张带随机 n 颗宝石的本场卡牌（本回合 0 费）
+      const n = Math.max(1, eff.value), gems = [];
+      for (let i = 0; i < n; i++) gems.push(CG.rollGem({ tier: 'monster' }));
+      const card = CG.makeCard('spell', n, gems);
+      card.conjuredTurn = game.turn;                                                // playCard 据此本回合免费
+      game._addToHand(card);
+    },
     daggers(game) { for (let i = 0; i < 3; i++) game._addToHand(CG.makeFoodCard('shiv')); },                                       // 飞刀×3
     duplicate(game) { if (game.hand.length) { const c = game.hand[Math.floor(Math.random() * game.hand.length)]; game._addToHand(CG.makeCard(c.base, c.limit, c.sockets || [])); } },   // 复制随机手牌
     foresight(game) { if (game.drawPile.length) { const c = game.drawPile.pop(); game._applyCardEffects(c); game.discardPile.push(c); } },   // 灵视：免费打出牌堆顶

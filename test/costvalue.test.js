@@ -227,7 +227,9 @@ test('弃牌代价：玩家自选丢弃，且在造牌之前生效', () => {
   assert.ok(!g.pick);
   assert.ok(g.discardPile.some(c => c.uid === cA.uid) && g.discardPile.some(c => c.uid === cB.uid));   // 弃的是自选的两张
   assert.ok(g.hand.some(c => c.uid === cC.uid));             // cC 未被弃（证明非随机）
-  assert.ok(g.hand.length >= 3);                             // 造牌在弃牌之后发生（cC + 2 张新造）
+  assert.ok(g.hand.length >= 2);                             // 造牌在弃牌之后发生（cC + 1 张新造的带宝石牌）
+  const conjured = g.hand.find(c => c.conjuredTurn === g.turn);
+  assert.ok(conjured && conjured.sockets.length >= 1);       // 新造牌带随机宝石、本回合 0 费
 });
 
 // ===== 塔罗（生成式·消耗品轨道）=====
@@ -374,7 +376,7 @@ test('条件配对：量型 × 全部48时点变体+治疗；门型(true/false) 
   // 量型不配「无时点·非数值」价值（召唤/元素/翻倍）
   assert.ok(!CG.AFFIXES['curBlock_summon'] && !CG.AFFIXES['curBlock_fire'] && !CG.AFFIXES['curBlock_mult']);
   // 门型(firstPlay/hurt/noBlock)：每一个价值都成词条（含召唤/元素/翻倍/连击/每回合…）
-  assert.ok(CG.AFFIXES['firstPlay_summon'] && CG.AFFIXES['firstPlay_fire'] && CG.AFFIXES['firstPlay_mult'] && CG.AFFIXES['firstPlay_combo'] && CG.AFFIXES['firstPlay_damage_every'] && CG.AFFIXES['hurt_building'] && CG.AFFIXES['noBlock_conjure']);
+  assert.ok(CG.AFFIXES['firstPlay_summon'] && CG.AFFIXES['firstPlay_fire'] && CG.AFFIXES['firstPlay_mult'] && CG.AFFIXES['firstPlay_combo'] && CG.AFFIXES['firstPlay_damage_every'] && CG.AFFIXES['hurt_summon'] && CG.AFFIXES['noBlock_conjure']);
 });
 
 test('条件 × 每回合变体：当前格挡→每回合伤害（打出快照格挡，之后每回合结算）', () => {
@@ -410,6 +412,61 @@ test('门条件 × 力量：第一次打出达成 → +力量定额', () => {
   g.player.energy = 9;
   const c = spell([{ id: 'firstPlay_strength', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
   assert.strictEqual(g.player.statuses.strength || 0, 2);   // floor(6/3) = 2 永久力量
+});
+
+// ===== 新词条：自中毒代价 / 荆棘 / 删建筑 =====
+test('自中毒 selfPoison：第 4 个自身减益代价（首石免、非首石才上自中毒）', () => {
+  assert.ok(CG.AFFIXES.selfPoison_damage);
+  assert.strictEqual(CG.affixCostText('selfPoison_damage', 1), '自中毒 3');
+  const first = stat(spell([{ id: 'selfPoison_damage', level: 1 }]));   // 首石免代价
+  assert.ok(!first.effects.some(e => e.type === 'selfStatus'));
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfPoison_damage', level: 1 }]);   // 首石strike + 自中毒代价
+  g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.player.statuses.poison || 0, 3);   // 非首石付：自中毒 3
+});
+
+test('荆棘 thorns：受击反伤；有本/下/每回合三档', () => {
+  assert.strictEqual(lv('energy_thorns'), '1,2,3');
+  assert.strictEqual(CG.affixValueText('energy_thorns', 1), '荆棘 3');        // val1=floor(6/2)=3
+  assert.strictEqual(CG.affixValueText('energy_thorns_every', 1), '每回合荆棘 1');
+  // 战斗：上荆棘后，敌人攻击你 → 敌人受荆棘反伤
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  const c = spell([{ id: 'energy_thorns', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.player.statuses.thorns || 0, 3);
+  const ehp = g.enemy.hp;
+  g.dealAttackDamage(g.enemy, g.player, 4);   // 敌人打你 4
+  assert.strictEqual(ehp - g.enemy.hp, 3);    // 敌人受 3 荆棘反伤
+});
+
+test('造牌重做：生成带随机 n 宝石的本场牌、本回合 0 费；有本/下/每回合三档', () => {
+  assert.strictEqual(lv('energy_conjure'), '1,2,3');
+  assert.strictEqual(CG.affixValueText('energy_conjure', 1), '造牌 1');
+  assert.ok(CG.AFFIXES['energy_conjure_next'] && CG.AFFIXES['energy_conjure_every']);
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 9;
+  const c = spell([{ id: 'energy_conjure', level: 2 }]); g.hand = [c]; g.playCard(c.uid);   // L2 → 2 颗宝石
+  const made = g.hand[g.hand.length - 1];
+  assert.strictEqual(made.sockets.length, 2);          // 随机 2 颗宝石
+  assert.strictEqual(made.conjuredTurn, g.turn);       // 本回合 0 费标记（playCard 据此免费）
+});
+
+test('多重：消耗全部能量、整张牌打出「能量」次（耗费显示 X）', () => {
+  assert.strictEqual(lv('energy_multi'), '1');         // maxCount 1：单一档
+  assert.strictEqual(CG.affixValueText('energy_multi', 1), '多重 1');
+  const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 3; const hp = g.enemy.hp;
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_multi', level: 1 }]);   // 首石6伤 + 多重
+  g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(hp - g.enemy.hp, 18);             // 6 × 3 能量 = 18
+  assert.strictEqual(g.player.energy, 0);              // 全部能量被消耗
+});
+
+test('删建筑：building 价值原子与建造包均移除', () => {
+  assert.ok(!CG.AFFIXES['energy_building'] && !CG.VALUE_ATOMS['building']);
+  assert.ok(!CG.PACKS['build'] && !CG.PACK_IDS.includes('build'));
 });
 
 // ===== 完整性 =====
