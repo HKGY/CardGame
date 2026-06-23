@@ -33,7 +33,12 @@ window.CG = window.CG || {};
     },
     heal(game, eff, source) {
       if (source === game.player) game.heal(eff.value);            // 玩家：走 game.heal（动画 / 人寿保险）
-      else source.hp = Math.min(source.maxHp, source.hp + eff.value);
+      else {                                                       // 召唤物等其它单位：直接回血 + 治疗动画
+        const before = source.hp;
+        source.hp = Math.min(source.maxHp, source.hp + eff.value);
+        const healed = source.hp - before;
+        if (healed > 0) game._fire('heal', { side: game._sideOf(source), ei: -1, amount: healed });
+      }
     },
     randbuff(game, eff, source) {                                  // 祈祷：随机获得一种增益
       const pool = ['strength', 'dexterity'];

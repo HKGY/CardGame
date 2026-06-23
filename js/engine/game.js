@@ -55,7 +55,7 @@ window.CG = window.CG || {};
 
     onEvent(fn) { this.eventListeners.push(fn); return this; }
     _fire(type, payload) { this.eventListeners.forEach(fn => fn(type, payload)); }
-    _sideOf(entity) { return entity === this.player ? 'player' : 'enemy'; }
+    _sideOf(entity) { return entity === this.player ? 'player' : entity === this.skeleton ? 'skeleton' : 'enemy'; }   // 'skeleton' 仅用于 _fire 动画路由
     _idxOf(entity) { return this.enemies.indexOf(entity); }
     aliveEnemies() { return this.enemies.filter(e => e.alive && e.hp > 0); }
     currentTarget() {
@@ -790,22 +790,29 @@ window.CG = window.CG || {};
 
       this._fire('attack', { side: this._sideOf(source), ei: this._idxOf(source) });
       const beforeHp = target.hp, beforeBlock = target.block;
-      if (target === this.player && source !== this.player && this.skeleton && this.skeleton.hp > 0) this._absorbToPlayer(dmg);   // 召唤物替玩家抵挡
-      else this._dealRaw(target, dmg);
-      this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: beforeHp - target.hp, blocked: Math.min(beforeBlock, dmg) });
+      if (target === this.player && source !== this.player && this.skeleton && this.skeleton.hp > 0) {
+        this._absorbToPlayer(dmg);   // 召唤物替玩家抵挡（自带骷髅/玩家的受击动画）
+      } else {
+        this._dealRaw(target, dmg);
+        this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: beforeHp - target.hp, blocked: Math.min(beforeBlock, dmg) });
+      }
 
       if (target === this.player && source !== this.player) {       // 荆棘：攻击你的敌人受反伤（玩家 + 召唤物的荆棘）
         const th = this._relicSum('thorns') + (this.player.statuses.thorns || 0) + ((this.skeleton && this.skeleton.statuses.thorns) || 0);
         if (th > 0 && source.hp > 0) { const eh = source.hp, eb = source.block; this._dealRaw(source, th); this._fire('damage', { side: 'enemy', ei: this._idxOf(source), hpLoss: eh - source.hp, blocked: Math.min(eb, th) }); }
       }
     }
-    // 召唤物替玩家抵挡：召唤物格挡 → 玩家格挡 → 召唤物血 → 玩家血
+    // 召唤物替玩家抵挡：召唤物格挡 → 玩家格挡 → 召唤物血 → 玩家血（分别播骷髅/玩家受击动画）
     _absorbToPlayer(dmg) {
       const sk = this.skeleton; let rem = dmg;
+      const skBlk0 = sk ? (sk.block || 0) : 0, skHp0 = sk ? sk.hp : 0, pBlk0 = this.player.block || 0, pHp0 = this.player.hp;
       if (sk) { const a = Math.min(sk.block || 0, rem); sk.block -= a; rem -= a; }
       const pb = Math.min(this.player.block || 0, rem); this.player.block -= pb; rem -= pb;
       if (sk && rem > 0) { const a = Math.min(sk.hp, rem); sk.hp -= a; rem -= a; if (sk.hp <= 0) { this.skeleton = null; this.addLog('召唤物被击碎。'); } }
       if (rem > 0) this.player.hp = Math.max(0, this.player.hp - rem);
+      if (sk) { const skLoss = skHp0 - sk.hp, skBlk = skBlk0 - (sk.block || 0); if (skLoss > 0 || skBlk > 0) this._fire('damage', { side: 'skeleton', ei: -1, hpLoss: skLoss, blocked: skBlk }); }
+      const pLoss = pHp0 - this.player.hp, pBlk = pBlk0 - (this.player.block || 0);
+      if (pLoss > 0 || pBlk > 0) this._fire('damage', { side: 'player', ei: -1, hpLoss: pLoss, blocked: pBlk });
     }
 
     _dealRaw(target, dmg) {

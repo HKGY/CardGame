@@ -304,9 +304,10 @@ window.CG = window.CG || {};
     fxTimer = setTimeout(drainFx, 230);
   }
   function playFx(type, payload) {
-    const isP = payload.side === 'player';
-    const sprite = isP ? $('player-sprite') : $('enemy-sprite-' + payload.ei);
-    const stage = isP ? $('player-stage') : $('enemy-stage-' + payload.ei);
+    let sprite, stage;
+    if (payload.side === 'player') { sprite = $('player-sprite'); stage = $('player-stage'); }
+    else if (payload.side === 'skeleton') { sprite = $('skeleton-sprite'); stage = $('skeleton-stage'); }   // 召唤物：与玩家同款受击/攻击/格挡/治疗动画
+    else { sprite = $('enemy-sprite-' + payload.ei); stage = $('enemy-stage-' + payload.ei); }
     if (!sprite || !stage) return;
     if (type === 'attack') {
       animate(sprite, 'attacking', 320);
@@ -605,8 +606,10 @@ window.CG = window.CG || {};
     if (!sk || sk.hp <= 0) { wrap.classList.add('hidden'); return; }
     const spr = $('skeleton-sprite');
     if (spr && !spr.dataset.built) { spr.innerHTML = CG.Sprites.get('skeleton'); spr.dataset.built = '1'; }   // 立绘 DOM 持久（同敌人，避免清掉受击动画）
+    const appearing = wrap.classList.contains('hidden');   // 从无到有（召唤/重召）→ 播入场动画
     renderUnit('skeleton', sk, '召唤物', '', '');   // 与玩家同款：名字 + 血条 + 格挡/状态徽标
     wrap.classList.remove('hidden');
+    if (appearing && spr) animate(spr, 'enter', 560);
   }
 
   // ---------- 战斗内浮层：做菜选料（craft）/ 消耗包选牌（pick：燃烧 / 重生）----------
