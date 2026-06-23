@@ -65,34 +65,35 @@ window.CG = window.CG || {};
    *  numeric 标在「主版本」上（即时型主=本回合、持续型主=每回合），即条件代价能缩放的那一档。
    */
   const TURN_MUL = { now: 1.0, next: 0.5, every: 2.0 };
-  const sched = (vp, eff, nowMech, ids, names, opt) => Object.assign({ vp, kind: 'sched', eff, nowMech, ids, names }, opt || {});
-  const statB = (vp, nowMech, everyMech, nextEff, ids, names, color) => ({ vp, kind: 'stat', nowMech, everyMech, nextEff, ids, names, prim: 'every', color });
+  const TURN_PREFIX = { now: '本回合', next: '下回合', every: '每回合' };   // 命名＝原值名 + 时点前缀（如 每回合格挡 / 本回合力量 / 下回合敏捷）
+  const sched = (vp, eff, nowMech, ids, bname, opt) => Object.assign({ vp, kind: 'sched', eff, nowMech, ids, bname }, opt || {});
+  const statB = (vp, nowMech, everyMech, nextEff, ids, bname, color) => ({ vp, kind: 'stat', nowMech, everyMech, nextEff, ids, bname, prim: 'every', color });
   const TURN_BASES = {
-    damage:     sched(1.0, v => ({ type: 'damage', value: v, hits: 1 }), v => ({ dmg: v }), { now: 'damage', next: 'damage_next', every: 'damage_every' }, { now: '打击', next: '蓄击', every: '箭塔' }, { num: true, prim: 'now', color: COLOR.damage }),
-    block:      sched(1.2, v => ({ type: 'block', value: v }), v => ({ blk: v }), { now: 'block', next: 'block_next', every: 'produce_block' }, { now: '格挡', next: '备盾', every: '壁垒' }, { num: true, prim: 'now', color: COLOR.block }),
-    draw:       sched(2.5, v => ({ type: 'draw', value: v }), v => ({ draw: v }), { now: 'draw', next: 'draw_next', every: 'produce_draw' }, { now: '速记', next: '预读', every: '耕作' }, { num: true, prim: 'now', color: COLOR.draw }),
-    energy:     sched(6.0, v => ({ type: 'energy', value: v }), v => ({ energy: v }), { now: 'energy', next: 'energy_next', every: 'produce_energy' }, { now: '涌能', next: '续能', every: '引擎' }, { num: true, prim: 'now', color: COLOR.energy }),
-    power:      sched(1.0, v => ({ type: 'gainPower', value: v }), v => ({ gainPower: v }), { now: 'power', next: 'power_next', every: 'power_every' }, { now: '放电', next: '蓄电', every: '发电' }, { color: COLOR.power }),
-    vulnerable: sched(1.5, v => ({ type: 'vulnerable', value: v }), v => ({ apply: { vulnerable: v } }), { now: 'vulnerable', next: 'vulnerable_next', every: 'vulnerable_every' }, { now: '易伤', next: '渐破', every: '顽疾' }, { num: true, prim: 'now', color: COLOR.vulnerable }),
-    weak:       sched(1.5, v => ({ type: 'weak', value: v }), v => ({ apply: { weak: v } }), { now: 'weak', next: 'weak_next', every: 'weak_every' }, { now: '虚弱', next: '渐弱', every: '衰朽' }, { num: true, prim: 'now', color: COLOR.weak }),
-    frail:      sched(1.5, v => ({ type: 'frail', value: v }), v => ({ apply: { frail: v } }), { now: 'frail', next: 'frail_next', every: 'frail_every' }, { now: '脆弱', next: '渐裂', every: '蚀甲' }, { num: true, prim: 'now', color: COLOR.frail }),
-    poison:     sched(1.5, v => ({ type: 'poison', value: v }), v => ({ apply: { poison: v } }), { now: 'poison', next: 'poison_next', every: 'poison_every' }, { now: '淬毒', next: '缓毒', every: '瘟疫' }, { num: true, prim: 'now', color: COLOR.poison }),
-    food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, { now: '备菜', next: '育苗', every: '菜园' }, { maxCount: 1, color: COLOR.food }),
-    food_meat:  sched(2.0, v => ({ type: 'give', what: 'meat', value: v }), () => ({ give: 'meat' }), { now: 'food_meat', next: 'food_meat_next', every: 'food_meat_every' }, { now: '备肉', next: '育畜', every: '牧场' }, { maxCount: 1, color: COLOR.food }),
-    food_season:sched(2.0, v => ({ type: 'give', what: 'season', value: v }), () => ({ give: 'season' }), { now: 'food_season', next: 'food_season_next', every: 'food_season_every' }, { now: '备料', next: '腌渍', every: '香圃' }, { maxCount: 1, color: COLOR.food }),
-    strength:   statB(1.5, v => ({ prepare: v }), v => ({ addStr: v }), v => ({ type: 'tempStrength', value: v }), { now: 'tempStr', next: 'strength_next', every: 'strength' }, { now: '临时力量', next: '蓄力', every: '力量' }, COLOR.strength),
-    dexterity:  statB(1.5, v => ({ prepDex: v }), v => ({ addDex: v }), v => ({ type: 'tempDexterity', value: v }), { now: 'tempDex', next: 'dexterity_next', every: 'dexterity' }, { now: '临时敏捷', next: '蓄势', every: '敏捷' }, COLOR.dexterity),
-    enemyLoseStr: statB(1.5, v => ({ enemyStr: v, enemyTemp: true }), v => ({ enemyStr: v }), v => ({ type: 'enemyStat', key: 'strength', value: v, temp: true }), { now: 'enemyLoseStrTemp', next: 'enemyLoseStr_next', every: 'enemyLoseStr' }, { now: '慑力', next: '蓄慑', every: '镇力' }, COLOR.enemyLoseStr),
-    enemyLoseDex: statB(1.5, v => ({ enemyDex: v, enemyTemp: true }), v => ({ enemyDex: v }), v => ({ type: 'enemyStat', key: 'dexterity', value: v, temp: true }), { now: 'enemyLoseDexTemp', next: 'enemyLoseDex_next', every: 'enemyLoseDex' }, { now: '钝化', next: '蓄钝', every: '镇捷' }, COLOR.enemyLoseDex),
+    damage:     sched(1.0, v => ({ type: 'damage', value: v, hits: 1 }), v => ({ dmg: v }), { now: 'damage', next: 'damage_next', every: 'damage_every' }, '伤害', { num: true, prim: 'now', color: COLOR.damage }),
+    block:      sched(1.2, v => ({ type: 'block', value: v }), v => ({ blk: v }), { now: 'block', next: 'block_next', every: 'produce_block' }, '格挡', { num: true, prim: 'now', color: COLOR.block }),
+    draw:       sched(2.5, v => ({ type: 'draw', value: v }), v => ({ draw: v }), { now: 'draw', next: 'draw_next', every: 'produce_draw' }, '抽牌', { num: true, prim: 'now', color: COLOR.draw }),
+    energy:     sched(6.0, v => ({ type: 'energy', value: v }), v => ({ energy: v }), { now: 'energy', next: 'energy_next', every: 'produce_energy' }, '能量', { num: true, prim: 'now', color: COLOR.energy }),
+    power:      sched(1.0, v => ({ type: 'gainPower', value: v }), v => ({ gainPower: v }), { now: 'power', next: 'power_next', every: 'power_every' }, '电力', { color: COLOR.power }),
+    vulnerable: sched(1.5, v => ({ type: 'vulnerable', value: v }), v => ({ apply: { vulnerable: v } }), { now: 'vulnerable', next: 'vulnerable_next', every: 'vulnerable_every' }, '易伤', { num: true, prim: 'now', color: COLOR.vulnerable }),
+    weak:       sched(1.5, v => ({ type: 'weak', value: v }), v => ({ apply: { weak: v } }), { now: 'weak', next: 'weak_next', every: 'weak_every' }, '虚弱', { num: true, prim: 'now', color: COLOR.weak }),
+    frail:      sched(1.5, v => ({ type: 'frail', value: v }), v => ({ apply: { frail: v } }), { now: 'frail', next: 'frail_next', every: 'frail_every' }, '脆弱', { num: true, prim: 'now', color: COLOR.frail }),
+    poison:     sched(1.5, v => ({ type: 'poison', value: v }), v => ({ apply: { poison: v } }), { now: 'poison', next: 'poison_next', every: 'poison_every' }, '中毒', { num: true, prim: 'now', color: COLOR.poison }),
+    food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, '素菜', { maxCount: 1, color: COLOR.food }),
+    food_meat:  sched(2.0, v => ({ type: 'give', what: 'meat', value: v }), () => ({ give: 'meat' }), { now: 'food_meat', next: 'food_meat_next', every: 'food_meat_every' }, '荤菜', { maxCount: 1, color: COLOR.food }),
+    food_season:sched(2.0, v => ({ type: 'give', what: 'season', value: v }), () => ({ give: 'season' }), { now: 'food_season', next: 'food_season_next', every: 'food_season_every' }, '调料', { maxCount: 1, color: COLOR.food }),
+    strength:   statB(1.5, v => ({ prepare: v }), v => ({ addStr: v }), v => ({ type: 'tempStrength', value: v }), { now: 'tempStr', next: 'strength_next', every: 'strength' }, '力量', COLOR.strength),
+    dexterity:  statB(1.5, v => ({ prepDex: v }), v => ({ addDex: v }), v => ({ type: 'tempDexterity', value: v }), { now: 'tempDex', next: 'dexterity_next', every: 'dexterity' }, '敏捷', COLOR.dexterity),
+    enemyLoseStr: statB(1.5, v => ({ enemyStr: v, enemyTemp: true }), v => ({ enemyStr: v }), v => ({ type: 'enemyStat', key: 'strength', value: v, temp: true }), { now: 'enemyLoseStrTemp', next: 'enemyLoseStr_next', every: 'enemyLoseStr' }, '敌失力量', COLOR.enemyLoseStr),
+    enemyLoseDex: statB(1.5, v => ({ enemyDex: v, enemyTemp: true }), v => ({ enemyDex: v }), v => ({ type: 'enemyStat', key: 'dexterity', value: v, temp: true }), { now: 'enemyLoseDexTemp', next: 'enemyLoseDex_next', every: 'enemyLoseDex' }, '敌失敏捷', COLOR.enemyLoseDex),
   };
   // 生成 16 基值 ×3 时点 = 48 价值原子，并把三档 VP 写入 V。
   CG.TURN_BASES = TURN_BASES;
   Object.keys(TURN_BASES).forEach(base => {
-    const b = TURN_BASES[base];
+    const b = TURN_BASES[base], prim = b.prim || 'now';   // 默认形态（即时型=本回合、持续型=每回合）：名字用裸值名、不带时点前缀
     ['now', 'next', 'every'].forEach(t => {
       const id = b.ids[t];
       V[id] = b.vp * TURN_MUL[t];
-      const atom = { name: b.names[t], vpRes: id, timing: t, turnBase: base, color: b.color || '#cdd2e2' };
+      const atom = { name: t === prim ? b.bname : TURN_PREFIX[t] + b.bname, vpRes: id, timing: t, turnBase: base, color: b.color || '#cdd2e2' };
       if (b.maxCount != null) atom.maxCount = b.maxCount;
       atom.numeric = true;   // 全部 48 个时点变体都可被条件代价缩放（量型）/承载（门型）
       if (b.kind === 'sched') atom.mech = t === 'now' ? b.nowMech : t === 'every' ? (v => ({ everyTurn: [b.eff(v)] })) : (v => ({ nextTurn: [b.eff(v)] }));
@@ -266,15 +267,15 @@ window.CG = window.CG || {};
   const P = (name, icon, color, desc, values) => ({ name, icon, color, desc, values });
   CG.PACKS = {
     basic:    P('基础包', '🎴', '#cdd2e2', '伤害 / 格挡（空法术两条基本式）。', ['damage', 'block']),
-    power:    P('强攻包', '⚔️', '#e89030', '伤害（本回合打击 / 下回合蓄击 / 每回合箭塔）/ 连击。', ['damage', 'damage_next', 'damage_every', 'combo']),
+    power:    P('强攻包', '⚔️', '#e89030', '伤害（本/下/每回合三档）/ 连击。', ['damage', 'damage_next', 'damage_every', 'combo']),
     weaken:   P('弱化包', '☠️', '#8ab84a', '敌方减益（易伤/虚弱/脆弱/中毒 + 敌失力量·敏捷；各带本/下/每回合）。', ['vulnerable', 'vulnerable_next', 'vulnerable_every', 'weak', 'weak_next', 'weak_every', 'frail', 'frail_next', 'frail_every', 'poison', 'poison_next', 'poison_every', 'enemyLoseStr', 'enemyLoseStrTemp', 'enemyLoseStr_next', 'enemyLoseDex', 'enemyLoseDexTemp', 'enemyLoseDex_next']),
     tempo:    P('节奏包', '🌀', '#4fb8ee', '抽牌 / 能量（本回合 / 下回合）。', ['draw', 'draw_next', 'energy', 'energy_next']),
-    vitality: P('生机包', '🌿', '#7fd6a0', '治疗 / 力量 / 敏捷（含下回合蓄力·蓄势）。', ['heal', 'strength', 'strength_next', 'dexterity', 'dexterity_next']),
+    vitality: P('生机包', '🌿', '#7fd6a0', '治疗 / 力量 / 敏捷（力量·敏捷含下回合版）。', ['heal', 'strength', 'strength_next', 'dexterity', 'dexterity_next']),
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发反应。', ['fire', 'water', 'thunder', 'ice']),
-    cook:     P('厨艺包', '🍳', '#e0a45a', '食材（本回合备料 / 下回合育苗 / 每回合园圃）。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
-    bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡（本回合 / 下回合备盾）/ 临时力量 / 临时敏捷。', ['block', 'block_next', 'tempStr', 'tempDex']),
-    elec:     P('电力包', '⚡', '#f0d040', '电力（本回合放电 / 下回合蓄电 / 每回合发电）。', ['power', 'power_next', 'power_every']),
-    produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（耕作抽牌 / 壁垒格挡 / 引擎能量）。', ['produce_draw', 'produce_block', 'produce_energy']),
+    cook:     P('厨艺包', '🍳', '#e0a45a', '食材（本/下/每回合三档）。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
+    bastion:  P('死守包', '🛡️', '#7fa8c8', '格挡（本/下回合）/ 本回合力量·敏捷。', ['block', 'block_next', 'tempStr', 'tempDex']),
+    elec:     P('电力包', '⚡', '#f0d040', '电力（本/下/每回合三档）。', ['power', 'power_next', 'power_every']),
+    produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（格挡 / 抽牌 / 能量）。', ['produce_draw', 'produce_block', 'produce_energy']),
     summon:   P('召唤包', '👻', '#b0b0e0', '召唤物。', ['summon']),
     build:    P('建造包', '🏗️', '#c0a060', '建筑。', ['building']),
     conjure:  P('术士包', '🎩', '#b59ad8', '造牌。', ['conjure']),
