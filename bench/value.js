@@ -27,6 +27,81 @@ function gemCostRes(CG, gem) {
 }
 function baseAffinity() { return null; }   // v3 已无攻防基底；保留空壳供兼容
 
+// ===========================================================================
+//  v3.2/3.4 时点(_next/_every) + 召唤物(_m) 估值
+// ---------------------------------------------------------------------------
+//  病根：带 _next/_every 的牌 cardStats 输出 kind='skill'、value=0，效果被「调度」到
+//  game._nextTurn / game._everyTurn（下回合一次性 / 每回合循环）。旧 V 只看打完本回合的
+//  即时局面 → 这些延迟/循环价值全无人估，整批 _next/_every 牌被系统性低估。
+//  这里把「被调度的单个效果」换算成 V 点（与 V 主体同标度：血≈12/点、力量×6…），
+//  再按时点折现：每回合=循环引擎(~×ENGINE)、下回合=一次性延迟(×NEXT_DISC)。
+// ===========================================================================
+const ENGINE_MULT = 2.0;   // 每回合(循环引擎)：约 2~3 回合折现现值（与 produce_energy 的「每回合=一次性×2」定价一致；过高会为护引擎弃防御）
+const NEXT_DISC   = 0.6;   // 下回合(一次性延迟)：折现到现在 ~0.6
+
+// 一个「被调度/召唤物施放」的单效果换算成 V 点（正＝对我有利）。
+// 与 V() 主体同标度：1 HP ≈ 12V（这里取折半 ~6，因延迟/不确定 + 不超上限）；伤害 ≈ 敌血 1.5/点；
+// 力量×6、敏捷×4、易伤/虚弱×2、脆弱×1.5、中毒×2.5、荆棘×2、抽牌×3、能量×3、电力×1、格挡×2。
+function schedEffValue(eff) {
+  if (!eff) return 0;
+  const v = eff.value || 0;
+  switch (eff.type) {
+    case 'damage':       return v * (eff.hits || 1) * 1.5;           // 推进击杀
+    case 'block':        return v * 2.0;                            // 每回合护盾≈减伤
+    case 'heal':         return v * 6.0;                            // 回血（折半，可能溢出）
+    case 'draw':         return v * 3.0;
+    case 'energy':       return v * 3.0;
+    case 'gainPower':    return v * 1.0;
+    case 'strength':     return v * 6.0;
+    case 'tempStrength': return v * 3.0;                            // 临时力量：仅本/下回合
+    case 'dexterity':    return v * 4.0;
+    case 'tempDexterity':return v * 2.0;
+    case 'vulnerable':   return v * 2.0;                            // 给敌减益（调度时 target=当前敌）
+    case 'weak':         return v * 2.0;
+    case 'frail':        return v * 1.5;
+    case 'poison':       return v * 2.5;
+    case 'thorns':       return v * 2.0;
+    case 'enemyStat':    return Math.abs(v) * (eff.key === 'strength' ? 5 : 2);   // 敌失力量/敏捷（value 为负）
+    case 'summon':       return v * 1.5;                            // 召唤物血量上限增量
+    case 'conjure':      return v * 2.0;                            // 造牌：牌权期权
+    case 'give':         return 2.0;                                // 食材：潜在做菜价值
+    default:             return 0;
+  }
+}
+// 召唤物效果（minion:true）改投骷髅：减益/伤害仍打敌人（同上），但格挡/治疗/力量/荆棘等是「给骷髅」的
+//   板面续航，价值低于给玩家（骷髅是消耗品）→ 打 0.6 折。
+function minionEffValue(eff) {
+  const base = schedEffValue(eff);
+  switch (eff.type) {
+    case 'damage': case 'vulnerable': case 'weak': case 'frail':
+    case 'poison': case 'enemyStat':
+      return base;                  // 仍作用于敌人，全额
+    default:
+      return base * 0.6;            // 给骷髅的格挡/治疗/力量/荆棘/敏捷：消耗品续航，折扣
+  }
+}
+// 一条调度队列(_everyTurn/_nextTurn)的总分；带 minion 的效果若无骷髅则跳过（与引擎一致）。
+function queueValue(g, queue, perEffMult) {
+  let v = 0;
+  for (const eff of (queue || [])) {
+    if (eff.minion && !(g.skeleton && g.skeleton.hp > 0)) continue;   // 无骷髅 → 该 minion 效果不结算
+    v += (eff.minion ? minionEffValue(eff) : schedEffValue(eff)) * perEffMult;
+  }
+  return v;
+}
+// 召唤物(骷髅)板面价值：替玩家挡刀的「血肉护盾」+ 自带格挡/状态（力量/敏捷/荆棘助攻后续 _m 攻击）。
+//   骷髅不自动攻击，其攻击来自 _m 伤害词条（已在调度队列/即时效果里计），故此处只估「存在本身」的防御/续航。
+function skeletonValue(g) {
+  const sk = g.skeleton;
+  if (!sk || sk.hp <= 0) return 0;
+  let v = 0;
+  v += Math.min(sk.hp, sk.maxHp || sk.hp) * 4.0;        // 血肉护盾：每点 HP 可替玩家吃一点伤害（折现 ~4，低于玩家血 12）
+  v += (sk.block || 0) * 1.5;                           // 当前格挡（替玩家挡刀）
+  const st = sk.statuses || {};
+  v += (st.strength || 0) * 4.0 + (st.dexterity || 0) * 2.0 + (st.thorns || 0) * 2.0;   // 骷髅增益助攻其 _m 攻击/反伤
+  return v;
+}
+
 // ---- 战斗局面估值 ----
 function V(CG, g, packs) {
   if (g.phase === 'won') return 1e6 + g.player.hp * 10;
@@ -55,6 +130,11 @@ function V(CG, g, packs) {
     v -= (e.block || 0) * 0.15;                       // 敌人格挡=坏：鼓励凿穿护盾、破解「带盾残血」的对峙僵局
   }
   v += (p.power || 0) * 1.0;                          // 电力（v3 可跨回合存，~1VP/点；elec 钩子在有消耗途径时再加权）
+
+  // v3.2 时点调度：每回合(循环引擎) + 下回合(一次性延迟)；v3.4 召唤物板面。
+  v += queueValue(g, g._everyTurn, ENGINE_MULT);     // 每回合：循环引擎现值
+  v += queueValue(g, g._nextTurn, NEXT_DISC);        // 下回合：一次性延迟折现
+  v += skeletonValue(g);                             // 骷髅板面（血肉护盾 + 自身增益助攻 _m）
 
   for (const h of hooksFor(packs)) if (h.battle) { try { const b = h.battle(CG, g); if (b) v += b; } catch (e) {} }
   return v;

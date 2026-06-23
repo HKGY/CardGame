@@ -13,7 +13,13 @@
  */
 const value = require('../value');
 
-const DEBUFF_RES = new Set(['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseDex', 'enemyLoseStrTemp', 'enemyLoseDexTemp']);
+// 敌方减益价值原子的「基名」——v3.2 后每种另有 _next/_every 时点变体（vulnerable_next / weak_every …），
+// 故用前缀匹配 res 而非精确集合。
+const DEBUFF_BASES = ['vulnerable', 'weak', 'frail', 'poison', 'enemyLoseStr', 'enemyLoseDex'];
+function isDebuffRes(res) {
+  if (!res) return false;
+  return DEBUFF_BASES.some(b => res === b || res.indexOf(b) === 0);   // 含 _next/_every/Temp 变体
+}
 
 // 统计一副牌组的「伤害 vs 减益」倾向（按宝石价值原子）。
 function deckTendency(CG, run) {
@@ -21,14 +27,14 @@ function deckTendency(CG, run) {
   for (const c of (run.deck || [])) for (const g of (c.sockets || [])) for (const a of (g.affixes || [])) {
     const d = CG.AFFIXES[a.id]; if (!d || !d.value) continue;
     const r = d.value.res;
-    if (r === 'damage' || (d.condBonus && d.condBonus.vtype === 'damage') || r === 'mult' || r === 'execute' || r === 'lifesteal') dmg += a.level;
-    else if (DEBUFF_RES.has(r)) deb += a.level;
+    if (r === 'damage' || (d.condBonus && /^damage/.test(d.condBonus.atom || '')) || r === 'mult' || r === 'multi' || r === 'combo' || r === 'execute' || r === 'lifesteal') dmg += a.level;
+    else if (isDebuffRes(r)) deb += a.level;
   }
   return { dmg, deb };
 }
 function gemDebuffWeight(CG, gem) {
   let w = 0;
-  for (const a of (gem.affixes || [])) { const d = CG.AFFIXES[a.id]; if (d && d.value && DEBUFF_RES.has(d.value.res)) w += a.level; }
+  for (const a of (gem.affixes || [])) { const d = CG.AFFIXES[a.id]; if (d && d.value && isDebuffRes(d.value.res)) w += a.level; }
   return w;
 }
 
@@ -36,15 +42,20 @@ function gemDebuffWeight(CG, gem) {
 function cardDealsDamage(s) {
   if (!s) return false;
   if (s.kind === 'damage') return true;
-  if (s.condBonus && s.condBonus.some(c => c.vtype === 'damage')) return true;
-  return (s.effects || []).some(e => e.type === 'damage');
+  if (s.condBonus && s.condBonus.some(c => /^damage/.test(c.atom || ''))) return true;
+  // 即时伤害 + 召唤物伤害 + 调度(_next/_every)伤害 都算「能造伤害兑现减益」。
+  return (s.effects || []).some(e => e.type === 'damage' ||
+    ((e.type === 'scheduleNext' || e.type === 'scheduleEvery') && e.eff && e.eff.type === 'damage'));
 }
 // 一张候选牌是否「只上减益、不造伤害」（apply 易伤/虚弱/脆弱/中毒 或 enemyStat 减攻减格，但无伤害）。
 function cardOnlyDebuffs(s) {
   if (cardDealsDamage(s)) return false;
-  return (s.effects || []).some(e =>
+  const isDebuffEff = e =>
     e.type === 'vulnerable' || e.type === 'weak' || e.type === 'frail' || e.type === 'poison' ||
-    (e.type === 'enemyStat' && (e.value || 0) < 0));
+    (e.type === 'enemyStat' && (e.value || 0) < 0);
+  return (s.effects || []).some(e =>
+    isDebuffEff(e) ||
+    ((e.type === 'scheduleNext' || e.type === 'scheduleEvery') && e.eff && isDebuffEff(e.eff)));   // _next/_every 减益
 }
 
 value.registerPack('weaken', {

@@ -143,7 +143,7 @@ function scoreCombination(CG, vegBase, meatBase, seasonBase, g) {
 
 // 牌组里「能产出某类食材」的 give 词条数（跨所有牌的所有宝石）——用于 gem 钩子的合成链判断。
 function deckGiveCounts(CG, run) {
-  const cnt = { veg: 0, meat: 0, season: 0, cookware: 0 };
+  const cnt = { veg: 0, meat: 0, season: 0 };   // v3：厨具(cookware/food_ware) 已删，只剩 veg/meat/season
   for (const c of (run.deck || [])) for (const g of (c.sockets || [])) for (const a of (g.affixes || [])) {
     const d = CG.AFFIXES[a.id]; if (d && d.give && cnt[d.give] != null) cnt[d.give] += a.level;
   }
@@ -178,7 +178,7 @@ value.registerPack('cook', {
       } else if (d.give === 'season') {                 // 调料＝菜谱增幅(盐/酱油/胡椒)，需有可做的菜
         v += 0.9 * L;
         if (have && have.veg > 0) v += 0.4 * L;
-      } else if (d.give === 'cookware') v += 0.8 * L;   // 厨具＝0 费小武器(刀/锅/炉)，稳但平庸
+      }
     }
     return v;
   },

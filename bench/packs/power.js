@@ -17,7 +17,9 @@ function estDamage(s) {
   if (!s) return 0;
   let d = (s.value || 0) * (s.hits || 1);
   if (!d && s.effects) for (const e of s.effects) if (e.type === 'damage') d += (e.value || 0) * (e.hits || 1);
-  return d;
+  // 多段(multi)/连击(multiHit)：本牌伤害多打几次，收尾判定按总伤估。
+  if (s.multiHit) d *= (1 + s.multiHit);
+  return d;   // 注：调度(_next/_every)伤害是延迟的、不计入「本回合一击收尾」判定
 }
 // 本牌带斩杀效果吗（v3 的斩杀只走 effects:{type:'execute'}，cardStats **不**透出 s.execute 字段）。
 function hasExecute(s) {
@@ -25,9 +27,9 @@ function hasExecute(s) {
 }
 // 本牌算不算「伤害牌」（含条件缩放伤害 / 斩杀 / 穿刺）。
 function isDamageCard(s) {
-  return s.kind === 'damage' || s.pierce || hasExecute(s) ||
-    (s.condBonus || []).some(c => c.vtype === 'damage') ||
-    (s.effects || []).some(e => e.type === 'damage');
+  return s.kind === 'damage' || s.pierce || hasExecute(s) || s.multi || s.multiHit || s.combo ||
+    (s.condBonus || []).some(c => /^damage/.test(c.atom || '')) ||   // v3.2：condBonus 用 atom（含 damage_next/_every）
+    (s.effects || []).some(e => e.type === 'damage');                // 即时/召唤物伤害（调度伤害不计入「本回合收尾」）
 }
 
 value.registerPack('power', {

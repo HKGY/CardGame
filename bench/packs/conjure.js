@@ -23,7 +23,9 @@ const value = require('../value');
 function conjureLevel(CG, card) {
   let n = 0;
   for (const sk of (card.sockets || [])) for (const a of (sk.affixes || [])) {
-    const d = CG.AFFIXES[a.id]; if (d && d.conjure) n += d.conjure * (a.level || 1);
+    const d = CG.AFFIXES[a.id]; if (!d) continue;
+    if (d.conjure) n += d.conjure * (a.level || 1);                       // 本回合造牌(d.conjure)
+    else if (d.value && /^conjure/.test(d.value.atom || '')) n += (a.level || 1);   // v3.2：conjure_next/_every（调度造牌）
   }
   return n;
 }

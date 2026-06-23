@@ -35,8 +35,13 @@ function cloneGame(CG, g) {
   c.drawPile = g.drawPile.map(cloneCard);
   c.discardPile = g.discardPile.map(cloneCard);
   c.exhaustPile = g.exhaustPile.map(cloneCard);
-  if (g.allies) c.allies = g.allies.map(a => Object.assign({}, a));         // 召唤包：召唤物（可变）必须深拷，否则搜索克隆会污染真实战斗
-  if (g.buildings) c.buildings = g.buildings.map(b => Object.assign({}, b)); // 建造包：建筑同理
+  if (g.allies) c.allies = g.allies.map(a => Object.assign({}, a));         // （旧召唤包遗留；v3.4 已改单骷髅，留守卫）
+  if (g.buildings) c.buildings = g.buildings.map(b => Object.assign({}, b)); // （旧建造包遗留；已删，留守卫）
+  // v3.4 召唤：单骷髅「类玩家单位」（可变），深拷否则搜索克隆会污染真实战斗的骷髅血量/状态。
+  c.skeleton = g.skeleton ? { hp: g.skeleton.hp, maxHp: g.skeleton.maxHp, block: g.skeleton.block, statuses: Object.assign({}, g.skeleton.statuses) } : null;
+  // v3.2 时点调度队列（可变数组）：浅拷会让 sim.playCard 的 push 污染真实战斗 → 必须各自切片。
+  c._everyTurn = (g._everyTurn || []).map(e => Object.assign({}, e));
+  c._nextTurn = (g._nextTurn || []).map(e => Object.assign({}, e));
   c._turnPlays = Object.assign({}, g._turnPlays);
   c._pickQueue = (g._pickQueue || []).slice();
   c.pick = g.pick ? Object.assign({}, g.pick) : null;
@@ -133,13 +138,21 @@ function make(CG, rng, opts) {
     game.hand.forEach((c, idx) => {
       const s = CG.cardStats(c, { valueMult: game.cardValueMult });
       if (!isPlayable(game, c, idx, s)) return;
+      const effs = s.effects || [];
+      // 一个 effect 是否「作用于敌人」（即时 / 召唤物 / 被调度到 _next/_every 的那一条）。
+      const enemyEff = e => e.type === 'damage' || e.type === 'poison' || e.type === 'vulnerable' || e.type === 'weak' || e.type === 'frail' || e.type === 'enemyStat' || e.type === 'silence';
+      const schedHitsEnemy = e => (e.type === 'scheduleNext' || e.type === 'scheduleEvery') && e.eff && enemyEff(e.eff);   // 调度伤害/减益牌
       const hitsEnemy = s.kind === 'damage' || s.pierce || s.element || s.execute || s.devote || s.annihilate ||
-        s.dice || s.coin || s.jackpot || s.slots || s.backfire || (s.effects || []).some(e => e.type === 'damage' || e.type === 'poison' || e.type === 'vulnerable' || e.type === 'weak' || e.type === 'frail' || e.type === 'enemyStat' || e.type === 'silence');
+        s.multi || s.multiHit || s.combo ||                                          // 多段/连击：本牌伤害放大，需对敌枚举目标
+        s.dice || s.coin || s.jackpot || s.slots || s.backfire ||
+        effs.some(e => enemyEff(e) || schedHitsEnemy(e));                            // 即时/召唤物伤害减益 + 调度伤害减益
       const targets = hitsEnemy ? aliveIdx.slice(0, 3) : [(game.target >= 0 ? game.target : (aliveIdx[0] != null ? aliveIdx[0] : 0))];
-      const cantrip = s.cost === 0 || s.freeNext > 0 || (s.effects || []).some(e => e.type === 'draw' || e.type === 'energy' || e.type === 'gainPower');
-      // 审计改进②——「铺垫型」标记：条件代价/元素/造牌/召唤/建筑/产出/抽能 等即时分可能为负的连招启动牌。
+      const cantrip = s.cost === 0 || s.freeNext > 0 || effs.some(e => e.type === 'draw' || e.type === 'energy' || e.type === 'gainPower');
+      // 审计改进②——「铺垫型」标记：条件代价/元素/造牌/召唤/调度(_next/_every)/产出/抽能 等即时分可能为负的连招启动牌。
+      //   v3.2/3.4：scheduleNext/scheduleEvery（延迟/循环引擎）即时局面 V 看不到、易被预筛剪掉 → 标 setup 保入 rollout。
       const setup = !!((s.condBonus && s.condBonus.length) || s.element || s.gainPower || s.conjure ||
-        (s.effects || []).some(e => e.type === 'draw' || e.type === 'energy' || e.type === 'summon' || e.type === 'build' || e.type === 'gainPower' || (e.type === 'selfStatus' && /^prod/.test(e.status || ''))));
+        s.kind === 'skill' && effs.some(e => e.type === 'scheduleNext' || e.type === 'scheduleEvery') ||
+        effs.some(e => e.type === 'draw' || e.type === 'energy' || e.type === 'summon' || e.type === 'build' || e.type === 'gainPower' || e.type === 'scheduleNext' || e.type === 'scheduleEvery' || (e.type === 'selfStatus' && /^prod/.test(e.status || ''))));
       for (const t of targets) out.push({ uid: c.uid, target: t, cantrip, setup });
     });
     return out;
