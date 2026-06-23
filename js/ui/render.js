@@ -644,7 +644,7 @@ window.CG = window.CG || {};
       ov.classList.remove('hidden'); return;
     }
     if (game.pick) {
-      const pool = (game.pick.type === 'burn' || game.pick.type === 'discardCost' || game.pick.type === 'exhaustCost') ? game.hand : game.pick.type === 'reclaim' ? game.discardPile : game.exhaustPile;
+      const pool = (game.pick.type === 'burn' || game.pick.type === 'discardCost' || game.pick.type === 'exhaustCost') ? game.hand : game.pick.type === 'reclaim' ? game.discardPile : game.pick.type === 'wish' ? game.drawPile : game.exhaustPile;
       const cards = pool.length
         ? pool.map(c => cardFace(c, { clickable: true, data: { pick: c.uid } })).join('')
         : '<p class="empty-note">没有可选的，点「跳过」。</p>';

@@ -111,7 +111,7 @@ window.CG = window.CG || {};
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0;   // v3.6 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0;   // v3.6/3.7 新批战斗态
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
@@ -155,7 +155,7 @@ window.CG = window.CG || {};
       this._depth = 0;                         // 矿工包：本场挖矿深度
       this._heat = 0;                          // 锻造包：本场热度
       this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0;   // v3.6 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0;   // v3.6/3.7 新批战斗态
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
@@ -362,6 +362,7 @@ window.CG = window.CG || {};
             case 'kills':       return this._killsThisCombat || 0;
             case 'myDebuff':    return ['vulnerable', 'weak', 'frail'].reduce((s, k) => s + (this.player.statuses[k] || 0), 0);   // 自身减益体系：回收自己背的减益
             case 'hpLossCount': return this._hpLossCount || 0;   // #18 本场失去生命次数
+            case 'playedThisTurn': return this._playedThisTurn || 0;   // #34 本回合已打出牌数
             default:            return 0;
           }
         };
@@ -370,7 +371,10 @@ window.CG = window.CG || {};
             case 'firstPlay': return (card.plays || 0) === 0;   // 这张牌本场第一次打出（plays 在结算后才 +1）
             case 'hurt':      return !!this._hurtThisCombat;
             case 'noBlock':   return (this.player.block || 0) === 0;
-            case 'enemyDebuffed': return t ? this._enemyDebuffLayers(t) > 0 : false;   // #1 敌人具有(任一)减益
+            case 'enemyVuln':     return !!(t && t.statuses.vulnerable > 0);   // #1 敌人具有指定减益（拆成多门）
+            case 'enemyWeak':     return !!(t && t.statuses.weak > 0);
+            case 'enemyFrail':    return !!(t && t.statuses.frail > 0);
+            case 'enemyPoison':   return !!(t && t.statuses.poison > 0);
             case 'lostHpTurn':    return !!this._lostHpThisTurn;                        // #8 本回合失去过生命
             case 'exhaustedTurn': return !!this._exhaustedThisTurn;                     // #9 本回合消耗过牌
             default:          return false;
@@ -409,10 +413,10 @@ window.CG = window.CG || {};
         const bonus = s.arc * (this.player.power || 0);
         if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
-      // 律动·活力：消耗存量，给本牌数值 +（不含给出活力的那张牌自己）
-      if (this._vigor > 0) {
+      // 活力(#35)：下一张「造成伤害」的牌攻击 +n（持有到打出伤害牌才消耗；非伤害牌不消耗）
+      if (this._vigor > 0 && s.effects.some(e => e.type === 'damage')) {
         const bonus = this._vigor; this._vigor = 0;
-        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
+        s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
       // 律动·全力：若打出本牌后能量恰好归零，数值 ×(1+等级)
       if (s.allin > 0 && !oc && this.player.energy - payCost === 0) {
@@ -588,6 +592,7 @@ window.CG = window.CG || {};
       for (let i = 0; i < (s.burnSelect || 0); i++) this._pickQueue.push('burn');
       for (let i = 0; i < (s.reborn || 0); i++) this._pickQueue.push('reborn');
       for (let i = 0; i < (s.reclaim || 0); i++) this._pickQueue.push('reclaim');   // 弃牌包·拾遗
+      for (let i = 0; i < (s.wish || 0); i++) this._pickQueue.push('wish');         // #37 许愿：从抽牌堆挑牌进手
       this._nextPick();
       };   // resolve()
       // 代价链：先弃牌代价（自选丢弃）→ 再消耗代价（#15 自选消耗）→ resolve
@@ -693,9 +698,9 @@ window.CG = window.CG || {};
     _nextPick() {                                 // 处理 _pickQueue 的下一个交互选牌；无候选则跳过；队列空则收尾
       while (this._pickQueue && this._pickQueue.length) {
         const t = this._pickQueue.shift();
-        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : this.exhaustPile;
+        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : this.exhaustPile;
         if (!cands.length) continue;
-        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张' };
+        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌' };
         this.pick = { type: t, title: titles[t] };
         this._emit();
         return;
@@ -722,6 +727,7 @@ window.CG = window.CG || {};
       if (uid != null) {
         if (t === 'burn') { const i = this.hand.findIndex(c => c.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this.addLog(`燃烧：消耗了 ${CG.cardStats(c).name}。`); this._exhaustCard(c); } }
         else if (t === 'reclaim') { const i = this.discardPile.findIndex(c => c.uid === uid); if (i >= 0 && this.hand.length < HAND_LIMIT) { this.hand.push(this.discardPile.splice(i, 1)[0]); this.addLog('拾遗：从弃牌堆取回 1 张。'); } }
+        else if (t === 'wish') { const i = this.drawPile.findIndex(c => c.uid === uid); if (i >= 0 && this.hand.length < HAND_LIMIT) { this.hand.push(this.drawPile.splice(i, 1)[0]); this.addLog('许愿：从抽牌堆取得 1 张。'); } }   // #37
         else { const i = this.exhaustPile.findIndex(c => c.uid === uid); if (i >= 0 && this.hand.length < HAND_LIMIT) { this.hand.push(this.exhaustPile.splice(i, 1)[0]); this.addLog('重生：从消耗堆取回 1 张。'); } }
       }
       this.pick = null;
@@ -788,6 +794,7 @@ window.CG = window.CG || {};
     }
     _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数
     _refreshWeapon(base, bonus) { [...this.hand, ...this.drawPile, ...this.discardPile, ...this.exhaustPile].forEach(c => { if (c.base === base) c._bonus = bonus; }); }   // 兵械：强化时刷新所有该类临时牌的本场加成
+    _refreshEndsword() { [...this.hand, ...this.drawPile, ...this.discardPile, ...this.exhaustPile].forEach(c => { if (c.base === 'endsword') { c._bonus = this._endswordDmg || 0; c._blk = this._endswordBlk || 0; } }); }   // 终末之剑：刷新所有处的伤害(锻造)/格挡(招架)加成
     _addToHand(card) { if (this.hand.length < HAND_LIMIT) this.hand.push(card); else this.discardPile.push(card); }   // 术士包等：造牌进手（满则进弃牌堆）
     _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和
     // 律动·回溯：拍下/恢复一份「完整战斗快照」（双方生命/格挡/电力/状态，元素光环亦在 statuses 内）

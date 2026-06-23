@@ -30,8 +30,9 @@ window.CG = window.CG || {};
     growDmg: 1.0, growBlk: 1.0, selfCostDown: 6.0, freeNext: 6.0, playTwice: 6.0, keepBlockFull: 12.0,   // 本牌/后续修饰
     makeDagger: 3.0, makeScrap: 3.0, daggerUp: 6.0, scrapUp: 6.0,                                 // 兵械（匕首/甲片）
     immune: 12.0, dmgCap1: 18.0,                                                                  // 防御
+    retain: 3.0, forge: 1.0, vigor: 1.0, parry: 1.0, wish: 12.0,                                  // v3.7：保留/锻造(终末之剑)/活力/招架/许愿
     // —— 代价原子 ——（可玩数字：生命 2VP→3血、金币 1VP→6金）
-    hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0, exhaustCard: 6.0,   // exhaustCard＝选择并消耗手牌（pick 型代价）
+    hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0, exhaustCard: 6.0, losePower: 1.0, makeDross: 6.0,   // exhaustCard/makeDross＝pick/生成型代价；losePower＝消耗电力
     selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,     // 自身减益代价（2VP/层）
     loseStr: 3.0, loseDex: 3.0,                       // 扣自身力量/敏捷（可为负，真代价）
   };
@@ -82,6 +83,12 @@ window.CG = window.CG || {};
     scrapUp:      { name: '甲片强化', vpRes: 'scrapUp', mech: u => ({ scrapUp: u }) },                    // #26 甲片格挡 +3×n（本场）
     immune:       { name: '免疫伤害', vpRes: 'immune', mech: u => ({ immune: u }) },                      // #27 免疫下 n 次伤害
     dmgCap1:      { name: '伤害降为1', vpRes: 'dmgCap1', maxCount: 1, mech: u => ({ dmgCap1: u }) },       // #28 本回合受到伤害降为 1
+    // —— v3.7 ——
+    retain:       { name: '保留', vpRes: 'retain', maxCount: 1, mech: u => ({ retain: u }) },             // #32a 回合结束不丢弃
+    forge:        { name: '锻造', vpRes: 'forge', maxCount: 1, mech: u => ({ forge: u }) },               // #33 终末之剑伤害 +1(不论何处)；无则创造
+    vigor:        { name: '活力', vpRes: 'vigor', mech: u => ({ vigor: u }) },                            // #35 下一张造成伤害的牌 +n 攻击
+    parry:        { name: '招架', vpRes: 'parry', maxCount: 1, mech: u => ({ parry: u }) },               // #36 终末之剑 +1 格挡(不论何处)
+    wish:         { name: '许愿', vpRes: 'wish', mech: u => ({ wish: u }) },                              // #37 从抽牌堆选择 n 张加入手牌
   };
 
   /* —— 通用「本回合(now)/下回合(next)/每回合(every)」时点修饰器 ——
@@ -157,6 +164,8 @@ window.CG = window.CG || {};
     gold:    { name: '金币', fmt: n => `失 ${n} 金`, time: true },
     discard: { name: '弃牌', fmt: n => `弃 ${n} 张` },
     exhaustCard: { name: '消耗手牌', fmt: n => `选择消耗 ${n} 张`, pick: true },   // #15 选择并消耗 n 张手牌（pick 型，类 discard）
+    losePower: { name: '消耗电力', fmt: n => `消耗 ${n} 电力` },   // #29 消耗 n 电力（原「当前电力」条件改为此代价）
+    makeDross: { name: '生成渣滓', fmt: n => `生成 ${n} 渣滓` },   // #31 生成 n 张渣滓（clutter）
     selfVuln:  { name: '自易伤', fmt: n => `自易伤 ${n}`, status: 'vulnerable', time: true },
     selfWeak:  { name: '自虚弱', fmt: n => `自虚弱 ${n}`, status: 'weak', time: true },
     selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail', time: true },
@@ -169,7 +178,6 @@ window.CG = window.CG || {};
   //  在战斗内可保留不消耗的资源(格挡/电力)按 0.5 倍计；金币是局外资源、单价更低。
   const COST_COND = {
     curBlock:    { name: '当前格挡', qty: 'curBlock', vp: 0.6 },   // 格挡 1.2 ×0.5（不消耗）
-    curPower:    { name: '当前电力', qty: 'curPower', vp: 0.5 },   // 电力 1.0 ×0.5
     enemyDebuff: { name: '敌方减益', qty: 'enemyDebuff', vp: 1.0 },// 平均减益 2.0 ×0.5
     exhaustPile: { name: '消耗堆', qty: 'exhaustPile', vp: 1.0 },
     handSize:    { name: '手牌数', qty: 'handSize', vp: 1.0 },
@@ -178,11 +186,15 @@ window.CG = window.CG || {};
     turnNum:     { name: '回合数', qty: 'turnNum', vp: 1.0 },
     myDebuff:    { name: '自身减益层数', qty: 'myDebuff', vp: 1.0 },// 越惨越强：回收自己背的减益
     hpLossCount: { name: '本场失去生命次数', qty: 'hpLossCount', vp: 2.0 },   // #18 量型：本场战斗中失去生命 n 次
+    playedThisTurn: { name: '本回合打出牌数', qty: 'playedThisTurn', vp: 2.0 },   // #34 量型：本回合已打出牌数
     // —— 门型条件(gate，达成给 1 能量等值=6VP)：借鉴 StS 遗物 ——
     firstPlay:   { name: '这张牌本场第一次打出', qty: 'firstPlay', gate: true, vp: 6.0, maxCount: 1 },
     hurt:        { name: '本场已受伤', qty: 'hurt', gate: true, vp: 6.0, maxCount: 1 },
     noBlock:     { name: '无格挡', qty: 'noBlock', gate: true, vp: 6.0, maxCount: 1 },
-    enemyDebuffed: { name: '敌人具有减益', qty: 'enemyDebuffed', gate: true, vp: 6.0, maxCount: 1 },   // #1 敌人具有(任一)减益
+    enemyVuln:   { name: '敌人易伤时', qty: 'enemyVuln', gate: true, vp: 6.0, maxCount: 1 },   // #1 拆成按减益类型的多个门
+    enemyWeak:   { name: '敌人虚弱时', qty: 'enemyWeak', gate: true, vp: 6.0, maxCount: 1 },
+    enemyFrail:  { name: '敌人脆弱时', qty: 'enemyFrail', gate: true, vp: 6.0, maxCount: 1 },
+    enemyPoison: { name: '敌人中毒时', qty: 'enemyPoison', gate: true, vp: 6.0, maxCount: 1 },
     lostHpTurn:  { name: '本回合失去过生命', qty: 'lostHpTurn', gate: true, vp: 6.0, maxCount: 1 },     // #8
     exhaustedTurn:{ name: '本回合消耗过牌', qty: 'exhaustedTurn', gate: true, vp: 6.0, maxCount: 1 },   // #9
   };
@@ -325,7 +337,7 @@ window.CG = window.CG || {};
   const P = (name, icon, color, desc, values) => ({ name, icon, color, desc, values });
   CG.PACKS = {
     basic:    P('基础包', '🎴', '#cdd2e2', '伤害 / 格挡（空法术两条基本式）。', ['damage', 'block']),
-    power:    P('强攻包', '⚔️', '#e89030', '伤害（本/下/每回合三档）/ 连击 / 命中全体。', ['damage', 'damage_next', 'damage_every', 'combo', 'hitAll']),
+    power:    P('强攻包', '⚔️', '#e89030', '伤害（本/下/每回合三档）/ 连击 / 命中全体 / 活力。', ['damage', 'damage_next', 'damage_every', 'combo', 'hitAll', 'vigor']),
     weaken:   P('弱化包', '☠️', '#8ab84a', '敌方减益（易伤/虚弱/脆弱/中毒 + 敌失力量·敏捷）+ 减益放大/翻倍。', ['vulnerable', 'vulnerable_next', 'vulnerable_every', 'weak', 'weak_next', 'weak_every', 'frail', 'frail_next', 'frail_every', 'poison', 'poison_next', 'poison_every', 'enemyLoseStr', 'enemyLoseStrTemp', 'enemyLoseStr_next', 'enemyLoseDex', 'enemyLoseDexTemp', 'enemyLoseDex_next', 'debuffMult', 'vulnAmp', 'weakAmp']),
     tempo:    P('节奏包', '🌀', '#4fb8ee', '抽牌 / 能量（本回合 / 下回合）。', ['draw', 'draw_next', 'energy', 'energy_next']),
     vitality: P('生机包', '🌿', '#7fd6a0', '治疗 / 力量 / 敏捷（力量·敏捷含下回合版）。', ['heal', 'strength', 'strength_next', 'dexterity', 'dexterity_next']),
@@ -336,10 +348,10 @@ window.CG = window.CG || {};
     produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（格挡 / 抽牌 / 能量）。', ['produce_draw', 'produce_block', 'produce_energy']),
     summon:   P('召唤包', '👻', '#b0b0e0', '召唤物 + 召唤物修饰词（攻/防/增益投给骷髅、量×2）。', ['summon', 'summon_next', 'summon_every',
       'damage_m', 'damage_next_m', 'damage_every_m', 'block_m', 'block_next_m', 'produce_block_m', 'thorns_m', 'strength_m', 'dexterity_m', 'heal_m']),
-    conjure:  P('术士包', '🎩', '#b59ad8', '造牌（本/下/每回合）/ 打出牌库顶 / 镶嵌随机宝石。', ['conjure', 'conjure_next', 'conjure_every', 'playTopDraw', 'socketRand']),
+    conjure:  P('术士包', '🎩', '#b59ad8', '造牌（本/下/每回合）/ 打出牌库顶 / 镶嵌随机宝石 / 许愿。', ['conjure', 'conjure_next', 'conjure_every', 'playTopDraw', 'socketRand', 'wish']),
     amplify:  P('放大包', '✦', '#ff9fc0', '翻倍 / 吸血 / 多重（放大本牌）。', ['mult', 'lifesteal', 'multi']),
-    tactics:  P('机巧包', '🃏', '#8fbcd0', '牌库/弃牌/本牌操控 + 后续修饰。', ['copyDiscard', 'recallDiscard', 'recycleDraw', 'freeNext', 'playTwice', 'growDmg', 'growBlk', 'selfCostDown']),
-    armory:   P('兵械包', '🗡️', '#c0a878', '生成/强化 匕首与甲片（临时消耗牌）。', ['makeDagger', 'makeScrap', 'daggerUp', 'scrapUp']),
+    tactics:  P('机巧包', '🃏', '#8fbcd0', '牌库/弃牌/本牌操控 + 后续修饰 + 保留。', ['copyDiscard', 'recallDiscard', 'recycleDraw', 'freeNext', 'playTwice', 'growDmg', 'growBlk', 'selfCostDown', 'retain']),
+    armory:   P('兵械包', '🗡️', '#c0a878', '匕首/甲片 + 终末之剑（锻造/招架）。', ['makeDagger', 'makeScrap', 'daggerUp', 'scrapUp', 'forge', 'parry']),
   };
   // 兼容旧字段：把每个包展开成「(真资源代价 ∪ 条件代价) × 主题价值」组合 id 列表（rollGem/fusion 读取）。
   //   条件代价词条按其「价值」归入对应主题（而非一股脑塞进基础包）→ 不选某主题就抽不到其价值（含其条件型）＝主题隔离。

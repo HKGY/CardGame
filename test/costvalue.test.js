@@ -10,7 +10,7 @@ const D = CG.STRIKE, B = CG.GUARD;   // energy_damage / energy_block
 
 test('原子生成：真资源代价 × 全部价值都存在', () => {
   assert.ok(CG.AFFIXES['energy_damage'] && CG.AFFIXES['hp_damage'] && CG.AFFIXES['gold_block'] && CG.AFFIXES['discard_heal']);
-  assert.ok(CG.AFFIXES['curBlock_damage'] && CG.AFFIXES['curPower_block']);   // 条件 × 数值价值
+  assert.ok(CG.AFFIXES['curBlock_damage'] && CG.AFFIXES['enemyDebuff_block']);   // 条件 × 数值价值（curPower 已改为消耗电力代价）
   assert.ok(!CG.AFFIXES['depth_block'] && !CG.AFFIXES['heat_damage'] && !CG.AFFIXES['kills_damage'] && !CG.AFFIXES['heldTurns_block']);   // 已删的弃用条件代价
   assert.ok(CG.PACKS.basic.affixes.includes('curBlock_damage'));   // 条件词条注入基础包
 });
@@ -618,10 +618,11 @@ test('#27 免疫下n次伤害 / #28 本回合伤害降为1', () => {
 });
 
 test('#1/#8/#9/#18 新条件', () => {
-  assert.ok(CG.AFFIXES['enemyDebuffed_damage'] && CG.AFFIXES['lostHpTurn_damage'] && CG.AFFIXES['exhaustedTurn_damage'] && CG.AFFIXES['hpLossCount_damage']);
-  // #1 敌人具有减益（gate）
-  let g = bt(); g.enemy.statuses.vulnerable = 1; let eh = g.enemy.hp; pg(g, [[{ id: 'enemyDebuffed_damage', level: 1 }]]); assert.ok(eh - g.enemy.hp > 0);
-  g = bt(); eh = g.enemy.hp; pg(g, [[{ id: 'enemyDebuffed_damage', level: 1 }]]); assert.strictEqual(eh - g.enemy.hp, 0);   // 无减益 → 0
+  assert.ok(CG.AFFIXES['enemyVuln_damage'] && CG.AFFIXES['enemyWeak_damage'] && CG.AFFIXES['enemyFrail_damage'] && CG.AFFIXES['enemyPoison_damage']);   // #1 按减益类型拆成多门
+  assert.ok(CG.AFFIXES['lostHpTurn_damage'] && CG.AFFIXES['exhaustedTurn_damage'] && CG.AFFIXES['hpLossCount_damage'] && !CG.AFFIXES['enemyDebuffed_damage']);
+  // #1 敌人易伤时（gate）
+  let g = bt(); g.enemy.statuses.vulnerable = 1; let eh = g.enemy.hp; pg(g, [[{ id: 'enemyVuln_damage', level: 1 }]]); assert.ok(eh - g.enemy.hp > 0);
+  g = bt(); eh = g.enemy.hp; pg(g, [[{ id: 'enemyVuln_damage', level: 1 }]]); assert.strictEqual(eh - g.enemy.hp, 0);   // 无易伤 → 0
   // #8 本回合失去过生命（gate）+ #18 计数
   g = bt(); g.dealAttackDamage(g.enemy, g.player, 5); assert.ok(g._lostHpThisTurn); assert.strictEqual(g._hpLossCount, 1);
   eh = g.enemy.hp; pg(g, [[{ id: 'lostHpTurn_damage', level: 1 }]]); assert.ok(eh - g.enemy.hp > 0);
@@ -638,6 +639,68 @@ test('#15 消耗手牌代价（pick 型，类弃牌代价）', () => {
   assert.ok(g.pick && g.pick.type === 'exhaustCost');   // 进入消耗代价选牌
   g.pickResolve(filler.uid);
   assert.ok(g.exhaustPile.some(c => c.uid === filler.uid)); assert.ok(!g.pick);   // filler 被消耗、结算继续
+});
+
+// ===== v3.7（29-37 + 修订）=====
+test('#14 强化虚弱 maxCount=1（只有 LV1）/ #1 敌减益门拆成多门', () => {
+  assert.strictEqual(lv('energy_weakAmp'), '1');
+  assert.ok(CG.AFFIXES['enemyVuln_damage'] && CG.AFFIXES['enemyWeak_damage'] && CG.AFFIXES['enemyFrail_damage'] && CG.AFFIXES['enemyPoison_damage'] && !CG.AFFIXES['enemyDebuffed_damage']);
+});
+
+test('#29 消耗电力代价（原「当前电力」条件改为代价）', () => {
+  assert.ok(CG.AFFIXES['losePower_damage'] && !CG.AFFIXES['curPower_damage']);
+  assert.strictEqual(CG.affixCostText('losePower_damage', 1), '消耗 6 电力');
+  const g = bt(); g.player.power = 5;
+  pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'losePower_damage', level: 1 }]]);
+  assert.strictEqual(g.player.power, 0);   // 消耗电力（有多少扣多少）
+});
+
+test('#31 生成渣滓代价 / #30 渣滓牌(1费消耗)', () => {
+  assert.ok(CG.AFFIXES['makeDross_damage']);
+  assert.ok(CG.BASE_CARDS.dross && CG.BASE_CARDS.dross.cost === 1);
+  const g = bt(); pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'makeDross_damage', level: 1 }]]);
+  assert.strictEqual(g.hand.filter(c => c.base === 'dross').length, 1);
+});
+
+test('#32/#33/#36 终末之剑：锻造创造/+伤害、招架+格挡，2费保留', () => {
+  let g = bt(); pg(g, [[{ id: 'energy_forge', level: 1 }]]);
+  let es = g.hand.find(c => c.base === 'endsword'); assert.ok(es);
+  let s = CG.cardStats(es); assert.strictEqual(s.value, 11); assert.strictEqual(s.cost, 2); assert.strictEqual(s.retain, true);   // 10+1锻造
+  g.player.energy = 30; const f2 = spell([{ id: 'energy_forge', level: 1 }]); g.hand.push(f2); g.playCard(f2.uid);
+  assert.strictEqual(CG.cardStats(g.hand.find(c => c.base === 'endsword')).value, 12);   // 再 +1
+  assert.strictEqual(g.hand.filter(c => c.base === 'endsword').length, 1);   // 仍只 1 把（已存在则不再创造）
+  g.player.energy = 30; const pa = spell([{ id: 'energy_parry', level: 1 }]); g.hand.push(pa); g.playCard(pa.uid);
+  assert.ok(CG.cardStats(g.hand.find(c => c.base === 'endsword')).effects.some(e => e.type === 'block' && e.value === 1));   // 招架 +1 格挡
+});
+
+test('#32a 保留：回合结束不丢弃', () => {
+  const g = bt(); const rc = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_retain', level: 1 }]);
+  assert.strictEqual(CG.cardStats(rc).retain, true);
+  g.hand = [rc]; g.endTurn(); assert.ok(g.hand.some(c => c.uid === rc.uid));
+});
+
+test('#34 本回合打出牌数（量型）/ #35 活力（下一张伤害牌+n，非伤害牌不消耗）', () => {
+  assert.strictEqual(CG.affixValueText('playedThisTurn_damage', 1), '每有 1 点本回合打出牌数，获得 2 点伤害');
+  let g = bt(); g.player.energy = 30;
+  g.hand = [spell([{ id: CG.STRIKE, level: 1 }])]; g.playCard(g.hand[0].uid);
+  g.hand = [spell([{ id: CG.STRIKE, level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid);
+  const eh = g.enemy.hp; g.hand = [spell([{ id: 'playedThisTurn_damage', level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid);
+  assert.strictEqual(eh - g.enemy.hp, 4);   // 已打 2 张 → 2×2 = 4
+  // 活力
+  g = bt(); g.player.energy = 30; g.hand = [spell([{ id: 'energy_vigor', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g._vigor, 6);
+  g.hand = [spell([{ id: CG.GUARD, level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid); assert.strictEqual(g._vigor, 6);   // 防御牌不消耗
+  const eh2 = g.enemy.hp; g.hand = [spell([{ id: CG.STRIKE, level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid);
+  assert.strictEqual(eh2 - g.enemy.hp, 12); assert.strictEqual(g._vigor, 0);   // strike6 + 活力6
+});
+
+test('#37 许愿：从抽牌堆选择一张加入手牌（pick）', () => {
+  assert.ok(CG.AFFIXES['energy_wish']);
+  const g = bt(); const top = spell([{ id: CG.STRIKE, level: 1 }]); g.drawPile.push(top);
+  pg(g, [[{ id: 'energy_wish', level: 1 }]]);
+  assert.ok(g.pick && g.pick.type === 'wish');
+  g.pickResolve(top.uid);
+  assert.ok(g.hand.some(c => c.uid === top.uid) && !g.drawPile.some(c => c.uid === top.uid));
 });
 
 // ===== 完整性 =====

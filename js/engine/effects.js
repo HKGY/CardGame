@@ -287,11 +287,17 @@ window.CG = window.CG || {};
     makeScrap(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('scrap'); c._bonus = game._scrapBonus || 0; game._addToHand(c); } },     // #24 生成 n 张甲片
     daggerUp(game, eff) { game._daggerBonus = (game._daggerBonus || 0) + 4 * eff.value; game._refreshWeapon('dagger', game._daggerBonus); },   // #25 匕首伤害 +4×n（本场，刷新所有匕首）
     scrapUp(game, eff) { game._scrapBonus = (game._scrapBonus || 0) + 3 * eff.value; game._refreshWeapon('scrap', game._scrapBonus); },        // #26 甲片格挡 +3×n（本场）
+    forge(game, eff) {   // #33 锻造：终末之剑伤害 +n（不论何处）；若各堆均无则创造一张进手牌
+      game._endswordDmg = (game._endswordDmg || 0) + eff.value; game._refreshEndsword();
+      const exists = [...game.hand, ...game.drawPile, ...game.discardPile, ...game.exhaustPile].some(c => c.base === 'endsword');
+      if (!exists) { const c = CG.makeFoodCard('endsword'); c._bonus = game._endswordDmg; c._blk = game._endswordBlk || 0; game._addToHand(c); }
+    },
+    parry(game, eff) { game._endswordBlk = (game._endswordBlk || 0) + eff.value; game._refreshEndsword(); },   // #36 招架：终末之剑 +n 格挡（不论何处）
     // === 猎杀包 ===（处决/引爆减益/收割；prey/insight 是 playCard 加成）
     exploit(game, eff, source, target) { if (!target) return; const layers = game._enemyDebuffLayers(target); ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => delete target.statuses[k]); if (layers > 0 && target.hp > 0) game.dealAttackDamage(source, target, layers * 12 * eff.value); },
     reaping(game, eff) { game._reaping = (game._reaping || 0) + 3 * eff.value; },
     // === 律动包 ===（活力滚到下一张、灵感本回合抽牌给盾；innate/allin/surplus 在 cardStats/playCard/_startBattle 处理）
-    vigor(game, eff) { game._vigor = (game._vigor || 0) + 4 * eff.value; },
+    vigor(game, eff) { game._vigor = (game._vigor || 0) + eff.value; },   // #35 活力：下一张造成伤害的牌 +n 攻击（playCard 消耗）
     inspire(game, eff) { game._inspire = (game._inspire || 0) + 3 * eff.value; },
     rewind(game) { game._rewindSnap = game._snapshot(); },   // 回溯：拍下完整战斗快照，下回合开始时回滚
 
