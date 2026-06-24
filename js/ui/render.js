@@ -352,11 +352,12 @@ window.CG = window.CG || {};
     const gemChips = s.gemViews.map((g, i) => {
       const a = g.buffs.concat(g.debuffs)[0];
       if (!a) return '';
-      if (i === 0 || g.purified) return `<span class="gem-chip first">[${span(a)}]</span>`;   // 首石/净化：免代价
+      if (i === 0 || g.purified) return `<span class="gem-chip first">${span(a)}</span>`;   // 首石/净化：免代价（不显代价、不加方括号）
       return `<span class="gem-chip">(<span class="gem-cost">${a.cost}</span> → ${span(a)})</span>`;
     }).join('');
     const empties = '<span class="socket-empty" title="空孔位">◇</span>'.repeat(s.emptySockets);
-    const name = `<span class="base-name">${s.baseName}</span>${gemChips}${empties}`;
+    // 空法术法杖(base 'spell')卡名只显效果（去掉「法术」基名）；食材/临时牌仍用其固有名
+    const name = `${s.base === 'spell' ? '' : `<span class="base-name">${s.baseName}</span>`}${gemChips}${empties}`;
     // 词条说明：按宝石分组（不同宝石用 ┃ 隔开），避免数量多时撑破卡面
     const descGroups = s.gemViews.map(g =>
       g.buffs.concat(g.debuffs).map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>')

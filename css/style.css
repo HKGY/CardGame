@@ -529,8 +529,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .card.paralyzed::after { content: '🔒'; position: absolute; top: 4px; right: 4px; font-size: 16px; filter: drop-shadow(0 1px 1px #000); }
 /* 标题在卡图上方：默认保留三行高度（短名垂直居中、长名裁切不撑破）；左上角耗能徽标浮于其上 */
 .card-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 2px #000a;
-  min-height: 3.6em; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  overflow: hidden; margin-bottom: 5px; padding: 0 2px; box-sizing: border-box; }
+  min-height: 3.6em; display: flex; flex-direction: column; align-items: stretch; justify-content: center;
+  text-align: center; overflow: hidden; margin-bottom: 5px; padding: 0 2px; box-sizing: border-box; }
+.card-name > :first-child { padding-left: 28px; }   /* 首行右移，避开左上角耗能徽标 */
 .card-name .aff { font-weight: 800; }
 .card-name .base-name { color: var(--ink); }
 .card-type { font-size: 11px; color: var(--muted); margin: 2px 0 6px; }
