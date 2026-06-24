@@ -441,11 +441,19 @@ window.CG = window.CG || {};
   };
   CG.affixDisplayName = (id, level) => CG.affixValueText(id, level);
   // 简短形（卡名宝石 chip 用，避免长句撑破卡面）：价值原子名 + 数量；条件＝价值名+「*」。完整自然句见 affixValueText。
+  // 价值原子的「裸名」：去掉 本/下/每回合 时点前缀（时点改用卡面 加粗=每回合 / 斜体=下回合 表示），保留「召唤物」前缀。
+  CG.bareName = function (atom) {
+    const va = VALUE_ATOMS[atom] || {};
+    if (va.turnBase) return (va.minion ? '召唤物' : '') + (TURN_BASES[va.turnBase].bname || va.name || atom);
+    return va.name || atom;
+  };
+  // 时点：返回价值原子的 now/next/every（供卡面样式）。
+  CG.affixTiming = function (id) { const a = A[id]; if (!a) return 'now'; const atom = a.condBonus ? a.condBonus.atom : (a.value && a.value.atom); const va = VALUE_ATOMS[atom] || {}; return va.timing || 'now'; };
   CG.affixShort = function (id, level) {
     const a = A[id]; if (!a) return '';
     const v = a.value, vL = CG.lvVal(level);
-    if (a.condBonus) return ((VALUE_ATOMS[a.condBonus.atom] || {}).name || a.condBonus.atom) + '*';
-    const va = VALUE_ATOMS[v.atom] || {}, nm = va.name || v.atom;
+    if (a.condBonus) return CG.bareName(a.condBonus.atom) + '*';
+    const va = VALUE_ATOMS[v.atom] || {}, nm = CG.bareName(v.atom);
     if (v.atom === 'mult') return `数值×${1 + (v.amt || 0) * vL}`;
     if (v.atom === 'lifesteal') return `吸血${(v.amt || 0) * vL}%`;
     if (v.atom === 'combo') return `连击+${(v.amt || 0) * vL}`;

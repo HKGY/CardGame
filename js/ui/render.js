@@ -344,14 +344,16 @@ window.CG = window.CG || {};
     return t.replace(/伤害/g, '<span class="kw-dmg">伤害</span>')
             .replace(/格挡/g, '<span class="kw-block">格挡</span>');
   }
+  // 时点样式：每回合＝加粗、下回合＝斜体、本回合＝常规。
+  function timeStyle(txt, id) { const t = CG.affixTiming ? CG.affixTiming(id) : 'now'; return t === 'every' ? `<b>${txt}</b>` : t === 'next' ? `<i>${txt}</i>` : txt; }
   function cardInner(s) {
-    const span = a => `<span class="aff" style="color:${a.color}">${a.name}</span>`;
-    // 卡名：每颗宝石的「价值」；首石用方括号（免代价），其余写上代价。
+    const span = a => `<span class="aff" style="color:${a.color}">${timeStyle(a.name, a.id)}</span>`;
+    // 卡名：每颗宝石「代价 → 价值」；首石用方括号（免代价）。时点用 加粗(每回合)/斜体(下回合) 表示。
     const gemChips = s.gemViews.map((g, i) => {
       const a = g.buffs.concat(g.debuffs)[0];
       if (!a) return '';
       if (i === 0 || g.purified) return `<span class="gem-chip first">[${span(a)}]</span>`;   // 首石/净化：免代价
-      return `<span class="gem-chip">(<span class="gem-cost">${a.cost}</span> ${span(a)})</span>`;
+      return `<span class="gem-chip">(<span class="gem-cost">${a.cost}</span> → ${span(a)})</span>`;
     }).join('');
     const empties = '<span class="socket-empty" title="空孔位">◇</span>'.repeat(s.emptySockets);
     const name = `<span class="base-name">${s.baseName}</span>${gemChips}${empties}`;
@@ -371,10 +373,11 @@ window.CG = window.CG || {};
   // opts: { clickable, dim, selected, data:{k:v}, tagLabel }
   function gemFace(gem, opts = {}) {
     // v2：宝石＝代价→价值。标题用价值文字；说明分列「代价 / 价值」。
-    const affs = (gem.affixes || []).map(a => { const d = CG.AFFIXES[a.id] || {}; return { val: CG.affixValueText(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: d.color || '#9aa0b5' }; });
-    const ordered = affs;
-    const title = ordered.map(a => `<span class="aff" style="color:${a.color}">${a.val}</span>`).join('<span class="aff-plus">+</span>') || '空宝石';
     const pure = !!gem.purified;
+    const affs = (gem.affixes || []).map(a => { const d = CG.AFFIXES[a.id] || {}; return { id: a.id, val: CG.affixValueText(a.id, a.level), short: CG.affixShort(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: d.color || '#9aa0b5' }; });
+    const ordered = affs;
+    // 标题：代价 → 价值(简短)；时点用 加粗(每回合)/斜体(下回合) 表示。
+    const title = ordered.map(a => `<span class="aff" style="color:${a.color}">${pure ? '' : `<span class="gem-cost">${a.cost}</span> → `}${timeStyle(a.short, a.id)}</span>`).join('<span class="aff-plus">+</span>') || '空宝石';
     const lines = ordered.map(a => `<span class="affix-line" style="color:${a.color}">${pure ? `<span class="cv-pure">[免代价]</span> ` : `<span class="cv-cost">${a.cost}</span> <span class="cv-arrow">→</span> `}<span class="cv-val">${a.val}</span></span>`).join('<span class="affix-sep">·</span>');
     const cls = ['gem', opts.clickable ? 'clickable' : 'static', opts.dim ? 'disabled' : '', opts.selected ? 'selected' : ''].join(' ');
     const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
