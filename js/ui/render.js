@@ -365,7 +365,7 @@ window.CG = window.CG || {};
     const lines = descGroups ? `<div class="affix-lines">${descGroups}</div>` : '';
     // 标题在卡图「上方」，默认保留三行高度（短名也占三行、长名不撑破布局）。
     return `<div class="card-cost${s._free ? ' free' : ''}${s._power ? ' power' : ''}">${s._power ? '🔋' : ''}${s.cost}</div>
-      <div class="card-name">${name}</div>
+      <div class="card-name"><span class="cn-in">${name}</span></div>
       <div class="card-art">${CG.CardArt.get(s.base)}</div>
       <div class="card-body">
         <div class="card-text">${colorKeywords(s.baseText)}${lines}</div>

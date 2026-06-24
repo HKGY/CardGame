@@ -527,11 +527,16 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .power-line { font-size: 12px; font-weight: 800; color: #f0d040; margin-top: 3px; }
 .card.paralyzed { filter: grayscale(.55) brightness(.8); }
 .card.paralyzed::after { content: '🔒'; position: absolute; top: 4px; right: 4px; font-size: 16px; filter: drop-shadow(0 1px 1px #000); }
-/* 标题在卡图上方：默认保留三行高度（短名垂直居中、长名裁切不撑破）；左上角耗能徽标浮于其上 */
+/* 标题在卡图上方：默认保留三行高度、内容垂直+水平居中（短名居中、长名裁切不撑破） */
 .card-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 2px #000a;
   min-height: 3.6em; display: flex; flex-direction: column; align-items: stretch; justify-content: center;
-  text-align: center; overflow: hidden; margin-bottom: 5px; padding: 0 2px; box-sizing: border-box; }
-.card-name > :first-child { padding-left: 28px; }   /* 首行右移，避开左上角耗能徽标 */
+  overflow: hidden; margin-bottom: 5px; padding: 0 2px; box-sizing: border-box; }
+.card-name .cn-in { display: block; text-align: center; }
+/* 左上角的耗能徽标：在标题顶部两侧各留一个「角落留白」(float)，使文字默认居中、过长时自动绕开徽标换行 */
+.card-name .cn-in::before, .card-name .cn-in::after { content: ''; width: 26px; height: 28px; }
+.card-name .cn-in::before { float: left; }
+.card-name .cn-in::after  { float: right; }
+.card-name .gem-chip { display: inline-block; white-space: nowrap; }
 .card-name .aff { font-weight: 800; }
 .card-name .base-name { color: var(--ink); }
 .card-type { font-size: 11px; color: var(--muted); margin: 2px 0 6px; }
