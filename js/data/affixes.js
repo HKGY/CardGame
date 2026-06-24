@@ -461,8 +461,8 @@ window.CG = window.CG || {};
   CG.affixShort = function (id, level) {
     const a = A[id]; if (!a) return '';
     const vL = CG.lvVal(level);
-    // 条件代价：也用「裸名 + 数值」（量型＝每 fx 条件的产出 fy×等级；门型＝定额 ⌊mult×等级⌋）。
-    if (a.condBonus) { const cb = a.condBonus; const n = cb.gate ? Math.floor((cb.mult || 1) * vL + 1e-9) : (cb.fy || 0) * vL; return shortOf(cb.atom, n); }
+    // 条件代价：量型(每有 X 条件)用「裸名 *」；门型(true/false 达成)用「裸名 + 数值」(定额 ⌊mult×等级⌋)。
+    if (a.condBonus) { const cb = a.condBonus; return cb.gate ? shortOf(cb.atom, Math.floor((cb.mult || 1) * vL + 1e-9)) : (CG.bareName(cb.atom) + '*'); }
     return shortOf(a.value.atom, (a.value.amt || 0) * vL);
   };
 

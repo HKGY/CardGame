@@ -86,6 +86,10 @@ window.CG = window.CG || {};
     bs.sort((a, b) => CG.AFFIXES[b.id].score - CG.AFFIXES[a.id].score);
     return CG.AFFIXES[bs[0].id].color;
   };
+  // 宝石等级图标：1/2/3 级用三个不同 emoji 直观区分（取宝石内词条最高等级）。
+  CG.GEM_LEVEL_ICONS = { 1: '🔹', 2: '🔷', 3: '💠' };
+  CG.gemLevel = function (gem) { const lv = (gem.affixes || []).map(a => a.level || 1); return lv.length ? Math.max.apply(null, lv) : 1; };
+  CG.gemLevelIcon = function (gem) { return CG.GEM_LEVEL_ICONS[Math.min(3, Math.max(1, CG.gemLevel(gem)))] || '💎'; };
 
   // ---------- 取数 ----------
   CG.cardStats = function (inst, opts) {

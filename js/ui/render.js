@@ -382,7 +382,7 @@ window.CG = window.CG || {};
     const cls = ['gem', opts.clickable ? 'clickable' : 'static', opts.dim ? 'disabled' : '', opts.selected ? 'selected' : ''].join(' ');
     const data = opts.data ? Object.entries(opts.data).map(([k, v]) => `data-${k}="${v}"`).join(' ') : '';
     return `<div class="${cls}" ${data} style="--gem:${CG.gemPrimaryColor(gem)}">
-      <div class="gem-orb">💎</div>
+      <div class="gem-orb" title="${CG.gemLevel(gem)} 级">${CG.gemLevelIcon(gem)}</div>
       <div class="gem-name">${title}</div>
       <div class="gem-text">${lines}</div>
       ${opts.tagLabel ? `<div class="gem-tag">${opts.tagLabel}</div>` : ''}
