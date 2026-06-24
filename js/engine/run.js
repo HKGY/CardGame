@@ -149,7 +149,7 @@ window.CG = window.CG || {};
     }
     const tarot = [];
     for (let i = 0; i < C().shop.tarotCount; i++)
-      tarot.push({ id: pick(CG.TAROT_IDS), price: Math.floor(C().shop.tarotPrice * mult), bought: false });
+      tarot.push({ id: run._pickTarotId(), price: Math.floor(C().shop.tarotPrice * mult), bought: false });
     // booster pack 货架：每个各自一个主题包；买下后开启从 count 颗里挑 1
     const packs = (C().shop.packs || []).map(opt => ({
       pack: CG.pickPack(opt.tier), tier: opt.tier, count: opt.count, pick: opt.pick || 1,
@@ -218,8 +218,8 @@ window.CG = window.CG || {};
       if (CG.RELICS[id].onPickup) CG.RELICS[id].onPickup(this);
       return true;
     }
-    _dropRelics(n) {                            // 掉落 n 个未拥有的遗物
-      const out = [], pool = CG.RELIC_IDS.filter(id => !this.hasRelic(id));
+    _dropRelics(n) {                            // 掉落 n 个未拥有的遗物（偏向本局主题）
+      const out = [], pool = this._themedRelicPool(id => !this.hasRelic(id));
       for (let i = 0; i < n && pool.length; i++) {
         const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
         this.addRelic(id); out.push(id);
@@ -228,6 +228,10 @@ window.CG = window.CG || {};
     }
     forgeMinLevel() { return this.relics.some(id => CG.RELICS[id].forgeMin >= 2) ? 2 : 1; }   // 幸运脚：宝石词条最低 2 级
     canGainTarot() { return !this.relics.some(id => CG.RELICS[id].noTarot); }                  // 无神论者
+    // v3.12：塔罗/遗物掉落偏向本局主题（与宝石一致；general 始终在内）；池空则回退全集。
+    _themedTarotIds() { const t = (CG.tarotsForThemes ? CG.tarotsForThemes(this.packs) : null) || CG.TAROT_IDS; return t.length ? t : CG.TAROT_IDS; }
+    _pickTarotId() { const t = this._themedTarotIds(); return t[Math.floor(Math.random() * t.length)]; }
+    _themedRelicPool(filterFn) { const themed = ((CG.relicsForThemes ? CG.relicsForThemes(this.packs) : CG.RELIC_IDS) || CG.RELIC_IDS).filter(filterFn); return themed.length ? themed : CG.RELIC_IDS.filter(filterFn); }
     shopMult() { return this.relics.some(id => CG.RELICS[id].shopHalf) ? 0.5 : 1; }            // Steam 促销
     tarotSlots() { return C().tarot.slots + this.relics.reduce((s, id) => s + (CG.RELICS[id].tarotSlot || 0), 0); }  // 肚脐：消耗品栏 +1
     healCost() { return Math.floor(C().shop.healPrice * this.shopMult()); }
@@ -316,7 +320,7 @@ window.CG = window.CG || {};
       const cat = pick(cats.length ? cats : ['gem']);
       if (cat === 'gem') { const pack = CG.pickPack('elite'); const g = CG.rollGem({ tier: 'elite', pack, minLevel: this.forgeMinLevel() }); this.gems.push(g); return { type: 'gem', gem: g, pack }; }
       if (cat === 'card') { const c = CG.makeCard('spell', weighted([[2, 3], [3, 2]]), [CG.rollGem({ tier: 'monster' })]); this.deck.push(c); return { type: 'card', card: c }; }
-      if (cat === 'tarot') { const id = pick(CG.TAROT_IDS); this.tarot.push(id); return { type: 'tarot', id }; }
+      if (cat === 'tarot') { const id = this._pickTarotId(); this.tarot.push(id); return { type: 'tarot', id }; }
       const got = this._dropRelics(1); return got.length ? { type: 'relic', id: got[0] } : { type: 'gold', gold: (this.gold += 40, 40) };
     }
     _enterAltar() {                              // 祭坛房：随机一种可用的宝石祭坛（复用事件屏）
@@ -327,7 +331,7 @@ window.CG = window.CG || {};
     }
     _enterShop() {
       this.pending = rollShopStock(this.shopMult(), this);
-      const avail = CG.RELIC_IDS.filter(id => !this.hasRelic(id));   // 商店遗物（未拥有）
+      const avail = this._themedRelicPool(id => !this.hasRelic(id));   // 商店遗物（未拥有，偏向本局主题）
       this.pending.relics = [];
       for (let i = 0; i < C().relic.shopCount && avail.length; i++) {
         const id = avail.splice(Math.floor(Math.random() * avail.length), 1)[0];
@@ -374,7 +378,7 @@ window.CG = window.CG || {};
       let tarotId = null;
       if (this.canGainTarot()) {
         const guaranteed = this.relics.some(id => CG.RELICS[id].guaranteedTarot);
-        if (guaranteed || Math.random() < (C().tarot.chance[tier] || 0)) tarotId = pick(CG.TAROT_IDS);
+        if (guaranteed || Math.random() < (C().tarot.chance[tier] || 0)) tarotId = this._pickTarotId();
       }
       // 群星：本次额外获得一颗宝石（进背包）
       if (this.flags.rewardBonusGem) { this.flags.rewardBonusGem = false; this.gems.push(CG.rollGem({ tier: tier === 'monster' ? 'monster' : tier, minLevel: this.forgeMinLevel() })); }
@@ -516,7 +520,7 @@ window.CG = window.CG || {};
     }
 
     // ---- 塔罗牌触发的跑图效果 ----
-    fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(pick(CG.TAROT_IDS)); }
+    fillTarot() { if (!this.canGainTarot()) return; while (this.tarot.length < this.tarotSlots()) this.tarot.push(this._pickTarotId()); }
     gainGem(opts) { this.gems.push(CG.rollGem(opts || { tier: 'elite', minLevel: this.forgeMinLevel() })); }   // 节制·逆等可调用
     gotoActBoss() {                                       // 皇帝：直达本层首领并开战
       const boss = this.grid.rooms.find(r => r.type === 'boss');

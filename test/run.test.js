@@ -425,3 +425,35 @@ test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则
   assert.equal(run2.packs.length, 5);
   assert.ok(run2.packs.includes('basic'));
 });
+
+test('v3.12 消耗品/遗物归入主题包：每个主题都有、标签合法、战斗内可结算', () => {
+  const tPacks = new Set(CG.TAROT_IDS.map(id => CG.TAROT[id].pack));
+  const rPacks = new Set(CG.RELIC_IDS.map(id => CG.RELICS[id].pack));
+  CG.PACK_IDS.filter(p => p !== 'fusion').forEach(p => {
+    assert.ok(tPacks.has(p), p + ' 主题缺塔罗');
+    assert.ok(rPacks.has(p), p + ' 主题缺遗物');
+  });
+  CG.TAROT_IDS.forEach(id => assert.ok(CG.TAROT[id].pack === 'general' || CG.PACKS[CG.TAROT[id].pack], id + ' 塔罗标签非法'));
+  CG.RELIC_IDS.forEach(id => assert.ok(CG.RELICS[id].pack === 'general' || CG.PACKS[CG.RELICS[id].pack], id + ' 遗物标签非法'));
+  // 战斗内：每张塔罗 apply、每件遗物 battleStart/firstTurn/onTurnStart 钩子均不抛错
+  const run = newRun('p2-fx');
+  CG.TAROT_IDS.forEach(id => {
+    const t = CG.TAROT[id]; if (t.where === 'map' || t.async) return;
+    const b = CG.makeBattle({ enemyIds: ['green_slime', 'green_slime'] }); b.enemy.hp = 80; b.enemy.maxHp = 80; b.player.energy = 5;
+    t.apply(run, b, { pickCard() {} });
+  });
+  CG.RELIC_IDS.forEach(id => {
+    const r = CG.RELICS[id], b = CG.makeBattle({ enemyIds: ['green_slime', 'green_slime'] });
+    b.enemy.hp = 80; b.enemy.maxHp = 80; b.player.power = 4;
+    if (r.battleStart) r.battleStart(b);
+    if (r.firstTurn) r.firstTurn(b);
+    if (r.onTurnStart) r.onTurnStart(b);
+  });
+});
+
+test('v3.12 掉落偏向本局主题：themed 池 ⊆ 选定主题 ∪ general', () => {
+  const run = new CG.Run('warrior', { packs: ['poison', 'fire'] });
+  run._themedTarotIds().forEach(id => { const p = CG.TAROT[id].pack; assert.ok(p === 'general' || run.packs.includes(p), id + ' 不应在 poison/fire 塔罗池'); });
+  run._themedRelicPool(() => true).forEach(id => { const p = CG.RELICS[id].pack; assert.ok(p === 'general' || run.packs.includes(p), id + ' 不应在 poison/fire 遗物池'); });
+  CG.setActivePacks(null);
+});

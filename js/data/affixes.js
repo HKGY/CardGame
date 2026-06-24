@@ -555,8 +555,9 @@ window.CG = window.CG || {};
     return (atom && CG.valueHome[atom]) || 'misc';
   };
   CG.affixGroupMeta = function (key) {
-    if (key === 'misc') return { name: '通用', icon: '🎴', color: '#cdd2e2' };
+    if (key === 'misc' || key === 'general') return { name: '通用', icon: '🎴', color: '#cdd2e2' };
     const p = CG.PACKS[key];
     return p ? { name: p.name, icon: p.icon, color: p.color } : { name: key, icon: '•', color: '#cdd2e2' };
   };
+  CG.packLabel = key => { const m = CG.affixGroupMeta(key); return m.icon + ' ' + m.name; };   // 消耗品/遗物主题标签
 })(window.CG);

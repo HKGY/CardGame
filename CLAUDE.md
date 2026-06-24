@@ -41,6 +41,7 @@
 > - **扣力量/敏捷代价** `loseStr/loseDex`（`COST_REAL`，4/3VP）：打出时扣自身力量/敏捷（可为负，真代价；`cardStats` 并入 strDelta/dexDelta，首石免/均摊）。**自身减益体系（代价回收）**：条件原子 `myDebuff`＝自身 易伤+虚弱+脆弱 层数总和 → 价值（`myDebuff_damage` 等"越惨越强"），与自身减益代价(selfVuln…)/Berserk 形成"自残→回收"闭环。注意自身 weak 会减自己输出、frail 减自己格挡（引擎对称）。
 > - **自身减益代价轨道**（参考 StS Berserk）：`COST_REAL` 加 `selfVuln/selfWeak/selfFrail`（2VP/层→3层/能量），打出时给自己上易伤/虚弱/脆弱（首石免/同种均摊，`cardStats` 代价环出 `selfStatus` 效果）。三种敌方减益已对称同价(1.5)。**自残→每回合能量引擎**＝`selfVuln_produce_energy`(自易伤6→每回合+1能量，`prodEnergy` 引擎，`_startPlayerTurn` 处理)，按「递归价值=一次性×2」公平定价(12VP=自易伤6)，破坏衡、无需净正签名。已删旧 berserk 签名与 affix-vp 的 signature 豁免机制——现无任何词条豁免越界守卫。
 > - **塔罗(消耗品)＝第三条价值投放轨道**（`tarot.js` 生成式，见 DESIGN 附录 E）：与宝石共用价值原子、换「消耗品栏·即时·无能量/条件代价」轨道，量级 ~2 能量(`round(12/VP)`)。价值原子牌 id `t_<atom>`（烈焰/磐石/能量/迅捷/力量/破绽/剧毒/治疗/财富…）+ 少量特色工具牌(愚者/魔术师/皇帝/月亮…)。储存仍是 id 字符串，run/game/UI 不变。三轨道(宝石/遗物/塔罗)共享一套价值原子，只靠「代价轨道+量级旋钮」区分。
+> - **v3.12 消耗品/遗物归主题**：**每张塔罗/遗物都带 `pack`**（47 主题之一，分不出的归 `general` 通用）；**每个主题都配了塔罗+遗物**（共 59 塔罗 / 81 遗物，无遗漏）。塔罗用通用 `atomAct(atom,n)`（复用 `CG.valueEffects` 把价值原子即时投放进战斗）批量生成、卡牌机制类(连击/放大/造牌/血祭/焚尽…)手写 act；遗物用 `atomTurn(atom,n)`(每回合施加)/`fx(type,value)`(首回合/开局触发一次) + 既有遗物经 `RELIC_PACK` 表打标签。**掉落偏向本局主题**：`CG.tarotsForThemes/relicsForThemes(themes)` 返回「general ∪ 选定主题」的 id 池；`Run._pickTarotId/_themedRelicPool` 用它（商店/奖励/诅咒/掉落/fillTarot 全改）。`CG.affixGroupMeta('general')`→通用、`CG.packLabel(pack)` 给 UI；百科塔罗/遗物页按主题排序并显示标签。
 > - 测试：`test/costvalue.test.js` + `test/affix-vp.test.js` + `test/run.test.js`（旧逐包测试已删）。
 
 ## 改动前：先通读全项目

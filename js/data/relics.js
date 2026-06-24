@@ -69,5 +69,79 @@ window.CG = window.CG || {};
     birthcert:    { name: '出生证明', icon: '📜', desc: '【价值】获得一张 3 孔法杖，预镶一颗强力宝石', onPickup: r => { r.deck.push(CG.makeCard('spell', 3, [CG.rollGem({ tier: 'elite', big: true, minLevel: 2 })])); } },
   };
 
+  // —— v3.12：给既有遗物打主题标签（其余/纯元遗物归 general 通用）——
+  const RELIC_PACK = {
+    spear: 'strength', greenstone: 'dexterity', thorncrown: 'thorns', iron_bar: 'block', regen_lump: 'vitality',
+    polydactyly: 'draw', little_steven: 'power', battery: 'energy', magic_shroom: 'strength', feather_boot: 'dexterity',
+    babylon: 'blood', eternal_heart: 'block', moms_knife: 'power', deaths_touch: 'power', brother_bobby: 'power',
+    penny: 'blood', thorns_hat: 'thorns', scholar: 'draw', lantern: 'energy', thickshield: 'block',
+    the_pact: 'blood', cancer: 'blood', warbanner: 'blood', windbanner: 'blood', sac_dagger: 'blood', soulforge: 'blood',
+    damocles: 'amplify', wafer: 'immune', holy_mantle: 'immune', insurance: 'vitality',
+  };
+  Object.keys(RELIC_PACK).forEach(id => { if (CG.RELICS[id]) CG.RELICS[id].pack = RELIC_PACK[id]; });
+
+  // —— v3.12：为其余主题各配套遗物 ——
+  // 通用：每回合/触发时把一个「价值原子」即时投放到战斗。
+  const atomTurn = (atom, n) => b => {
+    const ve = CG.valueEffects(atom, n, 1), t = b.currentTarget ? b.currentTarget() : b.enemy;
+    (ve.now || []).forEach(e => CG.Effects.apply(b, e, b.player, t));
+    (ve.every || []).forEach(e => b._addEveryTurn(e));
+    (ve.next || []).forEach(e => b._addNextTurn(e));
+  };
+  const fx = (type, value) => b => CG.Effects.apply(b, { type, value }, b.player, b.currentTarget ? b.currentTarget() : b.enemy);
+  Object.assign(CG.RELICS, {
+    // 进攻
+    glint_charm: { name: '微光符', icon: '🎴', pack: 'basic', desc: '【价值】开局 +5 格挡，并对敌人造成 5 点伤害', battleStart: b => { b.gainBlock(b.player, 5); if (b.enemy && b.enemy.hp > 0) b.dealAttackDamage(b.player, b.enemy, 5); } },
+    combo_glove: { name: '连击手套', icon: '🥊', pack: 'combo', desc: '【价值】每回合开始：对敌人造成 3 点伤害 ×2', onTurnStart: b => { for (let i = 0; i < 2; i++) if (b.enemy && b.enemy.hp > 0) b.dealAttackDamage(b.player, b.enemy, 3); } },
+    war_horn: { name: '战争号角', icon: '📯', pack: 'assault', desc: '【价值】每回合开始：对所有敌人造成 3 点伤害', onTurnStart: b => b.damageAll(3) },
+    prism_lens: { name: '棱镜透镜', icon: '🔆', pack: 'amplify', desc: '【价值】每回合开始：下一张牌造成双倍伤害', onTurnStart: b => { b.nextCardDmgMult = Math.max(b.nextCardDmgMult || 1, 2); } },
+    // 减益（每回合施加）
+    spite_doll: { name: '怨灵娃娃', icon: '🎯', pack: 'vuln', desc: '【价值】每回合开始：对敌人施加 2 层易伤', onTurnStart: atomTurn('vulnerable', 2) },
+    sap_totem: { name: '颓力图腾', icon: '💧', pack: 'weak', desc: '【价值】每回合开始：对敌人施加 2 层虚弱', onTurnStart: atomTurn('weak', 2) },
+    brittle_seal: { name: '脆裂封印', icon: '🧨', pack: 'frail', desc: '【价值】每回合开始：对敌人施加 2 层脆弱', onTurnStart: atomTurn('frail', 2) },
+    venom_fang: { name: '毒牙', icon: '☠️', pack: 'poison', desc: '【价值】每回合开始：对敌人施加 2 层中毒', onTurnStart: atomTurn('poison', 2) },
+    ember_brand: { name: '烙印', icon: '🔥', pack: 'burn', desc: '【价值】每回合开始：对敌人施加 2 层灼烧', onTurnStart: atomTurn('burn', 2) },
+    grave_bell: { name: '丧钟', icon: '🪦', pack: 'curse', desc: '【价值】每回合开始：对敌人施加 3 层咒言', onTurnStart: atomTurn('curse', 3) },
+    yoke: { name: '重轭', icon: '🔻', pack: 'sapstr', desc: '【价值】每回合开始：使敌人失去 1 点力量', onTurnStart: atomTurn('enemyLoseStr', 1) },
+    tar_pit: { name: '沥青坑', icon: '🔽', pack: 'sapdex', desc: '【价值】每回合开始：使敌人失去 1 点敏捷', onTurnStart: atomTurn('enemyLoseDex', 1) },
+    contagion: { name: '疫源', icon: '🦠', pack: 'spread', desc: '【价值】开局：对敌人各施加 3 层易伤 / 虚弱 / 脆弱', battleStart: b => { if (b.enemy) ['vulnerable', 'weak', 'frail'].forEach(k => b.applyStatus(b.enemy, k, 3)); } },
+    // 防御
+    aegis_core: { name: '壁障核心', icon: '🔰', pack: 'ward', desc: '【价值】本场战斗格挡跨回合保留', battleStart: b => { b._blockRetain = true; } },
+    barrier_rune: { name: '屏障符文', icon: '✨', pack: 'immune', desc: '【价值】每场战斗免疫第一次受到的伤害', battleStart: b => { b._immuneHits = (b._immuneHits || 0) + 1; } },
+    // 节奏 / 牌库
+    free_ticket: { name: '免费票', icon: '🎟️', pack: 'flow', desc: '【价值】每回合开始：接下来 1 张牌免费打出', onTurnStart: b => { b.freeCards = (b.freeCards || 0) + 1; } },
+    top_hat: { name: '高礼帽', icon: '🎩', pack: 'conjure', desc: '【价值】首回合：生成 1 张带随机宝石的牌', firstTurn: fx('conjure', 1) },
+    crystal_ball: { name: '水晶球', icon: '🌠', pack: 'divine', desc: '【价值】首回合：生成 2 张洞悉到抽牌堆', firstTurn: fx('makePeek', 2) },
+    twin_mirror: { name: '双子镜', icon: '🪄', pack: 'sorcery', desc: '【价值】首回合：复制 1 张随机手牌', firstTurn: fx('duplicate', 1) },
+    dumpster_key: { name: '废料钥匙', icon: '📚', pack: 'pile', desc: '【价值】每回合开始：从弃牌堆取回 1 张牌', onTurnStart: b => { if (b.discardPile.length && b.hand.length < 10) b.hand.push(b.discardPile.pop()); } },
+    grindstone: { name: '砂轮', icon: '📈', pack: 'enhance', desc: '【价值】开局：牌库所有攻击牌伤害永久 +1', battleStart: fx('mindblast', 1) },
+    pack_rat: { name: '囤积鼠', icon: '📌', pack: 'hold', desc: '【价值】每回合开始：手牌每有一张，+1 格挡', onTurnStart: b => b.gainBlock(b.player, b.hand.length) },
+    // 资源 / 引擎
+    capacitor: { name: '电容', icon: '🔌', pack: 'elec', desc: '【价值】每回合开始：+2 电力', onTurnStart: b => { b.player.power = (b.player.power || 0) + 2; } },
+    tesla_coil: { name: '特斯拉线圈', icon: '⚡', pack: 'arc', desc: '【价值】每回合开始：获得等同当前电力一半的格挡', onTurnStart: b => b.gainBlock(b.player, Math.floor((b.player.power || 0) / 2)) },
+    seed_pouch: { name: '种子袋', icon: '🌾', pack: 'produce', desc: '【价值】每回合开始：+2 格挡并抽 1 张', onTurnStart: b => { b.gainBlock(b.player, 2); b.drawCards(1); } },
+    karma_wheel: { name: '业轮', icon: '🔄', pack: 'cycle', desc: '【价值】每回合开始：现有每回合增益额外结算 1 次', onTurnStart: b => { if (b._everyTurn && b._everyTurn.length) b._resolveEveryBuffs(1, false); } },
+    ash_urn: { name: '骨灰瓮', icon: '♨️', pack: 'ash', desc: '【价值】每回合开始：获得等同消耗堆牌数的格挡（至多 20）', onTurnStart: b => b.gainBlock(b.player, Math.min(20, b.exhaustPile.length)) },
+    // 造物 / 食材 / 元素
+    bone_charm: { name: '骨符', icon: '👻', pack: 'summon', desc: '【价值】开局：召唤一具骷髅（血量上限 6）', battleStart: fx('summon', 6) },
+    knife_belt: { name: '飞刀带', icon: '🔪', pack: 'dagger', desc: '【价值】首回合：生成 2 张匕首', firstTurn: fx('makeDagger', 2) },
+    scrap_box: { name: '甲片盒', icon: '🛡️', pack: 'scrap', desc: '【价值】首回合：生成 2 张甲片', firstTurn: fx('makeScrap', 2) },
+    broken_hilt: { name: '残柄', icon: '🗡️', pack: 'endsword', desc: '【价值】开局：锻造出一柄终末之剑', battleStart: fx('forge', 1) },
+    veg_basket: { name: '菜篮', icon: '🥬', pack: 'veg', desc: '【价值】首回合：获得 1 张素菜', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('veg', 1); } },
+    meat_hook: { name: '肉钩', icon: '🍖', pack: 'meat', desc: '【价值】首回合：获得 1 张荤菜', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('meat', 1); } },
+    spice_rack: { name: '香料架', icon: '🧂', pack: 'season', desc: '【价值】首回合：获得 1 张调料', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('season', 1); } },
+    fire_opal: { name: '火蛋白石', icon: '🔥', pack: 'fire', desc: '【价值】开局：给敌人附 1 层火', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'fire', 1); } },
+    water_pearl: { name: '水之珠', icon: '💧', pack: 'water', desc: '【价值】开局：给敌人附 1 层水', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'water', 1); } },
+    storm_shard: { name: '风暴碎片', icon: '🌩️', pack: 'thunder', desc: '【价值】开局：给敌人附 1 层雷', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'thunder', 1); } },
+    frost_gem: { name: '霜晶', icon: '❄️', pack: 'ice', desc: '【价值】开局：给敌人附 1 层冰', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'ice', 1); } },
+  });
+  // 其余未打标签的遗物（肚脐/晚餐/无神论者/老虎机/棱镜核心/回光返照/1up/Steam/存钱罐/牌盒/幸运脚/郁金香/出生证明 等元/经济/复活类）归 general。
+  Object.keys(CG.RELICS).forEach(id => { if (!CG.RELICS[id].pack) CG.RELICS[id].pack = 'general'; });
+
   CG.RELIC_IDS = Object.keys(CG.RELICS);
+  // 某主题集合下「契合」的遗物 id（掉落偏向用）；general 始终契合。
+  CG.relicsForThemes = function (themes) {
+    const set = new Set(themes || []);
+    return CG.RELIC_IDS.filter(id => { const p = CG.RELICS[id].pack; return p === 'general' || set.has(p); });
+  };
 })(window.CG);

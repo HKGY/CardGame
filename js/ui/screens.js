@@ -317,15 +317,18 @@ window.CG = window.CG || {};
         html += '<div class="codex-grid"><div class="codex-sub">元素反应（⚗️ 元素·敌至多 1 种 1 层）</div><p class="codex-note" style="column-span:all">给敌人附元素：遇<b>不同</b>元素→触发反应（放大型令本牌伤害×2、转化型触发一次），遇<b>同/无</b>元素→取代为该元素 1 层；一颗宝石附<b>两层</b>(2、3级)＝先反应、再附 1 层新的。</p>' + rows + '</div>';
       }
     } else if (tab === 'tarot') {
-      html = '<div class="codex-grid">' + CG.TAROT_IDS.map(id => {
+      const byPack = (a, b) => (CG.TAROT[a].pack || '').localeCompare(CG.TAROT[b].pack || '');
+      html = '<div class="codex-grid">' + CG.TAROT_IDS.slice().sort(byPack).map(id => {
         const t = CG.TAROT[id];
         return `<div class="codex-item"><span class="codex-name">${t.icon} ${t.name}</span>` +
-               `<span class="codex-tag">${WHERE_LABEL[t.where]}</span><span class="codex-desc">${t.desc}</span></div>`;
+               `<span class="codex-tag">${CG.packLabel ? CG.packLabel(t.pack) : (WHERE_LABEL[t.where] || '')}</span><span class="codex-desc">${t.desc}</span></div>`;
       }).join('') + '</div>';
     } else if (tab === 'relic') {
-      html = '<div class="codex-grid">' + CG.RELIC_IDS.map(id => {
+      const byPack = (a, b) => (CG.RELICS[a].pack || '').localeCompare(CG.RELICS[b].pack || '');
+      html = '<div class="codex-grid">' + CG.RELIC_IDS.slice().sort(byPack).map(id => {
         const r = CG.RELICS[id];
-        return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span><span class="codex-desc">${r.desc}</span></div>`;
+        return `<div class="codex-item"><span class="codex-name">${r.icon} ${r.name}</span>` +
+               `<span class="codex-tag">${CG.packLabel ? CG.packLabel(r.pack) : ''}</span><span class="codex-desc">${r.desc}</span></div>`;
       }).join('') + '</div>';
     } else {
       const entry = (sprite, name, tag, hp, body) =>
