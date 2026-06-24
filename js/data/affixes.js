@@ -449,17 +449,21 @@ window.CG = window.CG || {};
   };
   // 时点：返回价值原子的 now/next/every（供卡面样式）。
   CG.affixTiming = function (id) { const a = A[id]; if (!a) return 'now'; const atom = a.condBonus ? a.condBonus.atom : (a.value && a.value.atom); const va = VALUE_ATOMS[atom] || {}; return va.timing || 'now'; };
+  // 价值原子 + 数量 → 简短文字（裸名 + 数值，特殊原子单独格式）。
+  function shortOf(atom, n) {
+    if (atom === 'mult') return `数值×${1 + n}`;
+    if (atom === 'lifesteal') return `吸血${n}%`;
+    if (atom === 'combo') return `连击+${n}`;
+    if (atom === 'multi') return '多重';
+    const va = VALUE_ATOMS[atom] || {}; if (va.dmul) n *= va.dmul;
+    return `${CG.bareName(atom)} ${n}`;
+  }
   CG.affixShort = function (id, level) {
     const a = A[id]; if (!a) return '';
-    const v = a.value, vL = CG.lvVal(level);
-    if (a.condBonus) return CG.bareName(a.condBonus.atom) + '*';
-    const va = VALUE_ATOMS[v.atom] || {}, nm = CG.bareName(v.atom);
-    if (v.atom === 'mult') return `数值×${1 + (v.amt || 0) * vL}`;
-    if (v.atom === 'lifesteal') return `吸血${(v.amt || 0) * vL}%`;
-    if (v.atom === 'combo') return `连击+${(v.amt || 0) * vL}`;
-    if (v.atom === 'multi') return '多重';
-    let n = (v.amt || 0) * vL; if (va.dmul) n *= va.dmul;
-    return `${nm} ${n}`;
+    const vL = CG.lvVal(level);
+    // 条件代价：也用「裸名 + 数值」（量型＝每 fx 条件的产出 fy×等级；门型＝定额 ⌊mult×等级⌋）。
+    if (a.condBonus) { const cb = a.condBonus; const n = cb.gate ? Math.floor((cb.mult || 1) * vL + 1e-9) : (cb.fy || 0) * vL; return shortOf(cb.atom, n); }
+    return shortOf(a.value.atom, (a.value.amt || 0) * vL);
   };
 
   /* === 元素 & 元素反应（保留）=== */

@@ -344,8 +344,8 @@ window.CG = window.CG || {};
     return t.replace(/伤害/g, '<span class="kw-dmg">伤害</span>')
             .replace(/格挡/g, '<span class="kw-block">格挡</span>');
   }
-  // 时点样式：每回合＝加粗、下回合＝斜体、本回合＝常规。
-  function timeStyle(txt, id) { const t = CG.affixTiming ? CG.affixTiming(id) : 'now'; return t === 'every' ? `<b>${txt}</b>` : t === 'next' ? `<i>${txt}</i>` : txt; }
+  // 时点样式：每回合＝下划线、下回合＝斜体、本回合＝常规。（卡名本就加粗，故每回合改用下划线区分）
+  function timeStyle(txt, id) { const t = CG.affixTiming ? CG.affixTiming(id) : 'now'; return t === 'every' ? `<u>${txt}</u>` : t === 'next' ? `<i>${txt}</i>` : txt; }
   function cardInner(s) {
     const span = a => `<span class="aff" style="color:${a.color}">${timeStyle(a.name, a.id)}</span>`;
     // 卡名：每颗宝石「代价 → 价值」；首石用方括号（免代价）。时点用 加粗(每回合)/斜体(下回合) 表示。

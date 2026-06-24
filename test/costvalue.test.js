@@ -816,7 +816,7 @@ test('词条描述改为自然中文（对齐用户示例）+ 卡名用简短 ch
   assert.strictEqual(CG.affixValueText('enemyVuln_block', 1), '敌人处于易伤时，获得 5 点格挡');
   assert.strictEqual(CG.affixShort('energy_damage', 1), '伤害 6');
   assert.strictEqual(CG.affixShort('energy_makeDagger', 1), '生成匕首 2');
-  assert.strictEqual(CG.affixShort('curBlock_damage', 1), '伤害*');
+  assert.strictEqual(CG.affixShort('curBlock_damage', 1), '伤害 3');   // 条件代价也用「裸名+数值」（每 5 格挡产 3 伤害）
   for (const id of CG.AFFIX_ORDER) {
     const s = CG.affixValueText(id, 1);
     assert.ok(s && !/\{[nx]\}|undefined|NaN/.test(s), `${id} → "${s}"`);
