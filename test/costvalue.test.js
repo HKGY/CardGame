@@ -52,12 +52,12 @@ test('首石免代价、第二颗起付能量代价', () => {
   assert.strictEqual(two.value, 12);
 });
 
-test('生命代价：首石免血、非首石扣 3 血（hp 2VP→3血）', () => {
+test('生命代价：首石免血、非首石扣 2 血（hp 3VP → 6伤害=2血）', () => {
   const first = stat(spell([{ id: 'hp_damage', level: 1 }]));
   assert.strictEqual(first.value, 6);
   assert.ok(!first.effects.some(e => e.type === 'loseHp'));
   const second = stat(spell([{ id: D, level: 1 }], [{ id: 'hp_damage', level: 1 }]));
-  assert.ok(second.effects.some(e => e.type === 'loseHp' && e.value === 3));
+  assert.ok(second.effects.some(e => e.type === 'loseHp' && e.value === 2));   // v3.14 hp 3VP：6 伤害 = ⌈6/3⌉ = 2 血
 });
 
 test('条件代价：当前格挡→伤害（cardStats 出 condBonus，值由 playCard 按当前量结算）', () => {
@@ -71,16 +71,16 @@ test('展示文字：代价 / 价值', () => {
   assert.strictEqual(CG.affixValueText(D, 1), '对敌人造成 6 点伤害');   // damage 默认形态(本回合)＝裸值名「伤害」
   assert.strictEqual(CG.affixValueText(D, 2), '对敌人造成 12 点伤害');
   assert.strictEqual(CG.affixCostText('curBlock_damage', 1), '当前格挡');
-  assert.strictEqual(CG.affixCostText('hp_damage', 2), '失 6 血');
+  assert.strictEqual(CG.affixCostText('hp_damage', 2), '失 4 血');   // v3.14 hp 3VP：12 伤害 = 4 血
 });
 
 test('代价均摊：同种代价只付最高的一个', () => {
   // [首石] + strike(+1费) + strike L2(+2费) → 费 = 基底1 + max(1,2) = 3
   const s = stat(spell([{ id: D, level: 1 }], [{ id: D, level: 1 }], [{ id: D, level: 2 }]));
   assert.strictEqual(s.cost, 3);
-  // [首石] + hp_damage(3血) + hp_block L2(6血) → 失血 = max(3,6) = 6
+  // [首石] + hp_damage(2血) + hp_block L2(4血) → 失血 = max(2,4) = 4（v3.14 hp 3VP）
   const h = stat(spell([{ id: D, level: 1 }], [{ id: 'hp_damage', level: 1 }], [{ id: 'hp_block', level: 2 }]));
-  assert.ok(h.effects.some(e => e.type === 'loseHp' && e.value === 6));
+  assert.ok(h.effects.some(e => e.type === 'loseHp' && e.value === 4));
 });
 
 test('宝石只含 1 个词条（rollGem）', () => {
@@ -159,16 +159,16 @@ test('自身减益代价：自易伤→伤害；首石免、非首石才上自�
   assert.strictEqual(first.value, 6);
   assert.ok(!first.effects.some(e => e.type === 'selfStatus'));
   const second = stat(spell([{ id: D, level: 1 }], [{ id: 'selfVuln_damage', level: 1 }]));
-  assert.ok(second.effects.some(e => e.type === 'selfStatus' && e.status === 'vulnerable' && e.value === 3));
+  assert.ok(second.effects.some(e => e.type === 'selfStatus' && e.status === 'vulnerable' && e.value === 2));   // v3.14 selfVuln 3VP：6 伤害 = 2 层
 });
 
 test('自残→每回合能量引擎（公平定价 selfVuln_produce_energy，取代旧 berserk 签名）', () => {
-  // 递归价值 = 一次性 ×2：每回合+1能量=12VP → 自易伤代价 ceil(12/2)=6 层（破坏衡、非净正签名）
-  assert.strictEqual(CG.affixCostText('selfVuln_produce_energy', 1), '自易伤 6');
+  // 递归价值 = 一次性 ×2：每回合+1能量=12VP → 自易伤代价 ceil(12/3)=4 层（v3.14 selfVuln 3VP）
+  assert.strictEqual(CG.affixCostText('selfVuln_produce_energy', 1), '自易伤 4');
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
   const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfVuln_produce_energy', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
-  assert.strictEqual(g.player.statuses.vulnerable, 6);   // 自易伤代价（首石免，第二颗付）
+  assert.strictEqual(g.player.statuses.vulnerable, 4);   // 自易伤代价（首石免，第二颗付；v3.14 = 4 层）
   assert.strictEqual(g._everyTurn.length, 1);            // v3.1：每回合能量＝调度到 _everyTurn（不再 prodEnergy 状态）
   assert.strictEqual(g._everyTurn[0].type, 'energy');
   g._startPlayerTurn();
@@ -333,10 +333,10 @@ test('翻倍 maxCount=2：×2 / ×3（不再更高）', () => {
   assert.strictEqual(CG.affixValueText('energy_mult', 2), '本牌伤害/格挡/治疗 ×3');
 });
 
-test('costByLv 每级精确（ceil 逐级算，非 L1×倍率）：失血换抽 L2 = 5 血', () => {
-  assert.strictEqual(CG.affixCostText('hp_draw', 1), '失 3 血');
-  assert.strictEqual(CG.affixCostText('hp_draw', 2), '失 5 血');   // ⌈4·2.5/2⌉=5（旧的 3×2=6 偏贵）
-  assert.strictEqual(CG.affixCostText('hp_draw', 3), '失 3 血');   // L3 廉价档
+test('costByLv 每级精确（ceil 逐级算，非 L1×倍率）：失血换抽 L2 = 4 血（v3.14 hp 3VP）', () => {
+  assert.strictEqual(CG.affixCostText('hp_draw', 1), '失 2 血');   // ⌈2·2.5/3⌉=2
+  assert.strictEqual(CG.affixCostText('hp_draw', 2), '失 4 血');   // ⌈4·2.5/3⌉=4
+  assert.strictEqual(CG.affixCostText('hp_draw', 3), '失 2 血');   // L3 廉价档
 });
 
 test('clampAffixLevel：把等级夹到该词条实际存在的等级', () => {
@@ -485,7 +485,7 @@ test('召唤物修饰词：自身向价值改投骷髅、量×2（VP 减半）�
   assert.strictEqual(CG.affixValueText('energy_damage_m', 1), '召唤物对敌人造成 12 点伤害');
   assert.strictEqual(CG.affixValueText('energy_block_m', 1), '召唤物获得 10 点格挡');
   assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物每回合获得 4 点力量');   // v3.14 召唤物力量＝永久(every)档 _m，带每回合前缀
-  assert.strictEqual(CG.affixValueText('energy_heal_m', 1), '召唤物回复 8 点生命');
+  assert.strictEqual(CG.affixValueText('energy_heal_m', 1), '召唤物回复 4 点生命');   // v3.14 heal 3VP → heal_m 1.5VP → val 4
   // 只配自身向价值：能量/造牌/多重/敌减益 没有 _m 变体
   assert.ok(!CG.AFFIXES['energy_energy_m'] && !CG.AFFIXES['energy_conjure_m'] && !CG.AFFIXES['energy_vulnerable_m'] && !CG.AFFIXES['energy_poison_m']);
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
@@ -518,9 +518,9 @@ test('召唤物替玩家抵挡：召唤物格挡→玩家格挡→召唤物血�
 
 // ===== 代价时点（#2）=====
 test('代价时点：每回合(递归·量减半) / 下回合(延迟·量加倍) / 本回合；能量·弃牌不时点化', () => {
-  assert.strictEqual(CG.affixCostText('hp_damage', 1), '失 3 血');
-  assert.strictEqual(CG.affixCostText('hpV_damage', 1), '每回合失 2 血');   // 递归：代价VP×2 → 量减半
-  assert.strictEqual(CG.affixCostText('hpN_damage', 1), '下回合失 6 血');   // 延迟：代价VP×0.5 → 量加倍
+  assert.strictEqual(CG.affixCostText('hp_damage', 1), '失 2 血');          // v3.14 hp 3VP
+  assert.strictEqual(CG.affixCostText('hpV_damage', 1), '每回合失 1 血');   // 递归：代价VP×2=6 → ⌈6/6⌉=1
+  assert.strictEqual(CG.affixCostText('hpN_damage', 1), '下回合失 4 血');   // 延迟：代价VP×0.5=1.5 → ⌈6/1.5⌉=4
   assert.ok(!CG.AFFIXES['energyV_damage'] && !CG.AFFIXES['discardV_damage'] && !CG.AFFIXES['loseStrV_damage']);   // 能量/弃牌/失力量 不时点化
   assert.ok(CG.AFFIXES['selfWeakV_block'] && CG.AFFIXES['goldN_heal'] && CG.AFFIXES['selfVulnV_damage']);          // 生命/金币/自减益 可时点化
 });
@@ -534,8 +534,8 @@ test('代价时点·每回合：价值当回合即得、代价调度到 _everyTu
   assert.strictEqual(ehp - g.enemy.hp, 12);          // 价值即得：strike 6 + 该词条伤害 6
   assert.strictEqual(hp0 - g.player.hp, 0);          // 代价当回合不付
   assert.strictEqual(g._everyTurn.length, 1);        // 调度到 _everyTurn
-  g._startPlayerTurn(); assert.strictEqual(hp0 - g.player.hp, 2);   // 下回合开始：每回合失 2 血
-  g._startPlayerTurn(); assert.strictEqual(hp0 - g.player.hp, 4);   // 再下回合：再失 2 血（递归）
+  g._startPlayerTurn(); assert.strictEqual(hp0 - g.player.hp, 1);   // 下回合开始：每回合失 1 血
+  g._startPlayerTurn(); assert.strictEqual(hp0 - g.player.hp, 2);   // 再下回合：再失 1 血（递归）
 });
 
 test('代价时点·下回合：延迟一次付（自易伤代价 → 下回合上自身易伤）', () => {
@@ -773,7 +773,7 @@ test('多个「每回合X」合并为一条（收益与代价都合并）', () =
   g = bt(); g.player.energy = 30;
   for (let i = 0; i < 2; i++) { const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'hpV_damage', level: 1 }]); g.hand = [c]; g.player.energy = 30; g.playCard(c.uid); }
   const losses = g._everyTurn.filter(e => e.type === 'loseHp');
-  assert.strictEqual(losses.length, 1); assert.strictEqual(losses[0].value, 4);   // 2+2 合并
+  assert.strictEqual(losses.length, 1); assert.strictEqual(losses[0].value, 2);   // v3.14 每回合失 1 血 ×2 合并 = 2
 });
 
 test('每回合上限也约束「减益/代价类」（修复其一直累加）', () => {
@@ -909,7 +909,7 @@ test('v3.12 词条归主题：按 代价→条件→价值 优先级', () => {
 });
 
 test('v3.12 每个价值/代价/条件原子都有归属主题（无孤儿）', () => {
-  Object.keys(CG.VALUE_ATOMS).forEach(v => { const va = CG.VALUE_ATOMS[v]; if (!va.minion && (va.timing === 'next' || va.timing === 'every')) return; assert.ok(CG.valueHome[v], '价值原子 ' + v + ' 无归属'); });   // v3.14：非召唤物的 下/每回合 变体不归包（由修饰词包提供）
+  Object.keys(CG.VALUE_ATOMS).forEach(v => { const va = CG.VALUE_ATOMS[v]; if (CG.timingSiblings.has(v)) return; assert.ok(CG.valueHome[v], '价值原子 ' + v + ' 无归属'); });   // v3.14：所有「下/每回合」变体(含召唤物)不归包，由修饰词包提供（timingSiblings）
   Object.keys(CG.COST_REAL).forEach(c => assert.ok(c === 'energy' || CG.costHome[c], '代价原子 ' + c + ' 无归属'));
   Object.keys(CG.COST_COND).forEach(c => assert.ok(CG.condHome[c], '条件原子 ' + c + ' 无归属'));
 });

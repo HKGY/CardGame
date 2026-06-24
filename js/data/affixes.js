@@ -20,7 +20,7 @@ window.CG = window.CG || {};
   //  由生成器写入本表（如 V.damage=1 / V.damage_every=2 / V.damage_next=0.5；V.strength=3=每回合、V.tempStr=1.5=本回合）。
   //  此处只列「无时点」价值原子 + 全部代价原子。
   const V = {
-    heal: 1.5,                                        // 治疗（排序铁律：治疗 > 格挡 > 伤害）
+    heal: 3.0,                                        // v3.14 回血改 3VP（与自伤代价对称）
     fire: 6.0, water: 6.0, thunder: 6.0, ice: 6.0,    // 元素：1 层 = 6VP
     // summon(1.5)/conjure(6)/thorns(2) 改为时点基值（VP 见 TURN_BASES）；building 已删
     mult: 12.0, lifesteal: 0.12, combo: 6.0, multi: 12.0,   // 翻倍/多重=12VP；吸血 0.12/%(≤100)；连击 6VP
@@ -37,9 +37,9 @@ window.CG = window.CG || {};
     burn: 1.5, regen: 3.0,                                                                        // v3.12 新价值：灼烧(灰烬包,过血量DoT)/再生(生机包,回合开始回血)
     makeWisp: 6.0, illusion: 6.0, peekUp: 6.0, wispUp: 6.0,                                        // v3.13 生成磷火/幻境(临时牌+50%)/洞悉强化(+1)/磷火强化(+0.5)
     arc: 6.0, charge: 6.0, nirvana: 6.0, undying: 6.0, temper: 6.0, duplicate: 6.0, mindblast: 6.0,   // v3.12 复活既有引擎机制为价值原子：电弧/充电(电力)、涅槃/不坏(灰烬)、锤炼(机巧)、复制/心灵震慑(术士)
-    // —— 代价原子 ——（可玩数字：生命 2VP→3血、金币 1VP→6金）
-    hp: 2.0, gold: 1.0, discard: 3.0, maxhp: 1.0, exhaustCard: 6.0, losePower: 1.0, makeDross: 6.0, ethereal: 3.0, minionHp: 1.5,   // ethereal＝虚无(回合末未打出则消耗)；minionHp＝消耗召唤物血量
-    selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,     // 自身减益代价（2VP/层）
+    // —— 代价原子 ——（v3.14：自伤(生命/自易伤·虚弱·脆弱)统一 3VP，与失力量·敏捷 3VP 对齐）
+    hp: 3.0, gold: 1.0, discard: 3.0, maxhp: 1.0, exhaustCard: 6.0, losePower: 1.0, makeDross: 6.0, ethereal: 3.0, minionHp: 1.5,   // ethereal＝虚无(回合末未打出则消耗)；minionHp＝消耗召唤物血量
+    selfVuln: 3.0, selfWeak: 3.0, selfFrail: 3.0,     // v3.14 自身减益代价改 3VP/层（自伤统一 3VP）
     loseStr: 3.0, loseDex: 3.0,                       // 扣自身力量/敏捷（可为负，真代价）
   };
   CG.VALUES = V;
@@ -262,10 +262,11 @@ window.CG = window.CG || {};
   const valColor = id => (VALUE_ATOMS[id] && VALUE_ATOMS[id].color) || COLOR[id] || '#cdd2e2';
   // v3.14 时点变体映射：now 变体 id → { next, every } 变体 id（供「每回合/下回合」修饰词包展开）。按 (turnBase, minion) 分组。
   CG.timingVariants = {};
+  CG.timingSiblings = new Set();   // 所有「有 now 兄弟」的 下/每回合 变体 id（含召唤物）；价值包剥离它们、size 计入它们
   (function () {
     const groups = {};
     Object.keys(VALUE_ATOMS).forEach(id => { const a = VALUE_ATOMS[id]; if (!a.turnBase) return; const key = a.turnBase + (a.minion ? '#m' : ''); (groups[key] = groups[key] || {})[a.timing] = id; });
-    Object.keys(groups).forEach(k => { const g = groups[k]; if (g.now) CG.timingVariants[g.now] = { next: g.next, every: g.every }; });
+    Object.keys(groups).forEach(k => { const g = groups[k]; if (g.now) { CG.timingVariants[g.now] = { next: g.next, every: g.every }; if (g.next) CG.timingSiblings.add(g.next); if (g.every) CG.timingSiblings.add(g.every); } });
   })();
 
   /* —— 代价原子 —— */
@@ -557,11 +558,12 @@ window.CG = window.CG || {};
   };
   Object.keys(CG.PACKS).forEach(k => {
     const p = CG.PACKS[k];
-    // v3.14：价值包只保留「本回合(now)/非时点/召唤物」价值；下回合·每回合 变体改由「下回合包/每回合包」修饰词提供。
-    if (!p.timingMod) p.values = (p.values || []).filter(v => { const va = VALUE_ATOMS[v]; return !va || va.minion || !va.timing || va.timing === 'now'; });
+    // v3.14：剥离所有「有 now 兄弟」的 下/每回合 变体（含召唤物 _m）——它们改由「下回合包/每回合包」修饰词提供；保留 now/非时点/无 now 兄弟者。
+    if (!p.timingMod) p.values = (p.values || []).filter(v => !CG.timingSiblings.has(v));
     p.affixes = CG.buildPackAffixes(p.values, p.costs, p.conds);
     p.buffs = p.affixes.slice(); p.debuffs = [];
-    p.size = (p.values || []).length;   // 包「大小」＝价值原子个数（开局按量选包用；基础/修饰词包不计）
+    // 包「大小」＝价值「含时点变体」的个数：每个价值计 now + (有下回合?+1) + (有每回合?+1)。基础/修饰词包不计入选包预算。
+    p.size = (p.values || []).reduce((s, v) => { const t = CG.timingVariants[v]; return s + 1 + (t && t.next ? 1 : 0) + (t && t.every ? 1 : 0); }, 0);
   });
   CG.PACK_IDS = Object.keys(CG.PACKS);
 
