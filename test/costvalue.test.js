@@ -12,7 +12,7 @@ test('原子生成：真资源代价 × 全部价值都存在', () => {
   assert.ok(CG.AFFIXES['energy_damage'] && CG.AFFIXES['hp_damage'] && CG.AFFIXES['gold_block'] && CG.AFFIXES['discard_heal']);
   assert.ok(CG.AFFIXES['curBlock_damage'] && CG.AFFIXES['enemyDebuff_block']);   // 条件 × 数值价值（curPower 已改为消耗电力代价）
   assert.ok(!CG.AFFIXES['depth_block'] && !CG.AFFIXES['heat_damage'] && !CG.AFFIXES['kills_damage'] && !CG.AFFIXES['heldTurns_block']);   // 已删的弃用条件代价
-  assert.ok(CG.PACKS.basic.affixes.includes('curBlock_damage'));   // 条件词条注入基础包
+  assert.ok(CG.PACKS.block.affixes.includes('curBlock_block'));   // v3.12 条件代价归入其同主题包（壁垒包：当前格挡×格挡）
 });
 
 test('空法术基底：0 效果、费 1', () => {
@@ -348,7 +348,7 @@ test('clampAffixLevel：把等级夹到该词条实际存在的等级', () => {
 test('rollGem 等级只取该词条实际存在的等级', () => {
   assert.strictEqual(CG.affixLevels('energy_food_veg').join(','), '1');   // 食材真资源词条 maxCount=1 → 恒 LV1
   for (let i = 0; i < 80; i++) {
-    for (const pk of ['cook', 'elements', 'power', 'weaken']) {
+    for (const pk of ['veg', 'fire', 'power', 'vuln']) {
       const g = CG.rollGem({ tier: 'boss', pack: pk });
       const a = g.affixes[0];
       assert.ok(CG.affixLevels(a.id).includes(a.level), `${pk} 产出非法等级 ${a.id}@${a.level}`);
@@ -836,4 +836,80 @@ test('buildDeck 各职业产出 10 张可解析法术', () => {
     assert.strictEqual(deck.length, 10);
     deck.forEach(c => assert.ok(Number.isFinite(stat(c).cost)));
   }
+});
+
+// ===== v3.12：按主题重分包（47 主题）+ 新价值/条件 + 交叉积融合 =====
+test('v3.12 新价值/条件原子存在且文本自然', () => {
+  ['energy_corpseBomb', 'energy_catalyze', 'energy_burn', 'energy_regen', 'energy_arc', 'energy_charge',
+    'energy_nirvana', 'energy_undying', 'energy_temper', 'energy_duplicate', 'energy_mindblast',
+    'poisonApplied_poison', 'lowHp_damage'].forEach(id => assert.ok(CG.AFFIXES[id], id + ' 应存在'));
+  assert.strictEqual(CG.affixValueText('energy_catalyze', 1), '立即结算敌人身上的中毒 1 次');
+  assert.strictEqual(CG.affixValueText('energy_burn', 1), '使敌人获得 4 点灼烧');
+  assert.strictEqual(CG.affixValueText('poisonApplied_poison', 1), '本场每施加 1 次中毒，使敌人获得 2 点中毒');
+});
+
+test('v3.12 尸爆：被中毒杀死的敌人对其它敌人造成其最大生命的伤害', () => {
+  const g = CG.makeBattle({ enemyIds: ['green_slime', 'green_slime'] });
+  g._corpseBomb = 1; g.enemies[0].hp = 3; g.enemies[0].maxHp = 40; g.applyStatus(g.enemies[0], 'poison', 5);
+  g.enemies[1].hp = 100; g.enemies[1].maxHp = 100;    // 留足血量以测得完整尸爆伤害
+  const e1 = g.enemies[1].hp;
+  g.endTurn(); g.runEnemyTurn();                       // 敌方回合：毒伤致死 enemy0 → 尸爆 40 给 enemy1
+  assert.ok(g.enemies[0].hp <= 0, 'enemy0 应被毒杀');
+  assert.strictEqual(e1 - g.enemies[1].hp, 40, 'enemy1 应吃到尸爆 = enemy0 最大生命 40');
+});
+
+test('v3.12 催发：立即结算中毒 N 次（毒伤 + 毒 -1）', () => {
+  const g = bt(); g.enemy.hp = 200; g.enemy.maxHp = 200; g.applyStatus(g.enemy, 'poison', 10);
+  const hp0 = g.enemy.hp; pg(g, [[{ id: 'energy_catalyze', level: 1 }]]);
+  assert.strictEqual(hp0 - g.enemy.hp, 10, '结算 1 次 = 造成等同毒层(10)的伤害');
+  assert.strictEqual(g.enemy.statuses.poison, 9, '结算后毒 -1');
+});
+
+test('v3.12 施加中毒次数：计数 + 条件缩放', () => {
+  const g = bt(); g.enemy.hp = 300; g.enemy.maxHp = 300;
+  pg(g, [[{ id: 'energy_poison', level: 1 }]]); pg(g, [[{ id: 'energy_poison', level: 1 }]]);
+  assert.strictEqual(g._poisonApplied, 2, '施加 2 次中毒');
+});
+
+test('v3.12 灼烧 / 再生 价值', () => {
+  let g = bt(); g.enemy.hp = 200; pg(g, [[{ id: 'energy_burn', level: 1 }]]);
+  assert.strictEqual(g.enemy.statuses.burn, 4, '灼烧 4');
+  g = bt(); g.player.hp = 40; pg(g, [[{ id: 'energy_regen', level: 1 }]]);
+  assert.strictEqual(g.player.statuses.regen, 2, '再生 2');
+});
+
+test('v3.12 复活机制：电弧随电力增伤 / 涅槃被消耗时再发动', () => {
+  let g = bt(); g.player.power = 5; g.enemy.hp = 200; g.enemy.maxHp = 200;
+  const eh = g.enemy.hp; pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_arc', level: 1 }]]);
+  assert.strictEqual(eh - g.enemy.hp, 11, '打击6 + 电弧(电力5×1) = 11');
+  // 涅槃：虚无代价使其回合末从手牌消耗 → 再发动打击
+  g = bt(); g.enemy.hp = 200; g.enemy.maxHp = 200;
+  const card = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'ethereal_nirvana', level: 1 }]); g.hand = [card];
+  const eh2 = g.enemy.hp; g.endTurn();
+  assert.strictEqual(eh2 - g.enemy.hp, 6, '涅槃：被消耗时再发动一次打击');
+  assert.ok(g.exhaustPile.some(c => c.uid === card.uid), '虚无牌已进消耗堆');
+});
+
+test('v3.12 交叉积融合：选定主题的「任意代价 × 任意价值」都能产出', () => {
+  CG.setActivePacks(['blood', 'power']);            // 血液(失血/自减益代价) + 强攻(伤害价值)
+  const f = CG.fusionPack();
+  assert.ok(f.buffs.includes('hp_damage'), '失血换伤害（跨主题）应在融合池');
+  assert.ok(f.buffs.includes('selfVuln_damage'), '自易伤换伤害应在融合池');
+  assert.ok(f.buffs.includes('energy_damage'), '通用能量代价仍在');
+  CG.setActivePacks(null);
+});
+
+test('v3.12 词条归主题：按 代价→条件→价值 优先级', () => {
+  assert.strictEqual(CG.affixGroupOf('hp_damage'), 'blood');          // 失血代价 → 血液
+  assert.strictEqual(CG.affixGroupOf('exhaustCard_nirvana'), 'ash');  // 消耗手牌代价 → 灰烬
+  assert.strictEqual(CG.affixGroupOf('enemyPoison_poison'), 'poison');// 敌中毒条件 → 猛毒
+  assert.strictEqual(CG.affixGroupOf('energy_corpseBomb'), 'poison'); // 价值尸爆 → 猛毒
+  assert.strictEqual(CG.affixGroupOf('energy_combo'), 'combo');       // 价值连击 → 连击
+  assert.ok(CG.PACK_IDS.length >= 40, '已拆成 ~47 个细分主题');
+});
+
+test('v3.12 每个价值/代价/条件原子都有归属主题（无孤儿）', () => {
+  Object.keys(CG.VALUE_ATOMS).forEach(v => assert.ok(CG.valueHome[v], '价值原子 ' + v + ' 无归属'));
+  Object.keys(CG.COST_REAL).forEach(c => assert.ok(c === 'energy' || CG.costHome[c], '代价原子 ' + c + ' 无归属'));
+  Object.keys(CG.COST_COND).forEach(c => assert.ok(CG.condHome[c], '条件原子 ' + c + ' 无归属'));
 });

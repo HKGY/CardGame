@@ -142,7 +142,7 @@ window.CG = window.CG || {};
     let multiN = 0;      // 多重：消耗全部能量、整张牌重复（次数=能量）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle' };   // 注：vigor 走既有 vigorN 路径，不在此重复
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen' };   // 注：vigor 走既有 vigorN 路径，不在此重复；v3.12 尸爆/催发/再生
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
     let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
     all.forEach(({ def: d, level: rawL }) => {
@@ -498,7 +498,7 @@ window.CG = window.CG || {};
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
     // 新批价值字段（v3.6）：条件 × 这些价值时，按同一映射拆成效果 / 卡级字段（与 cardStats 一致）
-    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle' };
+    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen' };
     for (const k in NBE) if (f[k]) out.now.push({ type: NBE[k], value: f[k] });
     for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock']) if (f[k]) out[k] = (out[k] || 0) + f[k];
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
@@ -663,10 +663,12 @@ window.CG = window.CG || {};
   // 把选定的主题融合成「一个」融合包：增益池 = 各主题增益之并集，减益池同理。每颗宝石都从这个并集里抽 → 主题混合。
   CG.buildFusionPack = function (ids) {
     if (!ids || !ids.length) { if (CG.PACKS) delete CG.PACKS.fusion; return null; }
-    const buffs = [], debuffs = [];
-    ids.forEach(id => { const p = CG.PACKS && CG.PACKS[id]; if (!p || p.fusion) return; (p.buffs || []).forEach(b => buffs.push(b)); (p.debuffs || []).forEach(d => debuffs.push(d)); });
+    // 取各选定主题 values/costs/conds 的并集，再交叉积 →「任意(选中代价) × 任意(选中价值)」（如 血液的失血 × 强攻的伤害）。
+    const valueSet = new Set(), costSet = new Set(), condSet = new Set();
+    ids.forEach(id => { const p = CG.PACKS && CG.PACKS[id]; if (!p || p.fusion) return; (p.values || []).forEach(v => valueSet.add(v)); (p.costs || []).forEach(c => costSet.add(c)); (p.conds || []).forEach(c => condSet.add(c)); });
+    const buffs = CG.buildPackAffixes ? CG.buildPackAffixes([...valueSet], [...costSet], [...condSet]) : [];
     const names = ids.map(id => (CG.PACKS[id] || {}).name).filter(Boolean);
-    CG.PACKS.fusion = { id: 'fusion', fusion: true, name: '融合包', icon: '🌀', color: '#b59ad8', themes: ids.slice(), buffs, debuffs, desc: '本局融合主题：' + names.join('、') };
+    CG.PACKS.fusion = { id: 'fusion', fusion: true, name: '融合包', icon: '🌀', color: '#b59ad8', themes: ids.slice(), values: [...valueSet], costs: [...costSet], conds: [...condSet], buffs, debuffs: [], desc: '本局融合主题：' + names.join('、') };
     return CG.PACKS.fusion;
   };
   CG.fusionPack = function () { return (CG.PACKS && CG.PACKS.fusion) || null; };

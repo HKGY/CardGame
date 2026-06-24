@@ -85,6 +85,20 @@ window.CG = window.CG || {};
       game.applyStatus(source, eff.status, eff.value); // 减益词条：给自己施加易伤/虚弱/脆弱
     },
     poison(game, eff, source, target) { game.applyStatus(target, 'poison', eff.value); },   // 淬毒：每回合受伤
+    burn(game, eff, source, target) { game.applyStatus(target || game.enemy, 'burn', eff.value); },   // 灼烧：回合结束受伤（可被格挡）
+    regen(game, eff, source) { game.applyStatus(source || game.player, 'regen', eff.value); },          // 再生：每回合开始回血、逐回合 -1
+    // —— v3.12 猛毒包：尸爆 / 催发 ——
+    corpseBomb(game, eff) { game._corpseBomb = (game._corpseBomb || 0) + eff.value; },                  // 尸爆开关：被毒杀的敌人 AoE 其最大生命（×层）
+    catalyze(game, eff, source, target) {                                                               // 催发：立即结算敌人中毒 n 次（每次造毒伤 + 毒 -1，可触发尸爆）
+      const t = target || game.enemy;
+      for (let i = 0; i < eff.value; i++) {
+        if (!t || t.hp <= 0 || !(t.statuses.poison > 0)) break;
+        game._dotDamage(t, t.statuses.poison, false);
+        game._corpseBombCheck(t);
+        if (t.statuses.poison > 0) { t.statuses.poison -= 1; if (t.statuses.poison <= 0) delete t.statuses.poison; }
+      }
+      game._checkEnd();
+    },
     frozen(game, eff, source, target) {                                  // 冰封：每场战斗仅首次生效
       if (game._frozeUsed) return;
       game._frozeUsed = true;

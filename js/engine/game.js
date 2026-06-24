@@ -111,7 +111,7 @@ window.CG = window.CG || {};
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {};   // v3.6/3.7/3.8 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0;   // v3.6/3.7/3.8/3.12 新批战斗态（施加中毒次数 / 尸爆开关）
       this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
@@ -155,7 +155,7 @@ window.CG = window.CG || {};
       this._depth = 0;                         // 矿工包：本场挖矿深度
       this._heat = 0;                          // 锻造包：本场热度
       this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {};   // v3.6/3.7/3.8 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0;   // v3.6/3.7/3.8/3.12 新批战斗态（施加中毒次数 / 尸爆开关）
       this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
@@ -284,7 +284,7 @@ window.CG = window.CG || {};
       for (const e of this.enemies) {                                    // 每个存活敌人依次行动
         if (!e.alive || e.hp <= 0) continue;
         e.block = 0;
-        if (e.statuses.poison) this._dotDamage(e, e.statuses.poison, false);   // 中毒：持续伤害
+        if (e.statuses.poison) { this._dotDamage(e, e.statuses.poison, false); this._corpseBombCheck(e); }   // 中毒：持续伤害（毒死则尸爆）
         if (e.statuses.burn) this._dealBurn(e, e.statuses.burn);                // 灼伤：可被格挡（敌人此时无格挡）
         if (e.statuses.leech) this._dotDamage(e, e.statuses.leech, true);      // 寄生：持续伤害 + 回血
         this._checkEnd();
@@ -318,6 +318,17 @@ window.CG = window.CG || {};
       enemy.hp = Math.max(0, enemy.hp - n);
       const lost = before - enemy.hp;
       if (lost > 0) { this._fire('damage', { side: 'enemy', ei: this._idxOf(enemy), hpLoss: lost, blocked: 0 }); if (lifesteal) this.heal(lost); }
+    }
+    // v3.12 尸爆：被中毒杀死的敌人对其他存活敌人造成 (其最大生命 × 尸爆层数) 的伤害（仅在毒伤致死的调用处检查）
+    _corpseBombCheck(enemy) {
+      if (!(enemy.hp <= 0) || !(this._corpseBomb > 0)) return;
+      const dmg = enemy.maxHp * this._corpseBomb;
+      this.aliveEnemies().forEach(o => {
+        if (o === enemy || o.hp <= 0) return;
+        const bh = o.hp, bb = o.block; this._dealRaw(o, dmg);
+        this._fire('damage', { side: 'enemy', ei: this._idxOf(o), hpLoss: bh - o.hp, blocked: Math.min(bb, dmg) });
+      });
+      this.addLog(`尸爆！${enemy.name} 的尸体炸裂，对其他敌人造成 ${dmg} 点伤害。`);
     }
 
     // ---------- 玩家操作 ----------
@@ -371,6 +382,7 @@ window.CG = window.CG || {};
             case 'scrapPlayed':  return (this._basePlays && this._basePlays.scrap) || 0;
             case 'peekPlayed':   return (this._basePlays && this._basePlays.peek) || 0;
             case 'cardsMade':    return this._cardsMade || 0;          // #49 本场生成卡牌数
+            case 'poisonApplied': return this._poisonApplied || 0;     // v3.12 本场施加中毒次数
             default:            return 0;
           }
         };
@@ -385,6 +397,7 @@ window.CG = window.CG || {};
             case 'enemyPoison':   return !!(t && t.statuses.poison > 0);
             case 'lostHpTurn':    return !!this._lostHpThisTurn;                        // #8 本回合失去过生命
             case 'exhaustedTurn': return !!this._exhaustedThisTurn;                     // #9 本回合消耗过牌
+            case 'lowHp':         return this.player.hp * 2 < this.player.maxHp;        // v3.12 残血：生命低于一半
             default:          return false;
           }
         };
@@ -962,6 +975,7 @@ window.CG = window.CG || {};
         if (this._ampDebuff > 0 && target !== this.player && ['vulnerable', 'weak', 'frail', 'poison', 'burn'].includes(key)) amount *= 2;
         if (this._ampBuff > 0 && target === this.player && ['strength', 'dexterity', 'regen', 'thorns', 'nourish'].includes(key)) amount *= 2;
       }
+      if (key === 'poison' && amount > 0 && target !== this.player) this._poisonApplied = (this._poisonApplied || 0) + 1;   // v3.12 本场施加中毒「次数」（每次施加 +1，与层数无关）
       target.statuses[key] = (target.statuses[key] || 0) + amount;
       if (key === 'frozen' && target.statuses[key] > 1) target.statuses[key] = 1;   // 冰封最多 1 层
       if (target.statuses[key] === 0) delete target.statuses[key];

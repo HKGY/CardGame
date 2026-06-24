@@ -227,12 +227,22 @@ test('开局随机卡包：基础包 + 4 个随机增强包；本局只在这几
   const themed = CG.PACK_IDS.filter(id => id !== 'basic');
   assert.equal(run.packs.filter(id => id !== 'basic').length, 4, '4 个增强包');
   assert.ok(themed.some(id => !run.packs.includes(id)), '应排除掉增强包');
-  // 本局所有扩充包＝一个融合包：pickPack 恒返回 'fusion'，其词条池全部来自选定主题
+  // 本局所有扩充包＝一个融合包：pickPack 恒返回 'fusion'，其词条池＝选定主题「代价×价值」全交叉积
   assert.equal(CG.pickPack('elite'), 'fusion');
   const f = CG.fusionPack();
-  const allowed = new Set(run.packs.flatMap(id => CG.PACKS[id].buffs.concat(CG.PACKS[id].debuffs)));
-  f.buffs.concat(f.debuffs).forEach(id => assert.ok(allowed.has(id), id + ' 应来自选定主题'));
+  fusionFromThemes(run.packs, f);   // 校验：每个融合词条的 代价/条件 与 价值 都来自选定主题
 });
+// 融合包＝选定主题 values/costs/conds 并集的交叉积：每个词条的(代价或条件)∈选定代价/条件∪energy、价值∈选定价值。
+function fusionFromThemes(packIds, f) {
+  const valueSet = new Set(packIds.flatMap(id => CG.PACKS[id].values || []));
+  const costSet = new Set(['energy', ...packIds.flatMap(id => CG.PACKS[id].costs || [])]);
+  const condSet = new Set(packIds.flatMap(id => CG.PACKS[id].conds || []));
+  f.buffs.concat(f.debuffs).forEach(id => {
+    const a = CG.AFFIXES[id], c = a.cost;
+    const okCost = c.cond ? condSet.has(c.res) : costSet.has(c.res);   // 代价时点变体(hpV_…)的 cost.res 仍是基底 'hp'
+    assert.ok(okCost && valueSet.has(a.value.atom), id + ' 应来自选定主题');
+  });
+}
 
 test('战斗奖励＝主题 booster pack：pending.pack 合法且每颗宝石词条都来自该包', () => {
   const run = newRun('pack-reward');
@@ -405,12 +415,11 @@ test('调试：debugAddGem 把自定义词条宝石加入背包（夹等级 1~3�
 
 test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则回退随机 5 包）', () => {
   CG.RNG.seed('debug-packs');
-  const run = new CG.Run('warrior', { packs: ['cook', 'elements', 'bogus'] });
+  const run = new CG.Run('warrior', { packs: ['poison', 'fire', 'bogus'] });
   assert.equal(run.packs.length, 2, '过滤掉非法 id');
-  assert.ok(run.packs.includes('cook') && run.packs.includes('elements'));
+  assert.ok(run.packs.includes('poison') && run.packs.includes('fire'));
   assert.equal(CG.pickPack('elite'), 'fusion');
-  const allowed = new Set(run.packs.flatMap(id => CG.PACKS[id].buffs.concat(CG.PACKS[id].debuffs)));
-  CG.fusionPack().buffs.concat(CG.fusionPack().debuffs).forEach(id => assert.ok(allowed.has(id), '融合池只应来自指定主题'));
+  fusionFromThemes(run.packs, CG.fusionPack());   // 融合池只应来自指定主题（交叉积）
   // 空 / 全非法 → 回退随机（基础包 + 4）
   const run2 = new CG.Run('warrior', { packs: ['bogus'] });
   assert.equal(run2.packs.length, 5);
