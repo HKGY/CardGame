@@ -120,7 +120,7 @@ window.CG = window.CG || {};
     capacitor: { name: '电容', icon: '🔌', pack: 'elec', desc: '【价值】每回合开始：+2 电力', onTurnStart: b => { b.player.power = (b.player.power || 0) + 2; } },
     wisp_lantern: { name: '磷火灯', icon: '🟢', pack: 'wisp', desc: '【价值】首回合：生成 2 张磷火', firstTurn: fx('makeWisp', 2) },
     tesla_coil: { name: '特斯拉线圈', icon: '⚡', pack: 'elec', desc: '【价值】每回合开始：获得等同当前电力一半的格挡', onTurnStart: b => b.gainBlock(b.player, Math.floor((b.player.power || 0) / 2)) },
-    seed_pouch: { name: '种子袋', icon: '🌾', pack: 'produce', desc: '【价值】每回合开始：+2 格挡并抽 1 张', onTurnStart: b => { b.gainBlock(b.player, 2); b.drawCards(1); } },
+    seed_pouch: { name: '种子袋', icon: '🌾', pack: 'cycle', desc: '【价值】每回合开始：+2 格挡并抽 1 张', onTurnStart: b => { b.gainBlock(b.player, 2); b.drawCards(1); } },
     karma_wheel: { name: '业轮', icon: '🔄', pack: 'cycle', desc: '【价值】每回合开始：现有每回合增益额外结算 1 次', onTurnStart: b => { if (b._everyTurn && b._everyTurn.length) b._resolveEveryBuffs(1, false); } },
     ash_urn: { name: '骨灰瓮', icon: '♨️', pack: 'ash', desc: '【价值】每回合开始：获得等同消耗堆牌数的格挡（至多 20）', onTurnStart: b => b.gainBlock(b.player, Math.min(20, b.exhaustPile.length)) },
     // 造物 / 食材 / 元素

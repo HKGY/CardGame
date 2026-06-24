@@ -487,12 +487,15 @@ window.CG = window.CG || {};
   // 把选定的主题融合成「一个」融合包：增益池 = 各主题增益之并集，减益池同理。每颗宝石都从这个并集里抽 → 主题混合。
   CG.buildFusionPack = function (ids) {
     if (!ids || !ids.length) { if (CG.PACKS) delete CG.PACKS.fusion; return null; }
-    // 取各选定主题 values/costs/conds 的并集，再交叉积 →「任意(选中代价) × 任意(选中价值)」（如 血液的失血 × 强攻的伤害）。
-    const valueSet = new Set(), costSet = new Set(), condSet = new Set();
-    ids.forEach(id => { const p = CG.PACKS && CG.PACKS[id]; if (!p || p.fusion) return; (p.values || []).forEach(v => valueSet.add(v)); (p.costs || []).forEach(c => costSet.add(c)); (p.conds || []).forEach(c => condSet.add(c)); });
-    const buffs = CG.buildPackAffixes ? CG.buildPackAffixes([...valueSet], [...costSet], [...condSet]) : [];
+    // 取各选定「价值主题」的 values(只 now)/costs/conds 并集；「下回合/每回合」是修饰词包(timingMod)、单列。
+    const valueSet = new Set(), costSet = new Set(), condSet = new Set(), mods = [];
+    ids.forEach(id => { const p = CG.PACKS && CG.PACKS[id]; if (!p || p.fusion) return; if (p.timingMod) { mods.push(p.timingMod); return; } (p.values || []).forEach(v => valueSet.add(v)); (p.costs || []).forEach(c => costSet.add(c)); (p.conds || []).forEach(c => condSet.add(c)); });
+    // 时点修饰词：选了「每回合/下回合」包，才把已选 now 价值的对应时点变体加入池子（仅对存在该变体的价值）。
+    const allValues = new Set(valueSet), tv = CG.timingVariants || {};
+    mods.forEach(t => valueSet.forEach(nowId => { const variant = tv[nowId] && tv[nowId][t]; if (variant && CG.VALUE_ATOMS[variant]) allValues.add(variant); }));
+    const buffs = CG.buildPackAffixes ? CG.buildPackAffixes([...allValues], [...costSet], [...condSet]) : [];
     const names = ids.map(id => (CG.PACKS[id] || {}).name).filter(Boolean);
-    CG.PACKS.fusion = { id: 'fusion', fusion: true, name: '融合包', icon: '🌀', color: '#b59ad8', themes: ids.slice(), values: [...valueSet], costs: [...costSet], conds: [...condSet], buffs, debuffs: [], desc: '本局融合主题：' + names.join('、') };
+    CG.PACKS.fusion = { id: 'fusion', fusion: true, name: '融合包', icon: '🌀', color: '#b59ad8', themes: ids.slice(), values: [...allValues], costs: [...costSet], conds: [...condSet], mods: mods.slice(), buffs, debuffs: [], desc: '本局融合主题：' + names.join('、') };
     return CG.PACKS.fusion;
   };
   CG.fusionPack = function () { return (CG.PACKS && CG.PACKS.fusion) || null; };

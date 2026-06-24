@@ -260,6 +260,13 @@ window.CG = window.CG || {};
     }
   });
   const valColor = id => (VALUE_ATOMS[id] && VALUE_ATOMS[id].color) || COLOR[id] || '#cdd2e2';
+  // v3.14 时点变体映射：now 变体 id → { next, every } 变体 id（供「每回合/下回合」修饰词包展开）。按 (turnBase, minion) 分组。
+  CG.timingVariants = {};
+  (function () {
+    const groups = {};
+    Object.keys(VALUE_ATOMS).forEach(id => { const a = VALUE_ATOMS[id]; if (!a.turnBase) return; const key = a.turnBase + (a.minion ? '#m' : ''); (groups[key] = groups[key] || {})[a.timing] = id; });
+    Object.keys(groups).forEach(k => { const g = groups[k]; if (g.now) CG.timingVariants[g.now] = { next: g.next, every: g.every }; });
+  })();
 
   /* —— 代价原子 —— */
   const COST_REAL = {            // 真资源：按 amount 扣、首石免、×L
@@ -517,8 +524,7 @@ window.CG = window.CG || {};
     hold:     P('持留包', '📌', '#c8b89a', '保留（回合末不弃）+ 回收（消耗非初始牌并抽等量）。', ['retain', 'recycle']),
     // ===== 资源 / 引擎 =====
     elec:     P('电力包', '🔌', '#f0d040', '电力（本/下/每回合）+ 电弧（随电力增伤）/ 充电（电力换能量）。', ['power', 'power_next', 'power_every', 'arc', 'charge'], ['losePower']),
-    produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（格挡 / 抽牌 / 能量）。', ['produce_draw', 'produce_block', 'produce_energy'], [], ['turnNum']),
-    cycle:    P('轮回包', '🔄', '#9ec85a', '每回合机制：扩容（本/下/每回合）/ 收割 / 爆破。', ['expandEvery', 'expandEvery_next', 'expandEvery_every', 'harvestEvery', 'detonateEvery']),
+    cycle:    P('轮回包', '🔄', '#9ec85a', '每回合机制：扩容上限 / 收割 / 爆破（配合「每回合」修饰词更强）。', ['expandEvery', 'harvestEvery', 'detonateEvery'], [], ['turnNum']),
     blood:    P('血液包', '🩸', '#c0394a', '以生命/自身减益/属性为代价，换伤害·治疗·吸血；越惨越强。', ['damage', 'heal', 'lifesteal'], ['hp', 'selfVuln', 'selfWeak', 'selfFrail', 'loseStr', 'loseDex'], ['myDebuff', 'hpLossCount', 'lostHpTurn', 'hurt', 'lowHp']),
     ash:      P('灰烬包', '♨️', '#d86a4a', '消耗：涅槃/不坏（被消耗时再发动/留副本）+ 以消耗手牌/虚无/渣滓为代价。', ['nirvana', 'undying'], ['exhaustCard', 'ethereal', 'makeDross'], ['exhaustPile', 'exhaustedTurn']),
     // ===== 造物 / 食材 / 元素 =====
@@ -532,6 +538,9 @@ window.CG = window.CG || {};
     cook:     P('厨艺包', '🍳', '#e0a45a', '食材（素菜 / 荤菜 / 调料，本/下/每回合）：素菜+荤菜做成餐点。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
     // 元素：火/水/雷/冰合一（反应需 ≥2 种元素，拆开无法触发反应）
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发元素反应。', ['fire', 'water', 'thunder', 'ice']),
+    // ===== 时点修饰词包（v3.14）=====：自身不带价值；选了它，本局其它已选主题的价值才获得对应「下回合/每回合」变体。
+    nextMod:  Object.assign(P('下回合包', '⏭️', '#8fb0d8', '修饰词：本局其它已选主题的价值额外获得「下回合」变体（下个回合开始结算一次）。', []), { timingMod: 'next' }),
+    everyMod: Object.assign(P('每回合包', '🔁', '#9ec85a', '修饰词：本局其它已选主题的价值额外获得「每回合」变体（每回合开始重复结算）。', []), { timingMod: 'every' }),
   };
   // 由 (values, costs, conds) 交叉积出可 roll 的词条 id 列表：(energy ∪ costs) × values ∪ conds × values；energy 为通用代价。
   //   time 型代价(生命/金币/自减益…)另含「每回合 V / 下回合 N」变体。供单主题(p.affixes) 与 融合包(buildFusionPack) 共用。
@@ -548,9 +557,11 @@ window.CG = window.CG || {};
   };
   Object.keys(CG.PACKS).forEach(k => {
     const p = CG.PACKS[k];
+    // v3.14：价值包只保留「本回合(now)/非时点/召唤物」价值；下回合·每回合 变体改由「下回合包/每回合包」修饰词提供。
+    if (!p.timingMod) p.values = (p.values || []).filter(v => { const va = VALUE_ATOMS[v]; return !va || va.minion || !va.timing || va.timing === 'now'; });
     p.affixes = CG.buildPackAffixes(p.values, p.costs, p.conds);
     p.buffs = p.affixes.slice(); p.debuffs = [];
-    p.size = (p.values || []).length;   // 包「大小」＝价值原子个数（开局按量选包用；基础包不计）
+    p.size = (p.values || []).length;   // 包「大小」＝价值原子个数（开局按量选包用；基础/修饰词包不计）
   });
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

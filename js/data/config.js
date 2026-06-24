@@ -8,7 +8,7 @@ CG.CONFIG = {
   startHp: 75,
   startGold: 99,
   acts: 3,                       // 总层数
-  runPackSize: 24,               // 开局选包目标「内容量」：随机加主题包直到累计 size(价值原子数) 达此量（基础包不计）≈旧 4 包
+  runPackSize: 14,               // 开局选包目标「内容量」：随机加主题包直到累计 size(价值原子数,只 now) 达此量（基础/修饰词包不计）→ ~6-8 个价值主题
 
   // 敌人数值膨胀。actScale 同时乘敌人 maxHp 与招式的 damage/block（见 _makeEnemy / _scaleEff）。
   // v3「代价-价值」起手牌更精瘦（打击6/防御5、首石免代价），故膨胀曲线相应放缓（bench 校准）。

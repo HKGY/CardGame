@@ -234,9 +234,10 @@ test('开局随机卡包：基础包 + 按内容量(size)随机加主题直到�
   const f = CG.fusionPack();
   fusionFromThemes(run.packs, f);   // 校验：每个融合词条的 代价/条件 与 价值 都来自选定主题
 });
-// 融合包＝选定主题 values/costs/conds 并集的交叉积：每个词条的(代价或条件)∈选定代价/条件∪energy、价值∈选定价值。
+// 融合包＝选定主题 values(now)/costs/conds 并集的交叉积；选了修饰词包则按映射加入对应 下/每回合 变体。
 function fusionFromThemes(packIds, f) {
   const valueSet = new Set(packIds.flatMap(id => CG.PACKS[id].values || []));
+  packIds.filter(id => CG.PACKS[id].timingMod).forEach(id => { const t = CG.PACKS[id].timingMod; [...valueSet].forEach(nowId => { const v = CG.timingVariants[nowId] && CG.timingVariants[nowId][t]; if (v) valueSet.add(v); }); });
   const costSet = new Set(['energy', ...packIds.flatMap(id => CG.PACKS[id].costs || [])]);
   const condSet = new Set(packIds.flatMap(id => CG.PACKS[id].conds || []));
   f.buffs.concat(f.debuffs).forEach(id => {
@@ -431,7 +432,7 @@ test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则
 test('v3.12 消耗品/遗物归入主题包：每个主题都有、标签合法、战斗内可结算', () => {
   const tPacks = new Set(CG.TAROT_IDS.map(id => CG.TAROT[id].pack));
   const rPacks = new Set(CG.RELIC_IDS.map(id => CG.RELICS[id].pack));
-  CG.PACK_IDS.filter(p => p !== 'fusion').forEach(p => {
+  CG.PACK_IDS.filter(p => p !== 'fusion' && !CG.PACKS[p].timingMod).forEach(p => {   // 修饰词包(每回合/下回合)无价值、不配塔罗/遗物
     assert.ok(tPacks.has(p), p + ' 主题缺塔罗');
     assert.ok(rPacks.has(p), p + ' 主题缺遗物');
   });

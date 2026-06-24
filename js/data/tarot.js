@@ -80,7 +80,7 @@ window.CG = window.CG || {};
     ['elec',     'dynamo',   '发电',   '🔌', '获得 6 点电力', atomAct('power', 6)],
     ['elec',     'surge',    '涌流',   '⚡', '获得 4 点电力', atomAct('power', 4)],
     ['wisp',     'wisplight','鬼焰',   '🟢', '生成 2 张磷火（0 费得能量、保留、消耗）', atomAct('makeWisp', 2)],
-    ['produce',  'sow',      '播种',   '🌾', '获得「每回合 +4 格挡」', atomAct('produce_block', 2)],
+    ['cycle',    'sow',      '播种',   '🌾', '获得「每回合 +4 格挡」', atomAct('produce_block', 2)],
     ['cycle',    'reap',     '丰收',   '🔄', '立即结算一次现有每回合增益', atomAct('harvestEvery', 1)],
     ['blood',    'sacrifice','血祭',   '🩸', '失去 8 生命，对敌人造成 24 点伤害', (r, b) => { if (!b) return; b.player.hp = Math.max(1, b.player.hp - 8); if (b._countHpLoss) b._countHpLoss(); if (b.enemy && b.enemy.hp > 0) b.dealAttackDamage(b.player, b.enemy, 24); }],
     ['ash',      'pyre',     '焚尽',   '♨️', '消耗整手牌，每张对敌人造成 4 点伤害', (r, b) => { if (!b) return; const snap = b.hand.slice(); b.hand = []; snap.forEach(c => b._exhaustCard(c)); if (b.enemy && b.enemy.hp > 0) for (let i = 0; i < snap.length; i++) b.dealAttackDamage(b.player, b.enemy, 4); }],

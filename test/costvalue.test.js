@@ -909,7 +909,7 @@ test('v3.12 词条归主题：按 代价→条件→价值 优先级', () => {
 });
 
 test('v3.12 每个价值/代价/条件原子都有归属主题（无孤儿）', () => {
-  Object.keys(CG.VALUE_ATOMS).forEach(v => assert.ok(CG.valueHome[v], '价值原子 ' + v + ' 无归属'));
+  Object.keys(CG.VALUE_ATOMS).forEach(v => { const va = CG.VALUE_ATOMS[v]; if (!va.minion && (va.timing === 'next' || va.timing === 'every')) return; assert.ok(CG.valueHome[v], '价值原子 ' + v + ' 无归属'); });   // v3.14：非召唤物的 下/每回合 变体不归包（由修饰词包提供）
   Object.keys(CG.COST_REAL).forEach(c => assert.ok(c === 'energy' || CG.costHome[c], '代价原子 ' + c + ' 无归属'));
   Object.keys(CG.COST_COND).forEach(c => assert.ok(CG.condHome[c], '条件原子 ' + c + ' 无归属'));
 });
