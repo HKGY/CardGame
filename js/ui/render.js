@@ -570,11 +570,9 @@ window.CG = window.CG || {};
     $('battle-relics').innerHTML = relicIcons(game.relics);
     const freeHint = (game.freeCards || 0) > 0 ? ` <small class="free-hint" title="回响：接下来 ${game.freeCards} 张牌免费打出">🔁${game.freeCards}</small>` : '';
     const powerLine = (p.power || 0) > 0 ? `<div class="power-line" title="电力：用于「改造」等卡，战斗内跨回合保留">🔋 电力 ${p.power}</div>` : '';
-    const resBits = [];   // 市场金币 / 矿工深度 / 锻造热度（有才显示）
+    const resBits = [];   // 金币（有跑图才显示）
     if (game.run) resBits.push(`💰 ${game.run.gold}`);
-    if (game._depth) resBits.push(`⛏️ ${game._depth}`);
-    if (game._heat) resBits.push(`🔥 ${game._heat}`);
-    const resLine = resBits.length ? `<div class="power-line" title="金币 / 挖矿深度 / 锻造热度">${resBits.join('　')}</div>` : '';
+    const resLine = resBits.length ? `<div class="power-line" title="金币">${resBits.join('　')}</div>` : '';
     $('energy').innerHTML = `<span class="energy-orb">⚡</span> ${p.energy} / ${p.maxEnergy}${freeHint}${powerLine}${resLine}`;
     $('draw-pile').innerHTML = `🂠 抽牌堆 <b>${game.drawPile.length}</b><small>点击查看</small>`;
     $('discard-pile').innerHTML = `🗑️ 弃牌堆 <b>${game.discardPile.length}</b><small>点击查看</small>`;
@@ -608,17 +606,6 @@ window.CG = window.CG || {};
     $('log').innerHTML = game.log.slice(-8).map(l => `<div>${l}</div>`).join('');
     renderPrompt(game);
     renderAllies(game);
-    renderBuildings(game);
-  }
-
-  // ---------- 建造包：场上建筑栏（动态创建，只读展示）----------
-  function renderBuildings(game) {
-    let bar = $('buildings-bar');
-    if (!bar) { bar = document.createElement('div'); bar.id = 'buildings-bar'; bar.className = 'allies-bar right hidden'; const sb = $('screen-battle'); if (sb) sb.appendChild(bar); }
-    const bs = game.buildings || [];
-    if (!bs.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
-    bar.innerHTML = bs.map(b => `<div class="ally" title="${b.name}">${b.icon} ${b.name} <b>${b.power}</b></div>`).join('');
-    bar.classList.remove('hidden');
   }
 
   // ---------- 召唤包：己方召唤物栏（动态创建，只读展示）----------

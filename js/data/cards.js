@@ -117,34 +117,20 @@ window.CG = window.CG || {};
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
     const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
-    let ashesN = 0, burnSelN = 0, rebornN = 0, selfBurnN = 0, nirvanaN = 0, undyingN = 0, burnAll = false, nightmare = false;  // 消耗包
-    let gainPowerN = 0, overclockN = 0, arcN = 0, chargeN = 0, losePowerN = 0, selfThunderN = 0, paralyzeN = 0;   // 电力包
-    // === 死守包 ===
-    let shieldBashN = 0, lastStandN = 0, keepBlockN = 0, braceN = 0, loseEnergyN = 0, loseBlockN = 0;
-    let harvestN = 0, irrigateN = 0, stagnateN = 0;   // === 生产包 ===（push 型词条；farming/stockpile/compound/cropfail/upkeep 走 selfStatus 自动结算）
-    // === 留置包 ===
-    let retain = false, heldStrikeN = 0, hoardN = 0, chargeUpN = 0, primedN = 0, sluggishN = 0, clutchN = 0;
-    // === 强化包 ===（temper/awaken 透传给 playCard；resonance/overforge 在本函数内结算；growth/costDown 是 inst 上的本场永久字段）
-    let temperN = 0, awakenN = 0, resonanceN = 0, overforge = false, whetN = 0, quenchN = 0, annealN = 0;
-    let emptyMindN = 0, voidEchoN = 0, hollowN = 0;   // === 虚无包 ===（playCard 结算）
-    let devoteN = 0, annihilateN = 0, offerN = 0, erodeN = 0, banishN = 0;   // === 虚无包 ===（effects 处理器结算）
-    let randbuffN = 0, diceN = 0, coinN = 0, jackpotN = 0, slotsN = 0, misfireN = 0, fickleN = 0, backfireN = 0;   // 奇巧包（随机/赌博）
-    let investN = 0, incomeN = 0, tradeN = 0, windfallN = 0, hireN = 0, taxN = 0, inflationN = 0, debtN = 0;       // 市场包（金币）
-    let mineN = 0, blastN = 0, prospectN = 0, quarryN = 0, richveinN = 0, caveinN = 0, barrenN = 0, disasterN = 0;  // 矿工包（深度）
-    let bellowsN = 0, emberN = 0, smeltN = 0, coolantN = 0, whitehotN = 0, overheatN = 0, crackN = 0, rustN = 0;   // 锻造包（热度）
-    let summonN = 0, commandN = 0, cullingN = 0, discordN = 0;   // 召唤包：summonN=召唤血量上限增量（重做后骷髅是单位）
-    let demolishN = 0, collapseN = 0, subsideN = 0;              // （建造包已删，命令/折损等为死码）
-    let tossN = 0, siftN = 0, madnessN = 0, reclaimN = 0, dumpsterN = 0;   // 弃牌包（forget→clutch、waste→loseEnergy 复用）
-    let conjureN = 0, daggersN = 0, duplicateN = 0, foresightN = 0, mindblastN = 0, clutterN = 0;   // 术士包
-    let preyN = 0, exploitN = 0, insightN = 0, reapingN = 0;   // 猎杀包（prey/insight 是 playCard 加成）
-    let vigorN = 0, innateN = 0, inspireN = 0, allinN = 0, surplusN = 0, rewindN = 0;   // 律动包（innate/allin/surplus 由 game/playCard 读取）
-    let multiHitN = 0;   // 强攻包·连击：每层+1次攻击命中
-    let multiN = 0;      // 多重：消耗全部能量、整张牌重复（次数=能量）
+    let nirvanaN = 0, undyingN = 0;   // 灰烬包：涅槃/不坏（被消耗时再发动/留副本）
+    let gainPowerN = 0, arcN = 0, chargeN = 0, losePowerN = 0;   // 电力 / 电弧包
+    let retain = false, clutchN = 0;   // 持留包·保留 / 弃牌代价计数（clutchN += costMax.discard）
+    let temperN = 0;     // 强化包：锤炼（打出后本牌成长，playCard 结算）
+    let summonN = 0;     // 召唤包：骷髅血量上限增量
+    let conjureN = 0, duplicateN = 0, mindblastN = 0;   // 造牌 / 术法包
+    let vigorN = 0;      // 强袭包：活力（下一张造成伤害的牌加成）
+    let multiHitN = 0;   // 连击包：每层 +1 次攻击命中
+    let multiN = 0;      // 放大包·多重：消耗全部能量、整张牌重复（次数=能量）
+    let potentN = 0;     // 放大包：翻倍（potent 是 playCard 加成）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
     const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen' };   // 注：vigor 走既有 vigorN 路径，不在此重复；v3.12 尸爆/催发/再生
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
-    let potentN = 0, amppainN = 0, ampgainN = 0, boonN = 0, polarizeN = 0;   // 放大包（potent 是 playCard 加成）
     all.forEach(({ def: d, level: rawL }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
       score += (d.score || 0) * L;
@@ -182,92 +168,21 @@ window.CG = window.CG || {};
       if (d.combo)     comboN   += d.combo * L;         // 连击：每张已出牌追加伤害
       if (d.element) { elementId = d.element; elementLevel = (d.elementBase || 1) * L; }   // 元素附着：附 (base×L) 层（放电=2×L）
       if (d.gainPower) gainPowerN += d.gainPower * L;   // 发电
-      if (d.overclock) overclockN += d.overclock * L;   // 改造：超频倍数（消耗电力、数值 ×N）
       if (d.arc)       arcN    += d.arc * L;            // 电弧：数值随电力增长（playCard 结算）
       if (d.charge)    chargeN += d.charge * L;         // 充电：电力→能量
-      if (d.losePower) losePowerN += d.losePower * L;   // 漏电
-      if (d.selfThunder) selfThunderN += d.selfThunder * L;  // 感电：自身附雷
-      if (d.paralyze)  paralyzeN += d.paralyze * L;     // 麻痹：锁住最左 N 张
-      // === 死守包 ===
-      if (d.shieldBash) shieldBashN += d.shieldBash * L;   // 盾击：伤害随当前格挡增长（在 playCard 结算）
-      if (d.lastStand)  lastStandN  += d.lastStand * L;    // 死战：伤害随已损失生命增长（在 playCard 结算）
-      if (d.keepBlock)  keepBlockN  += d.keepBlock * L;    // 重甲：格挡回合末保留
-      if (d.brace)      braceN     += d.brace * L;         // 严阵：格挡 4×L + 力量 L
-      if (d.loseEnergy) loseEnergyN += d.loseEnergy * L;   // 龟缩：失去能量
-      if (d.loseBlock)  loseBlockN  += d.loseBlock * L;    // 负重：失去格挡
-      // === 生产包 ===
-      if (d.harvest)   harvestN  += 1;                   // 丰收：产出层数总和 ×1 → 格挡（无视等级）
-      if (d.irrigate)  irrigateN += 1;                   // 灌溉：立即结算 1 次产出（无视等级）
-      if (d.stagnate)  stagnateN += Math.min(2, d.stagnate * L);   // 滞产：蓄能/耕作各 -（至多 2）
-      // === 留置包 ===
-      if (d.retain)     retain = true;                  // 保留：回合结束不弃手
-      if (d.heldStrike) heldStrikeN += d.heldStrike * L;  // 蓄力一击：伤害随在手回合数增长（playCard 结算）
-      if (d.hoard)      hoardN += d.hoard * L;          // 屯牌：数值随出牌后手牌数增长（playCard 结算）
-      if (d.chargeUp)   chargeUpN += d.chargeUp * L;    // 蓄势：每回合在手时 heldBonus += L（_startPlayerTurn）
-      if (d.primed)     primedN += d.primed * L;        // 待发：每回合在手时 holdCost -= L（_startPlayerTurn）
-      if (d.sluggish)   sluggishN += d.sluggish * L;    // 滞涩：每回合在手时 holdCost += L（_startPlayerTurn）
-      if (d.clutch)     clutchN += d.clutch * L;        // 手滑：打出后随机弃 N 张手牌
-      if (d.temper)    temperN += d.temper * L;          // 锤炼：打出后本牌成长 +L（在 playCard 结算）
-      if (d.awaken)    awakenN += d.awaken * L;          // 觉醒：打出 3 次后跳变 +5×L（在 playCard 结算）
-      if (d.resonance) resonanceN += d.resonance * L;    // 共鸣：数值 +（已镶宝石数 × L）
-      if (d.overforge) overforge = true;                 // 过锻：成长 ≥6 时碎裂（exhaust）
-      if (d.whet)      whetN   += d.whet * L;             // 磨砺：随机一张手牌成长 +L（交给 effects.whet）
-      if (d.quench)    quenchN += d.quench;              // 淬火：随机一张手牌永久降费（push 一个 quench 效果）
-      if (d.anneal)    annealN += d.anneal * L;           // 退火：随机一张手牌成长 -L
-      // === 虚无包 ===
-      if (d.emptyMind) emptyMindN += d.emptyMind * L;   // 空明：空手时数值增长（playCard 结算）
-      if (d.voidEcho)  voidEchoN  += d.voidEcho * L;    // 虚空回响：空手时数值翻倍（playCard 结算）
-      if (d.hollow)    hollowN    += d.hollow * L;       // 空虚：非空手时数值减半（playCard 结算）
-      if (d.devote)    devoteN    += d.devote * L;       // 舍身：失血 + 造伤
-      if (d.annihilate) annihilateN += d.annihilate * L; // 湮灭：放逐牌堆顶 + 造伤
-      if (d.offer)     offerN     += d.offer * L;        // 献祭：减最大生命 + 加力量
-      if (d.erode)     erodeN     += d.erode * L;        // 蚀骨：减最大生命
-      if (d.banish)    banishN    += d.banish * L;       // 放逐代价：随机放逐手牌
-      if (d.ashes)     ashesN  += d.ashes * L;          // 灰烬：数值随消耗堆增长（在 playCard 结算）
-      if (d.burnSelect) burnSelN += d.burnSelect * L;   // 燃烧：消耗 N 张手牌（交互）
-      if (d.reborn)    rebornN += d.reborn * L;         // 重生：从消耗堆取回 N 张（交互）
-      if (d.selfBurn)  selfBurnN += d.selfBurn * L;     // 着火：给自己上灼伤
-      if (d.nirvana)   nirvanaN += d.nirvana * L;       // 涅槃：被消耗时打出 N 次
+      if (d.losePower) losePowerN += d.losePower * L;   // 漏电（消耗电力代价）
+      if (d.retain)    retain = true;                   // 保留：回合结束不弃手
+      if (d.temper)    temperN += d.temper * L;         // 锤炼：打出后本牌成长 +L（playCard 结算）
+      if (d.nirvana)   nirvanaN += d.nirvana * L;       // 涅槃：被消耗时再发动 N 次
       if (d.undying)   undyingN += d.undying * L;       // 不坏：被消耗时生成 N 副本
-      if (d.burnAll)   burnAll = true;                  // 爆燃：消耗其余手牌
-      if (d.nightmare) nightmare = true;                // 噩梦：渣滓塞满手牌
-      // —— 奇巧包（随机/赌博）——
-      if (d.randbuff) randbuffN += d.randbuff * L;     // 百宝箱：随机增益
-      if (d.dice)     diceN    += d.dice * L;          // 掷骰：随机伤害
-      if (d.coin)     coinN    += d.coin * L;          // 抛硬币：50% 伤害
-      if (d.jackpot)  jackpotN += d.jackpot * L;       // 头奖：三选一
-      if (d.slots)    slotsN   += d.slots * L;         // 老虎机：每 3 次爆出
-      if (d.misfire)  misfireN += d.misfire * L;       // 哑火：25% 自伤
-      if (d.fickle)   fickleN  += d.fickle * L;        // 无常：随机自身减益
-      if (d.backfire) backfireN += d.backfire * L;     // 走火：50% 误伤
-      // —— 市场包 ——
-      if (d.invest) investN += d.invest * L; if (d.income) incomeN += d.income * L; if (d.trade) tradeN += d.trade * L; if (d.windfall) windfallN += d.windfall * L; if (d.hire) hireN += d.hire * L;
-      if (d.tax) taxN += d.tax * L; if (d.inflation) inflationN += d.inflation * L; if (d.debt) debtN += d.debt * L;
-      // —— 矿工包 ——
-      if (d.mine) mineN += d.mine * L; if (d.blast) blastN += d.blast * L; if (d.prospect) prospectN += d.prospect * L; if (d.quarry) quarryN += d.quarry * L; if (d.richvein) richveinN += d.richvein * L;
-      if (d.cavein) caveinN += d.cavein * L; if (d.barren) barrenN += d.barren * L; if (d.disaster) disasterN += d.disaster * L;
-      // —— 锻造包 ——
-      if (d.bellows) bellowsN += d.bellows * L; if (d.ember) emberN += d.ember * L; if (d.smelt) smeltN += d.smelt * L; if (d.coolant) coolantN += d.coolant * L; if (d.whitehot) whitehotN += d.whitehot * L;
-      if (d.overheat) overheatN += d.overheat * L; if (d.crack) crackN += d.crack * L; if (d.rust) rustN += d.rust * L;
-      // —— 召唤包 ——
-      if (d.summon) summonN += d.summon * L;   // 召唤：血量上限增量
-      if (d.command) commandN += d.command * L; if (d.culling) cullingN += d.culling * L; if (d.discord) discordN += d.discord * L;
-      // —— 建造包 ——
-      if (d.demolish) demolishN += d.demolish * L; if (d.collapse) collapseN += d.collapse * L; if (d.subside) subsideN += d.subside * L;
-      // —— 弃牌包 ——
-      if (d.toss) tossN += d.toss * L; if (d.sift) siftN += d.sift * L; if (d.madness) madnessN += d.madness * L; if (d.reclaim) reclaimN += d.reclaim * L; if (d.dumpster) dumpsterN += d.dumpster * L;
-      // —— 术士包 ——
-      if (d.conjure) conjureN += d.conjure * L; if (d.daggers) daggersN += d.daggers * L; if (d.duplicate) duplicateN += d.duplicate * L; if (d.foresight) foresightN += d.foresight * L; if (d.mindblast) mindblastN += d.mindblast * L; if (d.clutter) clutterN += d.clutter * L;
-      // —— 猎杀包 ——
-      if (d.prey) preyN += d.prey * L; if (d.exploit) exploitN += d.exploit * L; if (d.insight) insightN += d.insight * L; if (d.reaping) reapingN += d.reaping * L;
-      // —— 律动包 ——
-      if (d.vigor) vigorN += d.vigor * L; if (d.innate) innateN += d.innate * L; if (d.inspire) inspireN += d.inspire * L; if (d.allin) allinN += d.allin * L; if (d.surplus) surplusN += d.surplus * L; if (d.rewind) rewindN += d.rewind * L;
-      // —— 放大包 ——
-      if (d.multiHit) multiHitN += d.multiHit * L;
+      if (d.summon) summonN += d.summon * L;   // 召唤：骷髅血量上限增量
+      if (d.conjure) conjureN += d.conjure * L; if (d.duplicate) duplicateN += d.duplicate * L; if (d.mindblast) mindblastN += d.mindblast * L;   // 术士/术法
+      if (d.vigor) vigorN += d.vigor * L;   // 活力（强袭包）
+      if (d.multiHit) multiHitN += d.multiHit * L;   // 连击：每层 +1 次攻击命中
       for (const k in NB_EFF) if (d[k]) NB[k] = (NB[k] || 0) + d[k] * L;   // 新批：效果型字段
       for (const k of NB_FIELD) if (d[k]) NB[k] = (NB[k] || 0) + d[k] * L; // 新批：卡级字段
       if (d.multi)    multiN += d.multi;   // 多重为标志位（maxCount 1、不随等级）
-      if (d.potent) potentN += d.potent * L; if (d.amppain) amppainN += d.amppain * L; if (d.ampgain) ampgainN += d.ampgain * L; if (d.boon) boonN += d.boon * L; if (d.polarize) polarizeN += d.polarize * L;
+      if (d.potent) potentN += d.potent * L;   // 放大：翻倍（playCard 加成）
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + (d.flat != null ? d.flat : (d.cap != null ? Math.min(d.cap, L) : L));   // flat=无视等级固定值（生产正面）/ cap=封顶（生产负面）
@@ -308,7 +223,6 @@ window.CG = window.CG || {};
     // v2：伤害/格挡来自宝石价值池（+ 强化成长）。base.base 恒 0。
     const dmgVal = Math.max(0, (dmgPool + valFlat + (inst.growth || 0) + (inst.heldBonus || 0)) * valueMult);
     const blkVal = Math.max(0, (blkPool + blockFlat + (inst.blockGrowth || 0)) * valueMult);   // #11 本场格挡成长
-    if (overforge && (inst.growth || 0) >= 6) exhaust = true;
     const hits = 1 + hitsD;
     const limit = inst.limit == null ? sockets.length : inst.limit;
     const emptySockets = Math.max(0, limit - sockets.length);
@@ -340,106 +254,22 @@ window.CG = window.CG || {};
     if (prepare) effects.push({ type: 'tempStrength', value: prepare });   // 准备：本回合力量 +n（回合末移除）
     if (prepDexN) effects.push({ type: 'tempDexterity', value: prepDexN });   // 临时敏捷（回合末移除）
     for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给食材卡
-    if (selfBurnN) effects.push({ type: 'selfStatus', status: 'burn', value: selfBurnN });   // 着火：自身灼伤
     // v3 自身减益代价（首石免/同种均摊已在 costMax 处理）：打出时给自己上易伤/虚弱/脆弱。
     if (costMax.selfVuln)  effects.push({ type: 'selfStatus', status: 'vulnerable', value: costMax.selfVuln });
     if (costMax.selfWeak)  effects.push({ type: 'selfStatus', status: 'weak', value: costMax.selfWeak });
     if (costMax.selfFrail) effects.push({ type: 'selfStatus', status: 'frail', value: costMax.selfFrail });
-    for (const k in NB_EFF) if (NB[k]) effects.push({ type: NB_EFF[k], value: NB[k] });   // 新批：效果型字段 → 效果（thorns/tempThorns/immune/debuffMult/兵械…）
+    for (const k in NB_EFF) if (NB[k]) effects.push({ type: NB_EFF[k], value: NB[k] });   // 新批：效果型字段 → 效果（thorns/tempThorns/immune/debuffMult/兵械/尸爆/催发/再生…）
     if (enemyStrN)     effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrN });           // 敌失力量（永久）
     if (enemyStrTempN) effects.push({ type: 'enemyStat', key: 'strength', value: enemyStrTempN, temp: true });
     if (enemyDexN)     effects.push({ type: 'enemyStat', key: 'dexterity', value: enemyDexN });
     if (enemyDexTempN) effects.push({ type: 'enemyStat', key: 'dexterity', value: enemyDexTempN, temp: true });
-    if (burnAll)   effects.push({ type: 'exhaustHand' });                                     // 爆燃：消耗其余手牌
-    if (nightmare) effects.push({ type: 'nightmare' });                                       // 噩梦：渣滓塞满手牌
-    if (gainPowerN) effects.push({ type: 'gainPower', value: gainPowerN });                   // 发电
-    if (chargeN)    effects.push({ type: 'charge', value: chargeN });                         // 充电：电力→能量
-    if (losePowerN) effects.push({ type: 'losePower', value: losePowerN });                   // 漏电
-    if (selfThunderN) effects.push({ type: 'selfElement', element: 'thunder', value: selfThunderN });   // 感电：自身附雷
-    if (paralyzeN) effects.push({ type: 'paralyze', value: paralyzeN });                      // 麻痹
-    // === 死守包 ===
-    if (keepBlockN)  effects.push({ type: 'keepBlock', value: keepBlockN });                  // 重甲：接下来 N 回合格挡不清空
-    if (braceN)    { effects.push({ type: 'block', value: braceN }); effects.push({ type: 'tempStrength', value: braceN }); }   // 严阵：格挡 + 本回合力量
-    if (loseEnergyN) effects.push({ type: 'loseEnergy', value: loseEnergyN });                // 龟缩：失去能量
-    if (loseBlockN)  effects.push({ type: 'loseBlock', value: loseBlockN });                  // 负重：失去格挡
-    // === 生产包 ===
-    if (harvestN)  effects.push({ type: 'harvest', value: harvestN });                        // 丰收：产出层总和 ×L → 格挡
-    if (irrigateN) effects.push({ type: 'irrigate', value: irrigateN });                      // 灌溉：立即产出 L 次
-    if (stagnateN) effects.push({ type: 'stagnate', value: stagnateN });                      // 滞产：蓄能/耕作各 -L
-    // 弃牌代价改为「自选丢弃」：不 push 随机 clutch；由 playCard 在结算其它效果(含造牌)前逐张提示玩家选弃。
-    if (whetN)   effects.push({ type: 'whet', value: whetN });                                // 磨砺：随机手牌成长 +N
-    if (quenchN) effects.push({ type: 'quench', value: quenchN });                            // 淬火：随机手牌永久降费
-    if (annealN) effects.push({ type: 'anneal', value: annealN });                            // 退火：随机手牌成长 -N
-    // === 虚无包 ===
-    if (devoteN)     effects.push({ type: 'devote', value: devoteN });                        // 舍身
-    if (annihilateN) effects.push({ type: 'annihilate', value: annihilateN });                // 湮灭
-    if (offerN)      effects.push({ type: 'offer', value: offerN });                          // 献祭
-    if (erodeN)      effects.push({ type: 'erode', value: erodeN });                          // 蚀骨
-    if (banishN)     effects.push({ type: 'banish', value: banishN });                        // 放逐代价
-    // === 奇巧包 ===（每个词条 push 一个自包含的随机效果，结算时用 CG.RNG → 固定种子可断言）
-    if (randbuffN) effects.push({ type: 'randbuff', value: randbuffN });   // 百宝箱：复用祈祷的随机增益
-    if (diceN)     effects.push({ type: 'dice', value: diceN });
-    if (coinN)     effects.push({ type: 'coinflip', value: coinN });
-    if (jackpotN)  effects.push({ type: 'jackpot', value: jackpotN });
-    if (slotsN)    effects.push({ type: 'slots', value: slotsN });
-    if (misfireN)  effects.push({ type: 'misfire', value: misfireN });
-    if (fickleN)   effects.push({ type: 'fickle', value: fickleN });
-    if (backfireN) effects.push({ type: 'backfire', value: backfireN });
-    // === 市场包 ===（windfall 是 playCard 加成、不在此 push）
-    if (investN) effects.push({ type: 'invest', value: investN });
-    if (incomeN) effects.push({ type: 'income', value: incomeN });
-    if (tradeN)  effects.push({ type: 'trade', value: tradeN });
-    if (hireN)   effects.push({ type: 'hire', value: hireN });
-    if (taxN)    effects.push({ type: 'tax', value: taxN });
-    if (inflationN) effects.push({ type: 'inflation', value: inflationN });
-    if (debtN)   effects.push({ type: 'debt', value: debtN });
-    // === 矿工包 ===（prospect/quarry 是 playCard 加成、不在此 push）
-    if (mineN)   effects.push({ type: 'mine', value: mineN });
-    if (blastN)  effects.push({ type: 'blast', value: blastN });
-    if (richveinN) effects.push({ type: 'richvein', value: richveinN });
-    if (caveinN) effects.push({ type: 'cavein', value: caveinN });
-    if (barrenN) effects.push({ type: 'barren', value: barrenN });
-    if (disasterN) effects.push({ type: 'disaster', value: disasterN });
-    // === 锻造包 ===（ember 是 playCard 加成、不在此 push）
-    if (bellowsN) effects.push({ type: 'bellows', value: bellowsN });
-    if (smeltN)   effects.push({ type: 'smelt', value: smeltN });
-    if (coolantN) effects.push({ type: 'coolant', value: coolantN });
-    if (whitehotN) effects.push({ type: 'whitehot', value: whitehotN });
-    if (overheatN) effects.push({ type: 'overheat', value: overheatN });
-    if (crackN)   effects.push({ type: 'crack', value: crackN });
-    if (rustN)    effects.push({ type: 'rust', value: rustN });
-    // === 召唤包 ===
-    if (summonN) effects.push({ type: 'summon', value: summonN });   // 召唤：创建/+血量上限（骷髅单位）
-    if (commandN) effects.push({ type: 'command', value: commandN });
-    if (cullingN) effects.push({ type: 'culling', value: cullingN });
-    if (discordN) effects.push({ type: 'discord', value: discordN });
-    // === 建造包（已删，以下为死码兜底）===
-    if (demolishN) effects.push({ type: 'demolish', value: demolishN });
-    if (collapseN) effects.push({ type: 'collapse', value: collapseN });
-    if (subsideN)  effects.push({ type: 'subside', value: subsideN });
-    // === 弃牌包 ===（reclaim 走选牌队列、dumpster 是 playCard 加成、forget→clutch、waste→loseEnergy）
-    if (tossN)    effects.push({ type: 'toss', value: tossN });
-    if (siftN)    effects.push({ type: 'sift', value: siftN });
-    if (madnessN) effects.push({ type: 'madness', value: madnessN });
-    // === 术士包 ===
-    if (conjureN)   effects.push({ type: 'conjure', value: conjureN });
-    if (daggersN)   effects.push({ type: 'daggers', value: daggersN });
-    if (duplicateN) effects.push({ type: 'duplicate', value: duplicateN });
-    if (foresightN) effects.push({ type: 'foresight', value: foresightN });
-    if (mindblastN) effects.push({ type: 'mindblast', value: mindblastN });
-    if (clutterN)   effects.push({ type: 'clutter', value: clutterN });
-    // === 猎杀包 ===（prey/insight 是 playCard 加成、不在此 push）
-    if (exploitN) effects.push({ type: 'exploit', value: exploitN });
-    if (reapingN) effects.push({ type: 'reaping', value: reapingN });
-    // === 律动包 ===（innate/allin/surplus 是 game/playCard 读取、不在此 push）
-    if (vigorN)   effects.push({ type: 'vigor', value: vigorN });
-    if (inspireN) effects.push({ type: 'inspire', value: inspireN });
-    if (rewindN)  effects.push({ type: 'rewind', value: rewindN });
-    // === 放大包 ===（potent 是 playCard 加成、不在此 push）
-    if (amppainN)  effects.push({ type: 'amppain', value: amppainN });
-    if (ampgainN)  effects.push({ type: 'ampgain', value: ampgainN });
-    if (boonN)     effects.push({ type: 'boon', value: boonN });
-    if (polarizeN) effects.push({ type: 'polarize', value: polarizeN });
+    if (gainPowerN) effects.push({ type: 'gainPower', value: gainPowerN });                   // 发电（电力包）
+    if (chargeN)    effects.push({ type: 'charge', value: chargeN });                         // 充电：电力→能量（电弧包）
+    if (summonN)    effects.push({ type: 'summon', value: summonN });                         // 召唤：创建/+骷髅血量上限
+    if (conjureN)   effects.push({ type: 'conjure', value: conjureN });                       // 造牌
+    if (duplicateN) effects.push({ type: 'duplicate', value: duplicateN });                   // 复制随机手牌
+    if (mindblastN) effects.push({ type: 'mindblast', value: mindblastN });                   // 心灵震慑：牌库攻击牌永久 +伤害
+    if (vigorN)     effects.push({ type: 'vigor', value: vigorN });                           // 活力（强袭包）
     // v3.1 时点修饰器（真资源代价的 每回合/下回合 价值）：包成调度效果（playCard→effects 推入 game._everyTurn/_nextTurn，_startPlayerTurn 结算）
     everyTurnList.forEach(e => effects.push({ type: 'scheduleEvery', eff: e }));
     nextTurnList.forEach(e => effects.push({ type: 'scheduleNext', eff: e }));
@@ -461,16 +291,9 @@ window.CG = window.CG || {};
       repeatTimes: 1 + repeatX,
       windfury, lifesteal, exhaust, pierce: pierceN,
       freeNext: freeNextN, combo: comboN, element: elementId, elementLevel,
-      ashes: ashesN, burnSelect: burnSelN, reborn: rebornN, nirvana: nirvanaN, undying: undyingN,   // 消耗包
-      overclock: overclockN, arc: arcN,                                          // 电力包（playCard 用）
-      shieldBash: shieldBashN, lastStand: lastStandN,                            // 死守包（playCard 用）
-      retain, heldStrike: heldStrikeN, hoard: hoardN, chargeUp: chargeUpN, primed: primedN, sluggish: sluggishN,   // === 留置包 ===
-      temper: temperN, awaken: awakenN,                                          // 强化包（playCard 用）
-      emptyMind: emptyMindN, voidEcho: voidEchoN, hollow: hollowN,               // === 虚无包 ===（playCard 用）
-      windfall: windfallN, prospect: prospectN, quarry: quarryN, ember: emberN,  // 市场/矿工/锻造（playCard 用）
-      reclaim: reclaimN, dumpster: dumpsterN, discardCost: clutchN, exhaustCost: costMax.exhaustCard || 0,   // 弃牌包 + #15 消耗手牌代价（pick 型）
-      prey: preyN, insight: insightN,                                             // 猎杀包（playCard 加成）
-      innate: innateN, allin: allinN, surplus: surplusN,                          // 律动包（innate=开局抽序、allin/surplus=playCard）
+      nirvana: nirvanaN, undying: undyingN, arc: arcN,                            // 灰烬包(涅槃/不坏) / 电弧（playCard 用）
+      retain, temper: temperN,                                                    // 持留包·保留 / 强化包·锤炼（playCard 用）
+      discardCost: clutchN, exhaustCost: costMax.exhaustCard || 0,               // 弃牌代价 + #15 消耗手牌代价（pick 型）
       potent: potentN, multiHit: multiHitN, multi: multiN,                        // 放大包(potent/多重)+强攻包(连击 multiHit) playCard 加成
       copyToDiscard: NB.copyToDiscard || 0, growDmg: NB.growDmg || 0, growBlk: NB.growBlk || 0, selfCostDown: NB.selfCostDown || 0, aoe: NB.aoe || 0, playTwice: NB.playTwice || 0, wish: NB.wish || 0,   // 新批卡级字段（playCard 用）
       curseStrike: NB.curseStrike || 0, dmgToBlock: NB.dmgToBlock || 0, ethereal: !!costMax.ethereal,   // v3.8：追加咒言/伤害转格挡（playCard）+ 虚无(endTurn 消耗)
@@ -582,13 +405,7 @@ window.CG = window.CG || {};
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
       element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: 0, undying: 0,
-      overclock: 0, arc: 0, shieldBash: 0, lastStand: 0, temper: 0, awaken: 0,
-      retain: false, heldStrike: 0, hoard: 0, chargeUp: 0, primed: 0, sluggish: 0,   // === 留置/强化包 ===
-      emptyMind: 0, voidEcho: 0, hollow: 0,   // === 虚无包 ===
-      windfall: 0, prospect: 0, quarry: 0, ember: 0,   // 市场/矿工/锻造（playCard 加成默认）
-      reclaim: 0, dumpster: 0,                          // 弃牌包默认
-      prey: 0, insight: 0,                              // 猎杀包默认
-      innate: 0, allin: 0, surplus: 0,                  // 律动包默认
+      arc: 0, temper: 0, retain: false,   // 电弧 / 锤炼 / 保留（食材卡默认值）
       potent: 0, multiHit: 0,                           // 放大/连击默认
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',

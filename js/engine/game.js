@@ -340,7 +340,6 @@ window.CG = window.CG || {};
       const oc = s.overclock || 0;
       const free = oc ? false : (this.freeCards || 0) > 0;             // 回响：本张免费打出（超频时不适用）
       let payCost = oc ? 0 : (free ? 0 : s.cost);
-      if (!oc && !free && s.surplus > 0 && this.player.energy >= Math.max(2, 4 - s.surplus)) payCost = 0;   // 律动·余裕：能量充裕时本牌免费
       if (card.conjuredTurn === this.turn) payCost = 0;               // 术士·造牌：本回合 0 费
       const payPower = oc ? s.cost * oc : 0;
       if (oc && payPower > (this.player.power || 0)) { this.addLog('电力不足。'); this._emit(); return; }
@@ -408,16 +407,6 @@ window.CG = window.CG || {};
           ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice'].forEach(k => { if (ve[k]) s = Object.assign({}, s, { [k]: (s[k] || 0) + ve[k] }); });   // v3.6 卡级字段（条件路径）
         });
       }
-      // 连击：本回合此前每打出过一张牌，本牌伤害 +combo
-      if (s.combo > 0) {
-        const bonus = s.combo * (this._playedThisTurn || 0);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      // 灰烬：本牌数值额外 +（消耗堆牌数 × 等级）
-      if (s.ashes > 0) {
-        const bonus = s.ashes * (this.exhaustPile.length + 8);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
       // 电弧：本牌数值额外 +（当前电力 × 等级）
       if (s.arc > 0) {
         const bonus = s.arc * (this.player.power || 0);
@@ -428,82 +417,10 @@ window.CG = window.CG || {};
         const bonus = this._vigor; this._vigor = 0;
         s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
       }
-      // 律动·全力：若打出本牌后能量恰好归零，数值 ×(1+等级)
-      if (s.allin > 0 && !oc && this.player.energy - payCost === 0) {
-        const m = 1 + s.allin;
-        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value * m }) : e) });
-      }
       // 放大·强效：本牌伤害/格挡/治疗 ×(1+等级)
       if (s.potent > 0) {
         const m = 1 + s.potent;
         s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block' || e.type === 'heal') ? Object.assign({}, e, { value: e.value * m }) : e) });
-      }
-      // === 市场/矿工/锻造：随资源动态加成（仿电弧，读打出前的资源）===
-      if (s.windfall > 0) {   // 暴富：数值 +（当前金币 ÷10 × 等级）
-        const bonus = Math.floor(((this.run && this.run.gold) || 0) / 22) * s.windfall;
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      if (s.prospect > 0) {   // 寻脉：伤害 +（当前深度 × 等级）
-        const bonus = s.prospect * (this._depth || 0);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      if (s.quarry > 0) {     // 采石：格挡 +（当前深度 × 等级）
-        const bonus = s.quarry * (this._depth || 0);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'block' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      if (s.ember > 0) {      // 余烬重击：伤害 +（当前热度 × 等级）
-        const bonus = s.ember * (this._heat || 0);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      if (s.dumpster > 0) {   // 弃牌包·倾倒：数值 +（本回合已弃牌数 × 等级）
-        const bonus = s.dumpster * (this._discardedThisTurn || 0);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      if (s.prey > 0) {       // 猎杀包·猎物：伤害 +（目标减益层数总和 × 等级）
-        const t = this.currentTarget();
-        const bonus = t ? s.prey * 5 * this._enemyDebuffLayers(t) : 0;
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      if (s.insight > 0) {    // 猎杀包·洞察：敌意图攻击时本牌伤害 ×(1+等级)
-        const t = this.currentTarget();
-        if (t && t.intent && String(t.intent.intent || '').includes('attack')) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value * (1 + s.insight) }) : e) });
-      }
-      // === 死守包 ===
-      // 盾击：本牌伤害额外 +（当前格挡 × 等级）——读取打出前的格挡（仿电弧/连击）
-      if (s.shieldBash > 0) {
-        const bonus = s.shieldBash * (this.player.block || 0);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      // 死战：本牌伤害额外 +（已损失生命比例 × 10 × 等级）
-      if (s.lastStand > 0) {
-        const bonus = Math.floor((1 - this.player.hp / this.player.maxHp) * 5 * s.lastStand);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      // === 留置包 ===
-      // 蓄力一击：本牌伤害额外 +（在手回合数 × 2 × 等级）
-      if (s.heldStrike > 0) {
-        const bonus = s.heldStrike * 2 * (card.heldTurns || 0);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => e.type === 'damage' ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      // 屯牌：本牌数值额外 +（出牌后手牌数 × 等级）（此刻本牌仍在手，故出牌后手牌数 = hand.length - 1）
-      if (s.hoard > 0) {
-        const bonus = s.hoard * Math.max(0, this.hand.length - 1);
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      // === 虚无包 ===（此处本牌仍在手里，故「出牌后手牌数」= this.hand.length - 1）
-      const handAfter = this.hand.length - 1;
-      // 空明：damage&block += max(0, 5 - 出牌后手牌数) × 等级
-      if (s.emptyMind > 0) {
-        const bonus = Math.max(0, 5 - handAfter) * 2 * s.emptyMind;
-        if (bonus > 0) s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value + bonus }) : e) });
-      }
-      // 虚空回响：出牌后空手 → 本牌 damage&block ×2
-      if (s.voidEcho > 0 && handAfter === 0) {
-        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: e.value * (s.voidEcho + 1) }) : e) });
-      }
-      // 空虚：出牌后手牌非空 → 本牌 damage&block 减半（向下取整）
-      if (s.hollow > 0 && handAfter > 0) {
-        s = Object.assign({}, s, { effects: s.effects.map(e => (e.type === 'damage' || e.type === 'block') ? Object.assign({}, e, { value: Math.floor(e.value * 0.5) }) : e) });
       }
       // 元素反应：本牌附元素时，按主目标当前元素与层数定反应（消耗 min(prev,new) 级、效果发生这么多次、余量留存）
       // 元素（新模型：敌人至多 1 种 1 层。附 elemLv 层＝逐层「反应或取代」；放大型反应先乘本牌伤害 ×amplify）
