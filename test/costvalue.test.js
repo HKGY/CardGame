@@ -159,16 +159,16 @@ test('自身减益代价：自易伤→伤害；首石免、非首石才上自�
   assert.strictEqual(first.value, 6);
   assert.ok(!first.effects.some(e => e.type === 'selfStatus'));
   const second = stat(spell([{ id: D, level: 1 }], [{ id: 'selfVuln_damage', level: 1 }]));
-  assert.ok(second.effects.some(e => e.type === 'selfStatus' && e.status === 'vulnerable' && e.value === 2));   // v3.14 selfVuln 3VP：6 伤害 = 2 层
+  assert.ok(second.effects.some(e => e.type === 'selfStatus' && e.status === 'vulnerable' && e.value === 3));   // selfVuln 2VP：6 伤害 = 3 层
 });
 
 test('自残→每回合能量引擎（公平定价 selfVuln_produce_energy，取代旧 berserk 签名）', () => {
-  // 递归价值 = 一次性 ×2：每回合+1能量=12VP → 自易伤代价 ceil(12/3)=4 层（v3.14 selfVuln 3VP）
-  assert.strictEqual(CG.affixCostText('selfVuln_produce_energy', 1), '自易伤 4');
+  // 递归价值 = 一次性 ×2：每回合+1能量=12VP → 自易伤代价 ceil(12/2)=6 层（selfVuln 2VP）
+  assert.strictEqual(CG.affixCostText('selfVuln_produce_energy', 1), '自易伤 6');
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
   const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfVuln_produce_energy', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
-  assert.strictEqual(g.player.statuses.vulnerable, 4);   // 自易伤代价（首石免，第二颗付；v3.14 = 4 层）
+  assert.strictEqual(g.player.statuses.vulnerable, 6);   // 自易伤代价（首石免，第二颗付；selfVuln 2VP = 6 层）
   assert.strictEqual(g._everyTurn.length, 1);            // v3.1：每回合能量＝调度到 _everyTurn（不再 prodEnergy 状态）
   assert.strictEqual(g._everyTurn[0].type, 'energy');
   g._startPlayerTurn();

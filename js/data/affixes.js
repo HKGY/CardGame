@@ -20,7 +20,7 @@ window.CG = window.CG || {};
   //  由生成器写入本表（如 V.damage=1 / V.damage_every=2 / V.damage_next=0.5；V.strength=3=每回合、V.tempStr=1.5=本回合）。
   //  此处只列「无时点」价值原子 + 全部代价原子。
   const V = {
-    heal: 3.0,                                        // v3.14 回血改 3VP（与自伤代价对称）
+    heal: 3.0,                                        // v3.14 治疗改 3VP（2 治疗/能量）
     fire: 6.0, water: 6.0, thunder: 6.0, ice: 6.0,    // 元素：1 层 = 6VP
     // summon(1.5)/conjure(6)/thorns(2) 改为时点基值（VP 见 TURN_BASES）；building 已删
     mult: 12.0, lifesteal: 0.12, combo: 6.0, multi: 12.0,   // 翻倍/多重=12VP；吸血 0.12/%(≤100)；连击 6VP
@@ -37,9 +37,9 @@ window.CG = window.CG || {};
     burn: 1.5, regen: 3.0,                                                                        // v3.12 新价值：灼烧(灰烬包,过血量DoT)/再生(生机包,回合开始回血)
     makeWisp: 6.0, illusion: 6.0, peekUp: 6.0, wispUp: 6.0,                                        // v3.13 生成磷火/幻境(临时牌+50%)/洞悉强化(+1)/磷火强化(+0.5)
     arc: 6.0, charge: 6.0, nirvana: 6.0, undying: 6.0, temper: 6.0, duplicate: 6.0, mindblast: 6.0,   // v3.12 复活既有引擎机制为价值原子：电弧/充电(电力)、涅槃/不坏(灰烬)、锤炼(机巧)、复制/心灵震慑(术士)
-    // —— 代价原子 ——（v3.14：自伤(生命/自易伤·虚弱·脆弱)统一 3VP，与失力量·敏捷 3VP 对齐）
+    // —— 代价原子 ——（v3.14：失血 hp 3VP；自易伤·虚弱·脆弱 仍 2VP）
     hp: 3.0, gold: 1.0, discard: 3.0, maxhp: 1.0, exhaustCard: 6.0, losePower: 1.0, makeDross: 6.0, ethereal: 3.0, minionHp: 1.5,   // ethereal＝虚无(回合末未打出则消耗)；minionHp＝消耗召唤物血量
-    selfVuln: 3.0, selfWeak: 3.0, selfFrail: 3.0,     // v3.14 自身减益代价改 3VP/层（自伤统一 3VP）
+    selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,     // 自身减益代价（2VP/层）
     loseStr: 3.0, loseDex: 3.0,                       // 扣自身力量/敏捷（可为负，真代价）
   };
   CG.VALUES = V;
