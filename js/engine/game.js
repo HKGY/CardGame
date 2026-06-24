@@ -109,10 +109,8 @@ window.CG = window.CG || {};
       this.target = 0; this.enemy = this.enemies[0];
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
-      this._depth = 0; this._heat = 0;          // 矿工/锻造：愚者重开时重置资源
       this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
       this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0;   // v3.6/3.7/3.8/3.12 新批战斗态（施加中毒次数 / 尸爆开关）
-      this.buildings = [];                      // 建造：愚者重开时清空建筑
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -152,11 +150,8 @@ window.CG = window.CG || {};
       this.freeCards = 0;                      // 回响：可免费打出的张数
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
       this._keepBlock = 0;                      // 死守包·重甲：剩余「格挡不清空」回合数（打出重甲后 = 等级 N）
-      this._depth = 0;                         // 矿工包：本场挖矿深度
-      this._heat = 0;                          // 锻造包：本场热度
       this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
       this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0;   // v3.6/3.7/3.8/3.12 新批战斗态（施加中毒次数 / 尸爆开关）
-      this.buildings = [];                     // 建造包：场上建筑（每回合开始触发）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -241,8 +236,7 @@ window.CG = window.CG || {};
       const _src = e => (e.minion ? this.skeleton : this.player);   // 召唤物效果以骷髅为 source
       (this._everyTurn || []).forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), tgt); });   // 每回合：重复结算、跨回合保留
       if (this._nextTurn && this._nextTurn.length) { const q = this._nextTurn; this._nextTurn = []; q.forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), this.currentTarget()); }); }   // 下回合：结算一次后清空
-      this._buildingsTick();                     // 建造包：回合开始触发所有建筑
-      this._checkEnd();                          // 箭塔等可能终结战斗
+      this._checkEnd();                          // 时点效果可能终结战斗
       this._emit();
     }
 
@@ -364,17 +358,12 @@ window.CG = window.CG || {};
         const qtyOf = q => {
           switch (q) {
             case 'curBlock':    return this.player.block || 0;
-            case 'curPower':    return this.player.power || 0;
-            case 'depth':       return this._depth || 0;
-            case 'heat':        return this._heat || 0;
             case 'enemyDebuff': return t ? this._enemyDebuffLayers(t) : 0;
             case 'exhaustPile': return this.exhaustPile.length;
-            case 'heldTurns':   return card.heldTurns || 0;
             case 'handSize':    return Math.max(0, handAfter);
             case 'emptyHand':   return Math.max(0, 10 - handAfter);   // 空手程度 = 10 − 手牌数
             case 'curGold':     return this.run ? (this.run.gold || 0) : 0;   // 原始金币量（单价 vp 0.06）
             case 'turnNum':     return this.turn || 0;
-            case 'kills':       return this._killsThisCombat || 0;
             case 'myDebuff':    return ['vulnerable', 'weak', 'frail'].reduce((s, k) => s + (this.player.statuses[k] || 0), 0);   // 自身减益体系：回收自己背的减益
             case 'hpLossCount': return this._hpLossCount || 0;   // #18 本场失去生命次数
             case 'playedThisTurn': return this._playedThisTurn || 0;   // #34 本回合已打出牌数
@@ -762,45 +751,6 @@ window.CG = window.CG || {};
       const eh = target.hp, eb = target.block;
       this._dealRaw(target, n);
       this._fire('damage', { side: this._sideOf(target), ei: this._idxOf(target), hpLoss: eh - target.hp, blocked: Math.min(eb, n) });
-    }
-    // ---------- 召唤包：己方召唤物 ----------
-    _tauntAlly() { return (this.allies || []).find(a => a.taunt && a.hp > 0) || null; }   // 嘲讽：吸引敌人火力
-    _reapAllies() { this.allies = (this.allies || []).filter(a => a.hp > 0); }            // 清除阵亡召唤物
-    _hitAlly(ally, dmg) {                                                                 // 敌人攻击被重定向到召唤物（过其格挡→血量）
-      this._dealRaw(ally, dmg);
-      this.addLog(`${ally.name} 替你承受了攻击${ally.hp <= 0 ? '，被击碎。' : `（剩 ${ally.hp} 血）。`}`);
-      this._reapAllies();
-    }
-    _allyAttack() {                                                                       // 回合末：每个召唤物攻击当前敌人 / 图腾给格挡
-      if (!this.allies || !this.allies.length) return;
-      this.allies.forEach(a => {
-        if (a.hp <= 0) return;
-        if (a.giveBlock > 0) this.gainBlock(this.player, a.giveBlock);
-        const tgt = this.currentTarget();
-        if (a.atk > 0 && tgt && tgt.hp > 0) {
-          const before = tgt.hp, bb = tgt.block;
-          this._dealRaw(tgt, a.atk);
-          this._fire('damage', { side: 'enemy', ei: this._idxOf(tgt), hpLoss: before - tgt.hp, blocked: Math.min(bb, a.atk) });
-        }
-      });
-      this.addLog('你的召唤物发起了攻击。');
-    }
-    // ---------- 建造包：场上建筑 ----------
-    _workshopBonus() { return (this.buildings || []).filter(b => b.kind === 'workshop').reduce((s, b) => s + (b.power || 0), 0); }
-    _fireBuilding(b, wb) {                                                                // 触发一座建筑（回合开始 / 拆解）
-      if (wb == null) wb = this._workshopBonus();
-      const p = (b.power || 0) + (b.kind === 'workshop' ? 0 : wb);                        // 工坊增幅其它建筑
-      if (b.kind === 'arrowtower') {
-        const t = this.currentTarget();
-        if (t && t.hp > 0 && p > 0) { const before = t.hp, bb = t.block; this._dealRaw(t, p); this._fire('damage', { side: 'enemy', ei: this._idxOf(t), hpLoss: before - t.hp, blocked: Math.min(bb, p) }); }
-      } else if (b.kind === 'rampart') { if (p > 0) this.gainBlock(this.player, p); }
-      else if (b.kind === 'furnace') { if (p > 0) this.applyStatus(this.player, 'strength', p); }
-    }
-    _buildingsTick() {                                                                   // 回合开始：所有建筑各触发一次
-      if (!this.buildings || !this.buildings.length) return;
-      const wb = this._workshopBonus();
-      this.buildings.forEach(b => this._fireBuilding(b, wb));
-      this.addLog('你的建筑运转起来。');
     }
 
     // ---------- 战斗原语 ----------
