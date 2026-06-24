@@ -174,7 +174,7 @@ window.CG = window.CG || {};
   const TURN_MUL = { now: 1.0, next: 0.5, every: 2.0 };
   const TURN_PREFIX = { now: '本回合', next: '下回合', every: '每回合' };   // 命名＝原值名 + 时点前缀（如 每回合格挡 / 本回合力量 / 下回合敏捷）
   const sched = (vp, eff, nowMech, ids, bname, opt) => Object.assign({ vp, kind: 'sched', eff, nowMech, ids, bname }, opt || {});
-  const statB = (vp, nowMech, everyMech, nextEff, ids, bname, color) => ({ vp, kind: 'stat', nowMech, everyMech, nextEff, ids, bname, prim: 'every', color });
+  const statB = (vp, nowMech, everyMech, nextEff, ids, bname, color) => ({ vp, kind: 'stat', nowMech, everyMech, nextEff, ids, bname, prim: 'now', color });   // v3.14 持续型也默认「本回合」（裸名＝本回合档；下/每回合带前缀）
   const TURN_BASES = {
     damage:     sched(1.0, v => ({ type: 'damage', value: v, hits: 1 }), v => ({ dmg: v }), { now: 'damage', next: 'damage_next', every: 'damage_every' }, '伤害', { num: true, prim: 'now', color: COLOR.damage, minion: true }),
     block:      sched(1.2, v => ({ type: 'block', value: v }), v => ({ blk: v }), { now: 'block', next: 'block_next', every: 'produce_block' }, '格挡', { num: true, prim: 'now', color: COLOR.block, minion: true }),
@@ -231,8 +231,8 @@ window.CG = window.CG || {};
       else atom.mech = t === 'now' ? b.nowMech : t === 'every' ? b.everyMech : (v => ({ nextTurn: [b.nextEff(v)] }));
       VALUE_ATOMS[id] = atom;
       // 召唤物修饰变体：效果改投骷髅（minion:true）、VP 减半 → 同能量下量翻倍。
-      //   即时型(sched)：全 3 时点（now 立即 / every·next 调度）；持续型(stat)：只默认档、永久即时投给骷髅。
-      if (b.minion && (b.kind === 'sched' || t === prim)) {
+      //   即时型(sched)：全 3 时点（now 立即 / every·next 调度）；持续型(stat)：只「永久」档(every)即时投给骷髅（裸 id 如 strength_m）。
+      if (b.minion && (b.kind === 'sched' || t === 'every')) {
         const mid = id + '_m';
         V[mid] = b.vp * TURN_MUL[t] / 2;
         const mEff = v => Object.assign({}, b.eff(v), { minion: true });

@@ -193,10 +193,10 @@ test('自身减益体系：myDebuff 把自己背的减益层数回收成伤害',
 });
 
 test('敌失力量/敏捷：每回合(永久)减；本回合(临时)版量翻倍且下回合复原', () => {
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseStr', 1), '使敌人失去 2 点力量');             // 默认形态(每回合/永久)＝裸名
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseStrTemp', 1), '本回合使敌人失去 4 点力量');   // 本回合(临时)＝永久 ×2、非默认带前缀
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseDex', 1), '使敌人失去 2 点敏捷');             // 力量/敏捷对称
-  assert.strictEqual(CG.affixValueText('energy_enemyLoseDexTemp', 1), '本回合使敌人失去 4 点敏捷');
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseStrTemp', 1), '使敌人失去 4 点力量');         // v3.14 默认形态＝本回合(临时)、裸名、永久×2
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseStr', 1), '每回合使敌人失去 2 点力量');       // 每回合(永久)＝非默认、带前缀
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseDexTemp', 1), '使敌人失去 4 点敏捷');         // 力量/敏捷对称
+  assert.strictEqual(CG.affixValueText('energy_enemyLoseDex', 1), '每回合使敌人失去 2 点敏捷');
   // 永久：敌力量 -2
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9; g.applyStatus(g.enemy, 'strength', 5);
@@ -420,10 +420,10 @@ test('自中毒 selfPoison 已删除', () => {
   assert.ok(!CG.AFFIXES['selfPoison_damage'] && !CG.COST_REAL['selfPoison'] && CG.VALUES['selfPoison'] == null);
 });
 
-test('荆棘重构(#16-17)：荆棘(默认/永久,2VP) / 本回合荆棘(临时,1VP)；不再每回合递增', () => {
-  assert.strictEqual(CG.affixValueText('energy_thorns', 1), '获得 3 点荆棘');          // 默认=永久(every)、2VP→val3
-  assert.strictEqual(CG.affixValueText('energy_tempThorns', 1), '本回合获得 6 点荆棘');// 临时(now)、1VP→val6
-  assert.ok(!CG.AFFIXES['energy_thorns_every']);                               // 不再有「每回合荆棘」递增版
+test('荆棘重构(#16-17；v3.14 默认本回合)：荆棘(默认/临时,1VP) / 每回合荆棘(永久,2VP)', () => {
+  assert.strictEqual(CG.affixValueText('energy_tempThorns', 1), '获得 6 点荆棘');       // v3.14 默认=本回合(临时)、裸名、1VP→val6
+  assert.strictEqual(CG.affixValueText('energy_thorns', 1), '每回合获得 3 点荆棘');     // 每回合(永久)＝非默认、带前缀、2VP→val3
+  assert.ok(!CG.AFFIXES['energy_thorns_every']);                               // every 档 id 即裸 'thorns'，无 thorns_every
   // 永久荆棘：受击反伤、跨回合保留
   let g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 9;
@@ -484,7 +484,7 @@ test('召唤物修饰词：自身向价值改投骷髅、量×2（VP 减半）�
   // 量翻倍：召唤物伤害=12(玩家6)、召唤物格挡=10(玩家5)、召唤物力量=4(玩家2)、召唤物治疗=8(玩家4)
   assert.strictEqual(CG.affixValueText('energy_damage_m', 1), '召唤物对敌人造成 12 点伤害');
   assert.strictEqual(CG.affixValueText('energy_block_m', 1), '召唤物获得 10 点格挡');
-  assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物获得 4 点力量');
+  assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物每回合获得 4 点力量');   // v3.14 召唤物力量＝永久(every)档 _m，带每回合前缀
   assert.strictEqual(CG.affixValueText('energy_heal_m', 1), '召唤物回复 8 点生命');
   // 只配自身向价值：能量/造牌/多重/敌减益 没有 _m 变体
   assert.ok(!CG.AFFIXES['energy_energy_m'] && !CG.AFFIXES['energy_conjure_m'] && !CG.AFFIXES['energy_vulnerable_m'] && !CG.AFFIXES['energy_poison_m']);
@@ -810,7 +810,7 @@ test('#48 回收：消耗手牌中所有非初始牌、抽等量', () => {
 // ===== v3.9 描述可读化 =====
 test('词条描述改为自然中文（对齐用户示例）+ 卡名用简短 chip 形', () => {
   assert.strictEqual(CG.affixValueText('energy_makeDagger', 1), '生成 2 张匕首');
-  assert.strictEqual(CG.affixValueText('curBlock_enemyLoseStr', 1), '每有 5 点当前格挡，使敌人失去 1 点力量');
+  assert.strictEqual(CG.affixValueText('curBlock_enemyLoseStrTemp', 1), '每有 5 点当前格挡，使敌人失去 2 点力量');   // 默认(本回合)敌失力量＝裸名无前缀
   assert.strictEqual(CG.affixValueText('daggerPlayed_frail', 1), '本场每打出 3 张匕首，使敌人获得 2 点脆弱');
   assert.strictEqual(CG.affixValueText('myDebuff_damage_next', 1), '自身每有 1 层减益，下回合对敌人造成 2 点伤害');
   assert.strictEqual(CG.affixValueText('enemyVuln_block', 1), '敌人处于易伤时，获得 5 点格挡');
