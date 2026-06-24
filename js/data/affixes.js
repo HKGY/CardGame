@@ -375,6 +375,7 @@ window.CG = window.CG || {};
     const v1 = Math.min(valMax, Math.max(1, Math.floor(6 / valVP + 1e-9)));
     const hasHi = Math.min(valMax, Math.max(v1 + 1, Math.floor(12 / valVP + 1e-9))) > v1;
     const mult = (cc.vp != null ? cc.vp : 6) / valVP;   // 每单位条件量换得的价值量
+    if (gate && mult < 1) return;   // 门型：条件VP < 价值VP → floor(mult×等级)=0 的退化词条（如「每回合选择 0 张」），不生成（要么 ≥1、要么不生成）
     const condBonus = { qty: cc.qty, atom: valId, mult, gate };
     if (!gate) { const fr = toFrac(mult); condBonus.fy = fr[0]; condBonus.fx = fr[1]; }   // 量型：整数「每有 fx 点条件 → fy 点价值」（门型走定额 floor(mult×等级)）
     A[costId + '_' + valId] = {

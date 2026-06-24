@@ -374,25 +374,10 @@ window.CG = window.CG || {};
             default:            return 0;
           }
         };
-        const gateMet = q => {                      // 门(gate)：达成则当前量记 1（× mult × 等级 = 定额价值）
-          switch (q) {
-            case 'firstPlay': return (card.plays || 0) === 0;   // 这张牌本场第一次打出（plays 在结算后才 +1）
-            case 'hurt':      return !!this._hurtThisCombat;
-            case 'noBlock':   return (this.player.block || 0) === 0;
-            case 'enemyVuln':     return !!(t && t.statuses.vulnerable > 0);   // #1 敌人具有指定减益（拆成多门）
-            case 'enemyWeak':     return !!(t && t.statuses.weak > 0);
-            case 'enemyFrail':    return !!(t && t.statuses.frail > 0);
-            case 'enemyPoison':   return !!(t && t.statuses.poison > 0);
-            case 'lostHpTurn':    return !!this._lostHpThisTurn;                        // #8 本回合失去过生命
-            case 'exhaustedTurn': return !!this._exhaustedThisTurn;                     // #9 本回合消耗过牌
-            case 'lowHp':         return this.player.hp * 2 < this.player.maxHp;        // v3.12 残血：生命低于一半
-            default:          return false;
-          }
-        };
         s.condBonus.forEach(cb => {
-          // 门型：达成则给定额 floor(mult×等级)；量型：整数「每有 fx 点条件 → fy 点价值」= floor(条件量/fx) × fy × 等级
+          // 门型：达成（或免代价 free＝首石/净化）则给定额 floor(mult×等级)；量型：整数「每有 fx 点条件 → fy 点价值」= floor(条件量/fx) × fy × 等级
           const amount = cb.gate
-            ? (gateMet(cb.qty) ? Math.floor((cb.mult || 1) * (cb.level || 1) + 1e-9) : 0)
+            ? ((cb.free || this._gateMet(cb.qty, card)) ? Math.floor((cb.mult || 1) * (cb.level || 1) + 1e-9) : 0)
             : Math.floor(qtyOf(cb.qty) / (cb.fx || 1)) * (cb.fy || 0) * (cb.level || 1);
           if (amount <= 0) return;
           const ve = CG.valueEffects(cb.atom, amount, cb.level);   // 喂给该价值原子的 mech → 本回合/下回合/每回合 + 卡级修饰
@@ -692,6 +677,22 @@ window.CG = window.CG || {};
     _isEveryCost(eff) { return ['loseHp', 'loseGold', 'selfStatus', 'losePower', 'clutter', 'loseMinionHp'].includes(eff.type); }
     _everySrc(eff) { return (eff.minion && this.skeleton) ? this.skeleton : this.player; }
     // 同种判定：同效果类型 + 同状态/键 + 同目标(召唤物)＝「一种」，多个合并成一条（代价与收益都合并）。
+    _gateMet(q, card) {   // 门型条件是否满足（card 供 firstPlay 判定）；供 playCard 结算与卡面「条件未满足变暗」复用
+      const t = this.enemy;
+      switch (q) {
+        case 'firstPlay':     return ((card && card.plays) || 0) === 0;            // 这张牌本场第一次打出（plays 结算后才 +1）
+        case 'hurt':          return !!this._hurtThisCombat;
+        case 'noBlock':       return (this.player.block || 0) === 0;
+        case 'enemyVuln':     return !!(t && t.statuses.vulnerable > 0);
+        case 'enemyWeak':     return !!(t && t.statuses.weak > 0);
+        case 'enemyFrail':    return !!(t && t.statuses.frail > 0);
+        case 'enemyPoison':   return !!(t && t.statuses.poison > 0);
+        case 'lostHpTurn':    return !!this._lostHpThisTurn;
+        case 'exhaustedTurn': return !!this._exhaustedThisTurn;
+        case 'lowHp':         return this.player.hp * 2 < this.player.maxHp;
+        default:              return false;
+      }
+    }
     _everyKey(eff) { return eff.type + (eff.status ? ':' + eff.status : '') + (eff.key ? ':' + eff.key : '') + (eff.minion ? ':m' : ''); }
     _addEveryTurn(eff) {
       this._everyTurn = this._everyTurn || [];

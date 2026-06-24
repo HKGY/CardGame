@@ -376,8 +376,10 @@ test('条件配对：量型 × 全部48时点变体+治疗；门型(true/false) 
   // 量型不配「无时点·非数值」价值（召唤/元素/翻倍）
   assert.ok(CG.AFFIXES['curBlock_summon'] && CG.AFFIXES['curBlock_conjure'] && CG.AFFIXES['curBlock_thorns']);   // 召唤/造牌/荆棘 现为时点基值 → 量型也配
   assert.ok(!CG.AFFIXES['curBlock_fire'] && !CG.AFFIXES['curBlock_mult'] && !CG.AFFIXES['curBlock_multi']);       // 元素/翻倍/多重 仍无时点非数值、量型不配
-  // 门型(firstPlay/hurt/noBlock)：每一个价值都成词条（含召唤/元素/翻倍/连击/每回合…）
-  assert.ok(CG.AFFIXES['firstPlay_summon'] && CG.AFFIXES['firstPlay_fire'] && CG.AFFIXES['firstPlay_mult'] && CG.AFFIXES['firstPlay_combo'] && CG.AFFIXES['firstPlay_damage_every'] && CG.AFFIXES['hurt_summon'] && CG.AFFIXES['noBlock_conjure']);
+  // 门型(firstPlay/hurt/noBlock)：与「价值VP ≤ 门VP(6)」的价值成词条（mult=门VP/价值VP ≥ 1 → 定额 ≥ 1）
+  assert.ok(CG.AFFIXES['firstPlay_summon'] && CG.AFFIXES['firstPlay_fire'] && CG.AFFIXES['firstPlay_combo'] && CG.AFFIXES['firstPlay_damage_every'] && CG.AFFIXES['hurt_summon'] && CG.AFFIXES['noBlock_conjure']);
+  // 门型不配「价值VP > 门VP」的昂贵价值（否则定额 floor(mult×等级)=0 退化）：翻倍/多重/许愿/免疫…均跳过
+  assert.ok(!CG.AFFIXES['firstPlay_mult'] && !CG.AFFIXES['firstPlay_multi'] && !CG.AFFIXES['firstPlay_wish'] && !CG.AFFIXES['firstPlay_wish_every'] && !CG.AFFIXES['firstPlay_immune']);
 });
 
 test('条件 × 每回合变体：当前格挡→每回合伤害（打出快照格挡，之后每回合结算）', () => {
@@ -628,6 +630,25 @@ test('#1/#8/#9/#18 新条件', () => {
   eh = g.enemy.hp; pg(g, [[{ id: 'lostHpTurn_damage', level: 1 }]]); assert.ok(eh - g.enemy.hp > 0);
   // #9 本回合消耗过牌（gate）：打出一张消耗牌后达成
   g = bt(); g.player.energy = 30; const d = CG.makeFoodCard('dagger'); g.hand = [d]; g.playCard(d.uid); assert.ok(g._exhaustedThisTurn);
+});
+
+test('门型条件：净化可消除代价（恒满足）；首石只免资源代价、不消除门型', () => {
+  // 净化的门型宝石：条件不满足也按定额给价值
+  let g = bt(); g.player.energy = 30;
+  const c = spell([{ id: CG.STRIKE, level: 1 }]);
+  c.sockets.push({ uid: 9001, affixes: [{ id: 'enemyVuln_block', level: 1 }], purified: true });
+  g.hand = [c]; g.playCard(c.uid);
+  assert.ok(g.player.block > 0);                 // 敌人无易伤，但净化 → 门恒满足
+  // 首石的门型宝石：仍需满足条件（首石不消除门型）
+  g = bt(); g.player.energy = 30;
+  const c2 = spell([{ id: 'enemyVuln_block', level: 1 }]);   // 该门型词条在首石
+  g.hand = [c2]; g.playCard(c2.uid);
+  assert.strictEqual(g.player.block, 0);          // 无易伤、首石不消除门 → 0
+  // 满足条件则照常生效
+  g = bt(); g.player.energy = 30; g.enemy.statuses.vulnerable = 1;
+  const c3 = spell([{ id: 'enemyVuln_block', level: 1 }]);
+  g.hand = [c3]; g.playCard(c3.uid);
+  assert.ok(g.player.block > 0);
 });
 
 test('#15 消耗手牌代价（pick 型，类弃牌代价）', () => {

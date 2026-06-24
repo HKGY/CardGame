@@ -346,21 +346,29 @@ window.CG = window.CG || {};
   }
   // 时点样式：每回合＝下划线、下回合＝斜体、本回合＝常规。（卡名本就加粗，故每回合改用下划线区分）
   function timeStyle(txt, id) { const t = CG.affixTiming ? CG.affixTiming(id) : 'now'; return t === 'every' ? `<u>${txt}</u>` : t === 'next' ? `<i>${txt}</i>` : txt; }
-  function cardInner(s) {
+  function cardInner(s, game, inst) {
     const span = a => `<span class="aff" style="color:${a.color}">${timeStyle(a.name, a.id)}</span>`;
-    // 卡名：每颗宝石「代价 → 价值」；首石用方括号（免代价）。时点用 加粗(每回合)/斜体(下回合) 表示。
+    // 门型条件未满足 → 卡面对应条目变暗（仅战斗中、非免代价的门型）。免代价(首石/净化)＝门恒满足、不变暗。
+    const gateDim = (a, gemFree) => {
+      if (!game || !a || !game._gateMet) return false;
+      const def = CG.AFFIXES[a.id], cb = def && def.condBonus;
+      if (!cb || !cb.gate || gemFree) return false;
+      return !game._gateMet(cb.qty, inst) ? ' gate-unmet' : '';
+    };
+    // 卡名：每颗宝石「代价 → 价值」；首石免代价（不加方括号）。时点用 下划线(每回合)/斜体(下回合) 表示。
     const gemChips = s.gemViews.map((g, i) => {
       const a = g.buffs.concat(g.debuffs)[0];
       if (!a) return '';
-      if (i === 0 || g.purified) return `<span class="gem-chip first">${span(a)}</span>`;   // 首石/净化：免代价（不显代价、不加方括号）
-      return `<span class="gem-chip">(<span class="gem-cost">${a.cost}</span> → ${span(a)})</span>`;
+      const resFree = i === 0 || g.purified, dim = gateDim(a, !!g.purified);   // 首石/净化免「资源代价」；门型免除只看净化
+      if (resFree) return `<span class="gem-chip first${dim}">${span(a)}</span>`;   // 首石/净化：免代价（不加方括号）
+      return `<span class="gem-chip${dim}">(<span class="gem-cost">${a.cost}</span> → ${span(a)})</span>`;
     }).join('');
     const empties = '<span class="socket-empty" title="空孔位">◇</span>'.repeat(s.emptySockets);
     // 空法术法杖(base 'spell')卡名只显效果（去掉「法术」基名）；食材/临时牌仍用其固有名
     const name = `${s.base === 'spell' ? '' : `<span class="base-name">${s.baseName}</span>`}${gemChips}${empties}`;
     // 词条说明：按宝石分组（不同宝石用 ┃ 隔开），避免数量多时撑破卡面
     const descGroups = s.gemViews.map(g =>
-      g.buffs.concat(g.debuffs).map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>')
+      g.buffs.concat(g.debuffs).map(a => `<span class="affix-line${gateDim(a, !!g.purified)}" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>')
     ).filter(Boolean).join('<span class="gem-sep"> ┃ </span>');
     const lines = descGroups ? `<div class="affix-lines">${descGroups}</div>` : '';
     // 标题在卡图「上方」，默认保留三行高度（短名也占三行、长名不撑破布局）。
@@ -420,7 +428,7 @@ window.CG = window.CG || {};
       ok = game.phase === 'player' && payCost <= game.player.energy && !s.noPlay && !blocked;
       if (free || conjured) s = Object.assign({}, s, { cost: 0, _free: true });
     }
-    return `<div class="card type-${s.type} ${ok ? '' : 'disabled'} ${paralyzed ? 'paralyzed' : ''}" data-uid="${inst.uid}">${cardInner(s)}</div>`;
+    return `<div class="card type-${s.type} ${ok ? '' : 'disabled'} ${paralyzed ? 'paralyzed' : ''}" data-uid="${inst.uid}">${cardInner(s, game, inst)}</div>`;
   }
 
   // ---------- 小组件 ----------

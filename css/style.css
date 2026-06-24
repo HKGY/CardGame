@@ -537,6 +537,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .card-name .cn-in::before { float: left; }
 .card-name .cn-in::after  { float: right; }
 .card-name .gem-chip { display: inline-block; white-space: nowrap; }
+/* 门型条件未满足：卡名 chip 与说明行变暗 */
+.gem-chip.gate-unmet, .affix-line.gate-unmet { opacity: .35; }
 .card-name .aff { font-weight: 800; }
 .card-name .base-name { color: var(--ink); }
 .card-type { font-size: 11px; color: var(--muted); margin: 2px 0 6px; }

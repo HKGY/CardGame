@@ -107,7 +107,8 @@ window.CG = window.CG || {};
       const list = (g.affixes || []).map(resolve);
       return { buffs: list.filter(a => !a.debuff).sort(bySort), debuffs: list.filter(a => a.debuff).sort(bySort), purified: !!g.purified };
     });
-    const all = sockets.flatMap(g => (g.affixes || []).map(resolve));
+    // 净化(g.purified)＝消除代价：门型条件据此恒满足（见 condBonus / playCard）。注：首石只免「资源代价」、不免门型条件。
+    const all = sockets.flatMap(g => (g.affixes || []).map(a => { const r = resolve(a); r.free = !!g.purified; return r; }));
     const buffs = all.filter(a => !a.debuff).sort(bySort);
     const debuffs = all.filter(a => a.debuff).sort(bySort);
 
@@ -137,7 +138,7 @@ window.CG = window.CG || {};
     const NB = {};
     const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/洞悉强化/磷火强化
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
-    all.forEach(({ def: d, level: rawL }) => {
+    all.forEach(({ def: d, level: rawL, free }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
       score += (d.score || 0) * L;
       // 注：v2 里 d.value / d.cost 是「代价-价值」描述对象，不再是旧的数值机制字段（已删）。
@@ -166,7 +167,7 @@ window.CG = window.CG || {};
       if (d.prepDex)   prepDexN += d.prepDex * L;
       if (d.enemyStr) { if (d.enemyTemp) enemyStrTempN += d.enemyStr * L; else enemyStrN += d.enemyStr * L; }   // 敌失力量
       if (d.enemyDex) { if (d.enemyTemp) enemyDexTempN += d.enemyDex * L; else enemyDexN += d.enemyDex * L; }   // 敌失敏捷
-      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, atom: d.condBonus.atom, gate: d.condBonus.gate, mult: d.condBonus.mult, fy: d.condBonus.fy, fx: d.condBonus.fx, level: L });   // v3 条件代价（量型走 fy/fx 整数分数；门型走 mult 定额）
+      if (d.condBonus) condBonusList.push({ qty: d.condBonus.qty, atom: d.condBonus.atom, gate: d.condBonus.gate, mult: d.condBonus.mult, fy: d.condBonus.fy, fx: d.condBonus.fx, level: L, free: !!free });   // v3 条件代价（量型走 fy/fx 整数分数；门型走 mult 定额）；free=首石/净化 → 门型恒满足
       if (d.everyTurn) d.everyTurn.forEach(e => everyTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));   // 每回合：按等级缩放后调度
       if (d.nextTurn)  d.nextTurn.forEach(e => nextTurnList.push(Object.assign({}, e, { value: (e.value || 0) * L })));     // 下回合：同上
       if (d.minionNow) minionNowList.push(Object.assign({}, d.minionNow, { value: (d.minionNow.value || 0) * L }));         // 召唤物·本回合：投给骷髅的效果（minion:true）
