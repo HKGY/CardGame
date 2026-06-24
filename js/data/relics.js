@@ -118,7 +118,7 @@ window.CG = window.CG || {};
     pack_rat: { name: '囤积鼠', icon: '📌', pack: 'hold', desc: '【价值】每回合开始：手牌每有一张，+1 格挡', onTurnStart: b => b.gainBlock(b.player, b.hand.length) },
     // 资源 / 引擎
     capacitor: { name: '电容', icon: '🔌', pack: 'elec', desc: '【价值】每回合开始：+2 电力', onTurnStart: b => { b.player.power = (b.player.power || 0) + 2; } },
-    tesla_coil: { name: '特斯拉线圈', icon: '⚡', pack: 'arc', desc: '【价值】每回合开始：获得等同当前电力一半的格挡', onTurnStart: b => b.gainBlock(b.player, Math.floor((b.player.power || 0) / 2)) },
+    tesla_coil: { name: '特斯拉线圈', icon: '⚡', pack: 'elec', desc: '【价值】每回合开始：获得等同当前电力一半的格挡', onTurnStart: b => b.gainBlock(b.player, Math.floor((b.player.power || 0) / 2)) },
     seed_pouch: { name: '种子袋', icon: '🌾', pack: 'produce', desc: '【价值】每回合开始：+2 格挡并抽 1 张', onTurnStart: b => { b.gainBlock(b.player, 2); b.drawCards(1); } },
     karma_wheel: { name: '业轮', icon: '🔄', pack: 'cycle', desc: '【价值】每回合开始：现有每回合增益额外结算 1 次', onTurnStart: b => { if (b._everyTurn && b._everyTurn.length) b._resolveEveryBuffs(1, false); } },
     ash_urn: { name: '骨灰瓮', icon: '♨️', pack: 'ash', desc: '【价值】每回合开始：获得等同消耗堆牌数的格挡（至多 20）', onTurnStart: b => b.gainBlock(b.player, Math.min(20, b.exhaustPile.length)) },
@@ -127,13 +127,13 @@ window.CG = window.CG || {};
     knife_belt: { name: '飞刀带', icon: '🔪', pack: 'dagger', desc: '【价值】首回合：生成 2 张匕首', firstTurn: fx('makeDagger', 2) },
     scrap_box: { name: '甲片盒', icon: '🛡️', pack: 'scrap', desc: '【价值】首回合：生成 2 张甲片', firstTurn: fx('makeScrap', 2) },
     broken_hilt: { name: '残柄', icon: '🗡️', pack: 'endsword', desc: '【价值】开局：锻造出一柄终末之剑', battleStart: fx('forge', 1) },
-    veg_basket: { name: '菜篮', icon: '🥬', pack: 'veg', desc: '【价值】首回合：获得 1 张素菜', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('veg', 1); } },
-    meat_hook: { name: '肉钩', icon: '🍖', pack: 'meat', desc: '【价值】首回合：获得 1 张荤菜', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('meat', 1); } },
-    spice_rack: { name: '香料架', icon: '🧂', pack: 'season', desc: '【价值】首回合：获得 1 张调料', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('season', 1); } },
-    fire_opal: { name: '火蛋白石', icon: '🔥', pack: 'fire', desc: '【价值】开局：给敌人附 1 层火', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'fire', 1); } },
-    water_pearl: { name: '水之珠', icon: '💧', pack: 'water', desc: '【价值】开局：给敌人附 1 层水', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'water', 1); } },
-    storm_shard: { name: '风暴碎片', icon: '🌩️', pack: 'thunder', desc: '【价值】开局：给敌人附 1 层雷', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'thunder', 1); } },
-    frost_gem: { name: '霜晶', icon: '❄️', pack: 'ice', desc: '【价值】开局：给敌人附 1 层冰', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'ice', 1); } },
+    veg_basket: { name: '菜篮', icon: '🥬', pack: 'cook', desc: '【价值】首回合：获得 1 张素菜', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('veg', 1); } },
+    meat_hook: { name: '肉钩', icon: '🍖', pack: 'cook', desc: '【价值】首回合：获得 1 张荤菜', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('meat', 1); } },
+    spice_rack: { name: '香料架', icon: '🧂', pack: 'cook', desc: '【价值】首回合：获得 1 张调料', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('season', 1); } },
+    fire_opal: { name: '火蛋白石', icon: '🔥', pack: 'elements', desc: '【价值】开局：给敌人附 1 层火', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'fire', 1); } },
+    water_pearl: { name: '水之珠', icon: '💧', pack: 'elements', desc: '【价值】开局：给敌人附 1 层水', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'water', 1); } },
+    storm_shard: { name: '风暴碎片', icon: '🌩️', pack: 'elements', desc: '【价值】开局：给敌人附 1 层雷', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'thunder', 1); } },
+    frost_gem: { name: '霜晶', icon: '❄️', pack: 'elements', desc: '【价值】开局：给敌人附 1 层冰', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'ice', 1); } },
   });
   // 其余未打标签的遗物（肚脐/晚餐/无神论者/老虎机/棱镜核心/回光返照/1up/Steam/存钱罐/牌盒/幸运脚/郁金香/出生证明 等元/经济/复活类）归 general。
   Object.keys(CG.RELICS).forEach(id => { if (!CG.RELICS[id].pack) CG.RELICS[id].pack = 'general'; });

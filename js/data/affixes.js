@@ -494,8 +494,7 @@ window.CG = window.CG || {};
     enhance:  P('强化包', '📈', '#c8a86a', '本牌成长（伤害/格挡/降费/锤炼）。', ['growDmg', 'growBlk', 'selfCostDown', 'temper'], ['gold'], ['emptyHand', 'curGold']),
     hold:     P('持留包', '📌', '#c8b89a', '保留（回合末不弃）+ 回收（消耗非初始牌并抽等量）。', ['retain', 'recycle']),
     // ===== 资源 / 引擎 =====
-    elec:     P('电力包', '🔌', '#f0d040', '电力（本/下/每回合）。', ['power', 'power_next', 'power_every'], ['losePower']),
-    arc:      P('电弧包', '⚡', '#f0e060', '电弧（随电力增伤）/ 充电（电力换能量）。', ['arc', 'charge']),
+    elec:     P('电力包', '🔌', '#f0d040', '电力（本/下/每回合）+ 电弧（随电力增伤）/ 充电（电力换能量）。', ['power', 'power_next', 'power_every', 'arc', 'charge'], ['losePower']),
     produce:  P('生产包', '🌾', '#b6d36a', '每回合产出（格挡 / 抽牌 / 能量）。', ['produce_draw', 'produce_block', 'produce_energy'], [], ['turnNum']),
     cycle:    P('轮回包', '🔄', '#9ec85a', '每回合机制：扩容 / 收割 / 爆破。', ['expandEvery', 'harvestEvery', 'detonateEvery']),
     blood:    P('血液包', '🩸', '#c0394a', '以生命/自身减益/属性为代价，换伤害·治疗·吸血；越惨越强。', ['damage', 'heal', 'lifesteal'], ['hp', 'selfVuln', 'selfWeak', 'selfFrail', 'loseStr', 'loseDex'], ['myDebuff', 'hpLossCount', 'lostHpTurn', 'hurt', 'lowHp']),
@@ -506,13 +505,10 @@ window.CG = window.CG || {};
     dagger:   P('匕首包', '🔪', '#c0a878', '生成 / 强化匕首。', ['makeDagger', 'daggerUp'], [], ['daggerPlayed']),
     scrap:    P('甲片包', '🛡️', '#a8b0c0', '生成 / 强化甲片。', ['makeScrap', 'scrapUp'], [], ['scrapPlayed']),
     endsword: P('终末之剑包', '🗡️', '#d0c060', '锻造（增伤）/ 招架（增格挡），刷新终末之剑。', ['forge', 'parry']),
-    veg:      P('素菜包', '🥬', '#7fc04a', '生成素菜（本/下/每回合）。', ['food_veg', 'food_veg_next', 'food_veg_every']),
-    meat:     P('荤菜包', '🍖', '#e07050', '生成荤菜（本/下/每回合）。', ['food_meat', 'food_meat_next', 'food_meat_every']),
-    season:   P('调料包', '🧂', '#e0c060', '生成调料（本/下/每回合）。', ['food_season', 'food_season_next', 'food_season_every']),
-    fire:     P('火焰包', '🔥', '#ff7a4a', '附火（叠加 / 与其它元素反应）。', ['fire']),
-    water:    P('寒水包', '💧', '#4aa8ff', '附水（叠加 / 与其它元素反应）。', ['water']),
-    thunder:  P('惊雷包', '🌩️', '#e8c84a', '附雷（叠加 / 与其它元素反应）。', ['thunder']),
-    ice:      P('玄冰包', '❄️', '#8fe0ec', '附冰（叠加 / 与其它元素反应）。', ['ice']),
+    // 厨艺：素菜+荤菜+调料合一（做菜需荤+素配合，拆开无法成菜）
+    cook:     P('厨艺包', '🍳', '#e0a45a', '食材（素菜 / 荤菜 / 调料，本/下/每回合）：素菜+荤菜做成餐点。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
+    // 元素：火/水/雷/冰合一（反应需 ≥2 种元素，拆开无法触发反应）
+    elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发元素反应。', ['fire', 'water', 'thunder', 'ice']),
   };
   // 由 (values, costs, conds) 交叉积出可 roll 的词条 id 列表：(energy ∪ costs) × values ∪ conds × values；energy 为通用代价。
   //   time 型代价(生命/金币/自减益…)另含「每回合 V / 下回合 N」变体。供单主题(p.affixes) 与 融合包(buildFusionPack) 共用。
@@ -531,6 +527,7 @@ window.CG = window.CG || {};
     const p = CG.PACKS[k];
     p.affixes = CG.buildPackAffixes(p.values, p.costs, p.conds);
     p.buffs = p.affixes.slice(); p.debuffs = [];
+    p.size = (p.values || []).length;   // 包「大小」＝价值原子个数（开局按量选包用；基础包不计）
   });
   CG.PACK_IDS = Object.keys(CG.PACKS);
 

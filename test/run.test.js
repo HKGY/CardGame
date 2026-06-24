@@ -218,15 +218,17 @@ test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）',
   assert.equal(run.shopMult(), 0.5);
 });
 
-test('开局随机卡包：基础包 + 4 个随机增强包；本局只在这几个里出包', () => {
+test('开局随机卡包：基础包 + 按内容量(size)随机加主题直到达标；本局只在这几个里出包', () => {
   const run = newRun('packs-run');
-  assert.equal(run.packs.length, 5);
-  assert.equal(new Set(run.packs).size, 5, '不重复');
+  assert.ok(run.packs.length >= 2, '至少基础 + 几个主题');
+  assert.equal(new Set(run.packs).size, run.packs.length, '不重复');
   assert.ok(run.packs.includes('basic'), '必含基础包');
   run.packs.forEach(id => assert.ok(CG.PACKS[id], '都是合法包 id'));
-  const themed = CG.PACK_IDS.filter(id => id !== 'basic');
-  assert.equal(run.packs.filter(id => id !== 'basic').length, 4, '4 个增强包');
-  assert.ok(themed.some(id => !run.packs.includes(id)), '应排除掉增强包');
+  const themed = CG.PACK_IDS.filter(id => id !== 'basic' && id !== 'fusion');
+  // 累计 size（基础不计）应达到目标内容量（最后一个包跨过阈值）
+  const themedSize = run.packs.filter(id => id !== 'basic').reduce((s, id) => s + CG.PACKS[id].size, 0);
+  assert.ok(themedSize >= (CG.CONFIG.runPackSize || 24), '累计内容量达标');
+  assert.ok(themed.some(id => !run.packs.includes(id)), '应排除掉部分主题');
   // 本局所有扩充包＝一个融合包：pickPack 恒返回 'fusion'，其词条池＝选定主题「代价×价值」全交叉积
   assert.equal(CG.pickPack('elite'), 'fusion');
   const f = CG.fusionPack();
@@ -413,16 +415,16 @@ test('调试：debugAddGem 把自定义词条宝石加入背包（夹等级 1~3�
   assert.equal(run.gems.length, n0 + 1);
 });
 
-test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则回退随机 5 包）', () => {
+test('调试：Run 可手动指定本局卡包（opts.packs，滤非法；空则回退按量随机）', () => {
   CG.RNG.seed('debug-packs');
-  const run = new CG.Run('warrior', { packs: ['poison', 'fire', 'bogus'] });
+  const run = new CG.Run('warrior', { packs: ['poison', 'elements', 'bogus'] });
   assert.equal(run.packs.length, 2, '过滤掉非法 id');
-  assert.ok(run.packs.includes('poison') && run.packs.includes('fire'));
+  assert.ok(run.packs.includes('poison') && run.packs.includes('elements'));
   assert.equal(CG.pickPack('elite'), 'fusion');
   fusionFromThemes(run.packs, CG.fusionPack());   // 融合池只应来自指定主题（交叉积）
-  // 空 / 全非法 → 回退随机（基础包 + 4）
+  // 空 / 全非法 → 回退按量随机（基础包 + 若干）
   const run2 = new CG.Run('warrior', { packs: ['bogus'] });
-  assert.equal(run2.packs.length, 5);
+  assert.ok(run2.packs.length >= 2);
   assert.ok(run2.packs.includes('basic'));
 });
 
@@ -452,8 +454,8 @@ test('v3.12 消耗品/遗物归入主题包：每个主题都有、标签合法�
 });
 
 test('v3.12 掉落偏向本局主题：themed 池 ⊆ 选定主题 ∪ general', () => {
-  const run = new CG.Run('warrior', { packs: ['poison', 'fire'] });
-  run._themedTarotIds().forEach(id => { const p = CG.TAROT[id].pack; assert.ok(p === 'general' || run.packs.includes(p), id + ' 不应在 poison/fire 塔罗池'); });
-  run._themedRelicPool(() => true).forEach(id => { const p = CG.RELICS[id].pack; assert.ok(p === 'general' || run.packs.includes(p), id + ' 不应在 poison/fire 遗物池'); });
+  const run = new CG.Run('warrior', { packs: ['poison', 'elements'] });
+  run._themedTarotIds().forEach(id => { const p = CG.TAROT[id].pack; assert.ok(p === 'general' || run.packs.includes(p), id + ' 不应在 poison/elements 塔罗池'); });
+  run._themedRelicPool(() => true).forEach(id => { const p = CG.RELICS[id].pack; assert.ok(p === 'general' || run.packs.includes(p), id + ' 不应在 poison/elements 遗物池'); });
   CG.setActivePacks(null);
 });

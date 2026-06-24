@@ -348,7 +348,7 @@ test('clampAffixLevel：把等级夹到该词条实际存在的等级', () => {
 test('rollGem 等级只取该词条实际存在的等级', () => {
   assert.strictEqual(CG.affixLevels('energy_food_veg').join(','), '1');   // 食材真资源词条 maxCount=1 → 恒 LV1
   for (let i = 0; i < 80; i++) {
-    for (const pk of ['veg', 'fire', 'power', 'vuln']) {
+    for (const pk of ['cook', 'elements', 'power', 'vuln']) {
       const g = CG.rollGem({ tier: 'boss', pack: pk });
       const a = g.affixes[0];
       assert.ok(CG.affixLevels(a.id).includes(a.level), `${pk} 产出非法等级 ${a.id}@${a.level}`);

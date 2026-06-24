@@ -497,11 +497,15 @@ window.CG = window.CG || {};
     const key = CG.affixGroupOf ? CG.affixGroupOf(a.id) : null;
     return (key && CG.PACKS && CG.PACKS[key]) || null;
   };
-  // 开局默认主题：恒含「基础」+ 从其它主题里随机 4 个（玩家可在开始菜单改选任意主题，全部融合）。
+  // 开局默认主题：恒含「基础」(size 不计) + 随机加主题，直到累计 size(价值原子个数) 达 runPackSize(≈旧「4 个包」内容量)。
+  //   包有大有小，故按「内容量」选而非固定个数 → 抽到大包就少几个、抽到小包就多几个，本局总内容量稳定。
   CG.rollRunPacks = function () {
     const themed = (CG.PACK_IDS || []).filter(id => id !== 'basic' && id !== 'fusion');
     for (let i = themed.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [themed[i], themed[j]] = [themed[j], themed[i]]; }
-    return ['basic'].concat(themed.slice(0, 4));
+    const target = (CG.CONFIG && CG.CONFIG.runPackSize) || 24;
+    const out = ['basic']; let sz = 0;
+    for (const id of themed) { if (sz >= target) break; out.push(id); sz += ((CG.PACKS[id] && CG.PACKS[id].size) || 1); }
+    return out.length > 1 ? out : ['basic'].concat(themed.slice(0, 4));   // 兜底：至少给几个
   };
   // 选包：本局有融合包时恒返回它（所有扩充包都＝融合包）；否则（无 run/单测）按权重在全部主题里兜底选一个。
   CG.pickPack = function (tier) {
