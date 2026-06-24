@@ -63,6 +63,7 @@ window.CG = window.CG || {};
       if (!e || !e.alive || e.hp <= 0) { e = this.aliveEnemies()[0] || this.enemies[this.target] || this.enemies[0]; this.target = Math.max(0, this.enemies.indexOf(e)); }
       return e;
     }
+    _randomEnemy() { const a = this.aliveEnemies(); return a.length ? a[Math.floor(Math.random() * a.length)] : this.currentTarget(); }   // 下/每回合对敌效果：随机一个存活敌人
     setTarget(i) { const e = this.enemies[i]; if (e && e.alive && e.hp > 0) { this.target = i; this.enemy = e; this._emit(); } }
     _refreshTarget() { this.enemy = this.currentTarget(); }
     _makeEnemy(id, sc, hpMult) {
@@ -231,11 +232,10 @@ window.CG = window.CG || {};
         if (s.sluggish)  c.holdCost  = (c.holdCost  || 0) + s.sluggish;   // 滞涩：越攒越贵
       }
       this.drawCards(CARDS_PER_TURN + drawBonus);
-      // === 时点修饰器：每回合(常驻重复) + 下回合(一次性) ===（壁垒/耕作/引擎/箭塔/蓄击… 统一在此结算）
-      const tgt = this.currentTarget();
+      // === 时点修饰器：每回合(常驻重复) + 下回合(一次性) ===（统一在此结算；对敌效果改为随机敌人）
       const _src = e => (e.minion ? this.skeleton : this.player);   // 召唤物效果以骷髅为 source
-      (this._everyTurn || []).forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), tgt); });   // 每回合：重复结算、跨回合保留
-      if (this._nextTurn && this._nextTurn.length) { const q = this._nextTurn; this._nextTurn = []; q.forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), this.currentTarget()); }); }   // 下回合：结算一次后清空
+      (this._everyTurn || []).forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), this._randomEnemy()); });   // 每回合：重复结算、跨回合保留（对敌取随机敌人）
+      if (this._nextTurn && this._nextTurn.length) { const q = this._nextTurn; this._nextTurn = []; q.forEach(e => { if (!(e.minion && !this.skeleton)) CG.Effects.apply(this, e, _src(e), this._randomEnemy()); }); }   // 下回合：结算一次后清空（对敌取随机敌人）
       this._checkEnd();                          // 时点效果可能终结战斗
       this._emit();
     }
