@@ -362,10 +362,11 @@ window.CG = window.CG || {};
       g.buffs.concat(g.debuffs).map(a => `<span class="affix-line" style="color:${a.color}">${a.desc}</span>`).join('<span class="affix-sep">·</span>')
     ).filter(Boolean).join('<span class="gem-sep"> ┃ </span>');
     const lines = descGroups ? `<div class="affix-lines">${descGroups}</div>` : '';
+    // 标题在卡图「上方」，默认保留三行高度（短名也占三行、长名不撑破布局）。
     return `<div class="card-cost${s._free ? ' free' : ''}${s._power ? ' power' : ''}">${s._power ? '🔋' : ''}${s.cost}</div>
+      <div class="card-name">${name}</div>
       <div class="card-art">${CG.CardArt.get(s.base)}</div>
       <div class="card-body">
-        <div class="card-name">${name}</div>
         <div class="card-text">${colorKeywords(s.baseText)}${lines}</div>
       </div>`;
   }
@@ -452,9 +453,14 @@ window.CG = window.CG || {};
     vulnerable: v => `易伤${v}`, weak: v => `虚弱${v}`, frail: v => `脆弱${v}`, poison: v => `中毒${v}`, curse: v => `咒言${v}`,
     loseHp: v => `失${v}血`, loseGold: v => `失${v}金`, losePower: v => `失${v}电`, clutter: v => `+${v}渣滓`,
     summon: v => `召唤${v}`, conjure: () => `造牌`, give: () => `食材`,
+    // 效果类型 ≠ 价值原子 id 的两个，单列；其余「操作/生成」类经 effLabel 的 bareName 兜底取中文
+    playFromDraw: v => `打出牌库顶${v > 1 ? ' ' + v : ''}`, socketRandom: v => `镶随机宝石${v > 1 ? ' ' + v : ''}`,
   };
   function effLabel(eff) {
-    let s = (EFF_LABEL[eff.type] || (() => eff.type))(eff.value);
+    let s;
+    if (EFF_LABEL[eff.type]) s = EFF_LABEL[eff.type](eff.value);
+    else if (CG.VALUE_ATOMS && CG.VALUE_ATOMS[eff.type]) s = CG.bareName(eff.type) + (eff.value != null ? ' ' + eff.value : '');   // 价值原子型（许愿/磷火/锻造…）：用中文裸名
+    else s = eff.type;
     if (eff.type === 'selfStatus') s = `自${(STATUS_META[eff.status] || {}).label || eff.status}${eff.value}`;
     if (eff.type === 'enemyStat') s = `敌${eff.key === 'dexterity' ? '敏捷' : '力量'}${eff.value}`;
     if (eff.minion) s = '召唤物' + s;
