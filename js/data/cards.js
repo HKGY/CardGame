@@ -44,10 +44,11 @@ window.CG = window.CG || {};
     scrap:   { name: '甲片',   cost: 0, type: 'skill',  kind: 'scrap',  icon: '🛡️' },             // 兵械包：0 费、获得 3(+强化)格挡、打出即消耗
     endsword:{ name: '终末之剑', cost: 2, type: 'attack', kind: 'endsword', icon: '⚔️' },          // 兵械包·锻造创造：2 费、造 10(+锻造)伤害(+招架格挡)、保留
     peek:    { name: '洞悉',   cost: 0, type: 'skill',  kind: 'peek',  icon: '🔮' },               // 机巧包：0 费、抽 2 张、打出即消耗
+    wisp:    { name: '磷火',   cost: 0, type: 'skill',  kind: 'wisp',  icon: '🟢' },               // 0 费、获得 1(+强化)能量、保留、打出即消耗
   };
   // 食材分类（随机生成用）
   CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'] };
-  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek')); };
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek' || b.kind === 'wisp')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -129,7 +130,7 @@ window.CG = window.CG || {};
     let potentN = 0;     // 放大包：翻倍（potent 是 playCard 加成）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen' };   // 注：vigor 走既有 vigorN 路径，不在此重复；v3.12 尸爆/催发/再生
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/洞悉强化/磷火强化
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
     all.forEach(({ def: d, level: rawL }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -321,7 +322,7 @@ window.CG = window.CG || {};
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
     // 新批价值字段（v3.6）：条件 × 这些价值时，按同一映射拆成效果 / 卡级字段（与 cardStats 一致）
-    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen' };
+    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp' };
     for (const k in NBE) if (f[k]) out.now.push({ type: NBE[k], value: f[k] });
     for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock']) if (f[k]) out[k] = (out[k] || 0) + f[k];
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
@@ -400,6 +401,7 @@ window.CG = window.CG || {};
   // 食材卡的「固定」stats（替代 cardStats 的宝石聚合）。返回与 cardStats 同结构的对象。
   CG.foodStats = function (inst) {
     const b = CG.BASE_CARDS[inst.base];
+    const mult = inst._mult || 1;   // 幻境：本回合生成的临时卡牌效果 ×(1+50%n)（向上取整）
     const s = {
       base: inst.base, baseName: b.name, cost: b.cost || 0, type: b.type, kind: b.kind || 'food',
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
@@ -424,12 +426,13 @@ window.CG = window.CG || {};
     } else if (b.kind === 'dross') {
       s.exhaust = true; s.baseText = '渣滓：打出无任何效果，打出即消耗（噩梦塞入）';
     } else if (b.kind === 'shiv') {
-      s.type = 'attack'; s.value = 4; s.exhaust = true; s.effects = [{ type: 'damage', value: 4 }]; s.baseText = '飞刀：造成 4 点伤害，打出即消耗';
+      const dmg = Math.ceil(4 * mult);
+      s.type = 'attack'; s.value = dmg; s.exhaust = true; s.effects = [{ type: 'damage', value: dmg }]; s.baseText = `飞刀：造成 ${dmg} 点伤害，打出即消耗`;
     } else if (b.kind === 'dagger') {
-      const dmg = 4 + (inst._bonus || 0);   // 兵械·匕首：基础 4 + 本场强化（_bonus 记在实例上、由 daggerUp 刷新）
+      const dmg = Math.ceil((4 + (inst._bonus || 0)) * mult);   // 兵械·匕首：基础 4 + 本场强化(_bonus 由 daggerUp 刷新) ×幻境
       s.type = 'attack'; s.kind = 'damage'; s.value = dmg; s.exhaust = true; s.effects = [{ type: 'damage', value: dmg }]; s.baseText = `匕首：造成 ${dmg} 点伤害，打出即消耗`;
     } else if (b.kind === 'scrap') {
-      const blk = 3 + (inst._bonus || 0);   // 兵械·甲片：基础 3 + 本场强化
+      const blk = Math.ceil((3 + (inst._bonus || 0)) * mult);   // 兵械·甲片：基础 3 + 本场强化 ×幻境
       s.type = 'skill'; s.kind = 'block'; s.value = blk; s.exhaust = true; s.effects = [{ type: 'block', value: blk }]; s.baseText = `甲片：获得 ${blk} 点格挡，打出即消耗`;
     } else if (b.kind === 'endsword') {
       const dmg = 10 + (inst._bonus || 0), blk = (inst._blk || 0);   // 兵械·终末之剑：10 + 锻造；招架给 _blk 格挡；2 费、保留、不消耗
@@ -437,7 +440,11 @@ window.CG = window.CG || {};
       s.effects = [{ type: 'damage', value: dmg }].concat(blk > 0 ? [{ type: 'block', value: blk }] : []);
       s.baseText = `终末之剑：造成 ${dmg} 点伤害${blk > 0 ? `、获得 ${blk} 格挡` : ''}，保留`;
     } else if (b.kind === 'peek') {
-      s.type = 'skill'; s.kind = 'skill'; s.exhaust = true; s.effects = [{ type: 'draw', value: 2 }]; s.baseText = '洞悉：抽 2 张牌，打出即消耗';
+      const d = Math.ceil((2 + (inst._bonus || 0)) * mult);   // 洞悉：基础抽 2 + peekUp 强化 ×幻境
+      s.type = 'skill'; s.kind = 'skill'; s.exhaust = true; s.effects = [{ type: 'draw', value: d }]; s.baseText = `洞悉：抽 ${d} 张牌，打出即消耗`;
+    } else if (b.kind === 'wisp') {
+      const e = Math.ceil((1 + (inst._bonus || 0)) * mult);   // 磷火：基础 +1 能量 + wispUp 强化(floor(_wispBonus)) ×幻境；保留 + 消耗
+      s.type = 'skill'; s.kind = 'skill'; s.retain = true; s.exhaust = true; s.value = e; s.effects = [{ type: 'energy', value: e }]; s.baseText = `磷火：获得 ${e} 点能量，保留，打出即消耗`;
     }
     return s;
   };

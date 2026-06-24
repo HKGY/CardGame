@@ -111,7 +111,7 @@ window.CG = window.CG || {};
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0;   // v3.6/3.7/3.8/3.12 新批战斗态（施加中毒次数 / 尸爆开关）
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0;   // v3.6/3.7/3.8/3.12/3.13 新批战斗态
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -152,7 +152,7 @@ window.CG = window.CG || {};
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
       this._keepBlock = 0;                      // 死守包·重甲：剩余「格挡不清空」回合数（打出重甲后 = 等级 N）
       this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0;   // v3.6/3.7/3.8/3.12 新批战斗态（施加中毒次数 / 尸爆开关）
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0;   // v3.6/3.7/3.8/3.12/3.13 新批战斗态
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -209,7 +209,7 @@ window.CG = window.CG || {};
       this._discardedThisTurn = 0;                 // 弃牌包·倾倒：本回合已丢弃牌数
       this._inspire = 0;                           // 律动·灵感：每回合重置（活力 _vigor 不在此重置＝跨回合保留）
       this._ampDebuff = 0; this._ampBuff = 0;      // 放大·倍损/倍益：每回合重置（「本回合」效果）
-      this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false;   // v3.6 本回合型门型/防御：每回合重置
+      this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._illusion = 0;   // v3.6/3.13 本回合型：每回合重置（幻境是本回合效果）
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -686,6 +686,7 @@ window.CG = window.CG || {};
     }
     _discard(card) { this.discardPile.push(card); this._discardedThisTurn = (this._discardedThisTurn || 0) + 1; }   // 弃牌包：丢 1 张并计数
     _refreshWeapon(base, bonus) { [...this.hand, ...this.drawPile, ...this.discardPile, ...this.exhaustPile].forEach(c => { if (c.base === base) c._bonus = bonus; }); }   // 兵械：强化时刷新所有该类临时牌的本场加成
+    _stampIllusion(card) { if (this._illusion > 0 && card) card._mult = (card._mult || 1) * (1 + this._illusion); return card; }   // v3.13 幻境：本回合生成的临时卡牌效果 ×(1+50%n)
     _refreshEndsword() { [...this.hand, ...this.drawPile, ...this.discardPile, ...this.exhaustPile].forEach(c => { if (c.base === 'endsword') { c._bonus = this._endswordDmg || 0; c._blk = this._endswordBlk || 0; } }); }   // 终末之剑：刷新所有处的伤害(锻造)/格挡(招架)加成
     // #45 每回合增益上限：增益类每回合效果最多 _everyCap 种；超出时把最旧的一种立即结算两次(本回合)并移除。代价类(失血等)不计入、不淘汰。
     _isEveryCost(eff) { return ['loseHp', 'loseGold', 'selfStatus', 'losePower', 'clutter', 'loseMinionHp'].includes(eff.type); }

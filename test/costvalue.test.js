@@ -665,12 +665,12 @@ test('#31 生成渣滓代价 / #30 渣滓牌(1费消耗)', () => {
 test('#32/#33/#36 终末之剑：锻造创造/+伤害、招架+格挡，2费保留', () => {
   let g = bt(); pg(g, [[{ id: 'energy_forge', level: 1 }]]);
   let es = g.hand.find(c => c.base === 'endsword'); assert.ok(es);
-  let s = CG.cardStats(es); assert.strictEqual(s.value, 11); assert.strictEqual(s.cost, 2); assert.strictEqual(s.retain, true);   // 10+1锻造
+  let s = CG.cardStats(es); assert.strictEqual(s.value, 16); assert.strictEqual(s.cost, 2); assert.strictEqual(s.retain, true);   // v3.13 锻造 +6：10+6
   g.player.energy = 30; const f2 = spell([{ id: 'energy_forge', level: 1 }]); g.hand.push(f2); g.playCard(f2.uid);
-  assert.strictEqual(CG.cardStats(g.hand.find(c => c.base === 'endsword')).value, 12);   // 再 +1
+  assert.strictEqual(CG.cardStats(g.hand.find(c => c.base === 'endsword')).value, 22);   // 再 +6
   assert.strictEqual(g.hand.filter(c => c.base === 'endsword').length, 1);   // 仍只 1 把（已存在则不再创造）
   g.player.energy = 30; const pa = spell([{ id: 'energy_parry', level: 1 }]); g.hand.push(pa); g.playCard(pa.uid);
-  assert.ok(CG.cardStats(g.hand.find(c => c.base === 'endsword')).effects.some(e => e.type === 'block' && e.value === 1));   // 招架 +1 格挡
+  assert.ok(CG.cardStats(g.hand.find(c => c.base === 'endsword')).effects.some(e => e.type === 'block' && e.value === 6));   // 招架 +6 格挡
 });
 
 test('#32a 保留：回合结束不丢弃', () => {
@@ -912,4 +912,35 @@ test('v3.12 每个价值/代价/条件原子都有归属主题（无孤儿）', 
   Object.keys(CG.VALUE_ATOMS).forEach(v => assert.ok(CG.valueHome[v], '价值原子 ' + v + ' 无归属'));
   Object.keys(CG.COST_REAL).forEach(c => assert.ok(c === 'energy' || CG.costHome[c], '代价原子 ' + c + ' 无归属'));
   Object.keys(CG.COST_COND).forEach(c => assert.ok(CG.condHome[c], '条件原子 ' + c + ' 无归属'));
+});
+
+// ===== v3.13：磷火/幻境/强化 + 时点化 =====
+test('v3.13 磷火卡 + 生成磷火/洞悉强化/磷火强化/幻境', () => {
+  // 磷火卡：0 费、+1 能量、保留、消耗
+  let g = bt(); g.player.energy = 2; const w = CG.makeFoodCard('wisp'); g.hand = [w]; g.playCard(w.uid);
+  assert.strictEqual(g.player.energy, 3); assert.ok(g.exhaustPile.some(c => c.uid === w.uid));
+  const ws = CG.foodStats(CG.makeFoodCard('wisp')); assert.strictEqual(ws.retain, true); assert.strictEqual(ws.exhaust, true);
+  // 生成磷火
+  g = bt(); pg(g, [[{ id: 'energy_makeWisp', level: 1 }]]); assert.strictEqual(g.hand.filter(c => c.base === 'wisp').length, 1);
+  // 洞悉强化 +1（洞悉抽 2→3）
+  g = bt(); pg(g, [[{ id: 'energy_peekUp', level: 1 }]]); const pk = CG.makeFoodCard('peek'); pk._bonus = g._peekBonus; assert.strictEqual(CG.cardStats(pk).effects[0].value, 3);
+  // 磷火强化 +0.5（2 级 → 磷火 +1 能量）
+  g = bt(); pg(g, [[{ id: 'energy_wispUp', level: 1 }]]); pg(g, [[{ id: 'energy_wispUp', level: 1 }]]); const wp = CG.makeFoodCard('wisp'); wp._bonus = Math.floor(g._wispBonus); assert.strictEqual(CG.cardStats(wp).effects[0].value, 2);
+  // 幻境：本回合生成的临时卡牌效果 +50%（向上取整）→ 匕首 4→6
+  g = bt(); pg(g, [[{ id: 'energy_illusion', level: 1 }]]); CG.Effects.apply(g, { type: 'makeDagger', value: 1 }, g.player);
+  assert.strictEqual(CG.cardStats(g.hand.find(c => c.base === 'dagger')).value, 6);
+});
+
+test('v3.13 锻造/招架 +6（1 能量校准）', () => {
+  assert.strictEqual(CG.affixValueText('energy_forge', 1), '终末之剑伤害 +6（不论它在何处；没有则创造一张加入手牌）');
+  assert.strictEqual(CG.affixValueText('energy_parry', 1), '终末之剑格挡 +6（不论它在何处）');
+});
+
+test('v3.13 指定原子已时点化（本/下/每回合变体存在且可结算）', () => {
+  ['forge', 'parry', 'vigor', 'wish', 'curse', 'expandEvery', 'recallDiscard', 'recycleDraw', 'playTopDraw', 'socketRand', 'keepBlockFull', 'makeDagger', 'makeScrap', 'makePeek', 'makeWisp', 'illusion'].forEach(b => {
+    assert.ok(CG.AFFIXES['energy_' + b + '_every'] && CG.AFFIXES['energy_' + b + '_next'], b + ' 应有 每回合/下回合 变体');
+  });
+  // 每回合生成匕首：打出后入 _everyTurn，回合开始重复结算
+  const g = bt(); pg(g, [[{ id: 'energy_makeDagger_every', level: 1 }]]);
+  assert.ok((g._everyTurn || []).some(e => e.type === 'makeDagger'));
 });
