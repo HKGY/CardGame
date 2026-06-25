@@ -90,7 +90,6 @@ window.CG = window.CG || {};
     ['endsword', 'temper',   '淬锋',   '🗡️', '终末之剑伤害 +3（无则创造一张加入手牌）', atomAct('forge', 3)],
     ['cook',     'sprout',   '采蔬',   '🥬', '生成 1 张草药', atomAct('food_veg', 1)],
     ['cook',     'hunt',     '狩猎',   '🍖', '生成 1 张兽血', atomAct('food_meat', 1)],
-    ['cook',     'spice',    '调味',   '🧂', '生成 1 张调料', atomAct('food_season', 1)],
     ['elements', 'ignite',   '火种',   '🔥', '给敌人附 1 层火（叠加可触发反应）', setAura('fire')],
     ['elements', 'douse',    '水沫',   '💧', '给敌人附 1 层水（叠加可触发反应）', setAura('water')],
     ['elements', 'jolt',     '电荷',   '🌩️', '给敌人附 1 层雷（叠加可触发反应）', setAura('thunder')],

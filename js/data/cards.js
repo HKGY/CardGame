@@ -31,9 +31,6 @@ window.CG = window.CG || {};
     fish:    { name: '鱼肉',   cost: 0, type: 'skill',  food: 'meat', level: 1, icon: '🐟' },
     chicken: { name: '鸡肉',   cost: 0, type: 'skill',  food: 'meat', level: 2, icon: '🍗' },
     beef:    { name: '牛肉',   cost: 0, type: 'skill',  food: 'meat', level: 3, icon: '🥩' },
-    salt:    { name: '盐',     cost: 0, type: 'skill',  food: 'season', season: 'salt',   icon: '🧂' },
-    soy:     { name: '酱油',   cost: 0, type: 'skill',  food: 'season', season: 'soy',    icon: '🍶' },
-    pepper:  { name: '胡椒',   cost: 0, type: 'skill',  food: 'season', season: 'pepper', icon: '🌶️' },
     spoiled_rice: { name: '馊饭', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'selfdmg', icon: '🍚' },
     stinky_meat:  { name: '臭肉', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'weak',    icon: '🥓' },
     rotten_veg:   { name: '烂菜', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'vuln',    icon: '🥬' },
@@ -47,7 +44,7 @@ window.CG = window.CG || {};
     wisp:    { name: '磷火',   cost: 0, type: 'skill',  kind: 'wisp',  icon: '🟢' },               // 0 费、获得 1(+强化)能量、保留、打出即消耗
   };
   // 食材分类（随机生成用）
-  CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'], season: ['salt', 'soy', 'pepper'] };
+  CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'] };
   CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek' || b.kind === 'wisp')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
@@ -375,8 +372,8 @@ window.CG = window.CG || {};
       default:          return { type: 'heal', value };
     }
   }
-  // 做菜：草药(必填) + 兽血(可选) + 调味料(可选) → 餐点 spec { effects, repeatTimes, name, desc, value }
-  CG.buildMeal = function (vegBase, meatBase, seasonBase) {
+  // 做菜：草药(必填) + 兽血(可选) → 餐点 spec { effects, repeatTimes, name, desc, value }
+  CG.buildMeal = function (vegBase, meatBase) {
     const veg = CG.BASE_CARDS[vegBase];
     let kind, label, value, name;
     if (meatBase) {
@@ -389,19 +386,8 @@ window.CG = window.CG || {};
       kind = 'heal'; label = '回复'; value = veg.level * 2;   // 只放草药 = 清炒，回复其等级 ×2
       name = `清炒${veg.name}`;
     }
-    let repeatTimes = 1, tag = '', nourish = 0;
-    if (seasonBase) {
-      const s = CG.BASE_CARDS[seasonBase].season;
-      if (s === 'salt')   { value *= 2;          tag = '·盐(过载)'; }     // 过载：数值 +100%
-      else if (s === 'soy')   { nourish = 1;     tag = '·酱油(滋养)'; }   // 滋养：餐点获得滋养1（治疗效率 +50%，本场持续）
-      else if (s === 'pepper') { repeatTimes = 2; tag = '·胡椒(重复)'; }  // 重复：结算 2 次
-    }
-    const effects = [];
-    if (nourish) effects.push({ type: 'selfStatus', status: 'nourish', value: nourish });   // 放主效果之前 → 本餐治疗也享受 +50%
-    effects.push(recipeEffect(kind, value));
-    const times = repeatTimes > 1 ? ` ×${repeatTimes}` : '';
-    const desc = `${nourish ? '滋养 1，' : ''}${label} ${value}${times}（餐点·0费消耗）`;
-    return { effects, repeatTimes, value, name: name + tag, desc };
+    const desc = `${label} ${value}（餐点·0费消耗）`;
+    return { effects: [recipeEffect(kind, value)], repeatTimes: 1, value, name, desc };
   };
 
   // 食材卡的「固定」stats（替代 cardStats 的宝石聚合）。返回与 cardStats 同结构的对象。
@@ -418,9 +404,8 @@ window.CG = window.CG || {};
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };
-    if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选兽血/调料做成餐点（不选则＝回复 ${b.level}）`; }
+    if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选兽血做成餐点（不选则＝回复 ${b.level}）`; }
     else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（做菜时可当兽血）`; }
-    else if (b.food === 'season') { s.kind = 'season'; s.noPlay = true; const m = { salt: '过载1', soy: '滋养1', pepper: '重复1' }; s.baseText = `调味料·不能单独吃；做菜时让餐点获得「${m[b.season]}」`; }
     if (b.kind === 'spoiled') {
       s.noPlay = true;
       const m = { selfdmg: '回合结束失去 2 生命', weak: '回合结束自身虚弱 2', vuln: '回合结束自身易伤 2' };

@@ -130,7 +130,6 @@ window.CG = window.CG || {};
     broken_hilt: { name: '残柄', icon: '🗡️', pack: 'endsword', desc: '【价值】开局：锻造出一柄终末之剑', battleStart: fx('forge', 1) },
     veg_basket: { name: '菜篮', icon: '🥬', pack: 'cook', desc: '【价值】首回合：获得 1 张草药', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('veg', 1); } },
     meat_hook: { name: '肉钩', icon: '🍖', pack: 'cook', desc: '【价值】首回合：获得 1 张兽血', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('meat', 1); } },
-    spice_rack: { name: '香料架', icon: '🧂', pack: 'cook', desc: '【价值】首回合：获得 1 张调料', firstTurn: b => { if (b.giveFoodCard) b.giveFoodCard('season', 1); } },
     fire_opal: { name: '火蛋白石', icon: '🔥', pack: 'elements', desc: '【价值】开局：给敌人附 1 层火', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'fire', 1); } },
     water_pearl: { name: '水之珠', icon: '💧', pack: 'elements', desc: '【价值】开局：给敌人附 1 层水', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'water', 1); } },
     storm_shard: { name: '风暴碎片', icon: '🌩️', pack: 'elements', desc: '【价值】开局：给敌人附 1 层雷', battleStart: b => { if (b.enemy) b._setAura(b.enemy, 'thunder', 1); } },

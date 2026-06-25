@@ -661,8 +661,7 @@ window.CG = window.CG || {};
       $('screen-battle').appendChild(ov);
     }
     if (game.craft) {
-      const step = game.craft.step;
-      const title = step === 'meat' ? '🍳 做菜 · 选择兽血（与草药同炖）' : '🍳 做菜 · 选择调味料';
+      const title = '🍳 做菜 · 选择兽血（与草药同炖）';
       const cands = game.craftCandidates();
       const cards = cands.length
         ? cands.map(c => cardFace(c, { clickable: true, data: { craft: c.uid } })).join('')

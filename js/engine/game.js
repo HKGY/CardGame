@@ -333,7 +333,7 @@ window.CG = window.CG || {};
       if (idx === -1) return;
       const card = this.hand[idx];
       let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
-      if (s.noPlay) { this.addLog(`${s.name} 不能直接打出。`); this._emit(); return; }   // 调味料 / 腐坏卡
+      if (s.noPlay) { this.addLog(`${s.name} 不能直接打出。`); this._emit(); return; }   // 腐坏卡
       if (s.kind === 'veg') return this._startCraft(card);             // 草药 → 进入做菜
       if (idx < (this._paralyze || 0)) { this.addLog(`麻痹：最左 ${this._paralyze} 张牌本回合无法打出。`); this._emit(); return; }
       // 资源：改造(超频)→改用电力付费(耗能×N)、数值×N；否则走能量(回响可免费)
@@ -539,26 +539,23 @@ window.CG = window.CG || {};
     }
 
     // ---------- 厨艺：做菜 ----------
-    // 打出草药 → 进入做菜：先选兽血(可跳过)，再选调味料(可跳过)，做成「餐点」进手牌。
+    // 打出草药 → 进入做菜：选兽血(可跳过)，做成「餐点」进手牌。
     _startCraft(vegCard) {
-      this.craft = { vegUid: vegCard.uid, step: 'meat', meatUid: null, seasonUid: null };
+      this.craft = { vegUid: vegCard.uid, step: 'meat', meatUid: null };
       this.addLog('开始做菜：选择兽血（可跳过）。');
       this._emit();
     }
-    craftCandidates() {                          // 给 UI：当前步可选的手牌
+    craftCandidates() {                          // 给 UI：当前可选的手牌（兽血）
       if (!this.craft) return [];
-      const cat = this.craft.step === 'meat' ? 'meat' : 'season';
-      return this.hand.filter(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === cat; });
+      return this.hand.filter(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === 'meat'; });
     }
-    craftChoose(uid) {                           // uid=null 跳过本步；选中则记录并推进
+    craftChoose(uid) {                           // uid=null 跳过（清炒）；选中兽血则做菜
       if (!this.craft) return;
-      const cat = this.craft.step === 'meat' ? 'meat' : 'season';
       if (uid != null) {
         const c = this.hand.find(x => x.uid === uid);
-        if (!c || CG.BASE_CARDS[c.base].food !== cat) return;          // 非法选择：忽略
-        if (this.craft.step === 'meat') this.craft.meatUid = uid; else this.craft.seasonUid = uid;
+        if (!c || CG.BASE_CARDS[c.base].food !== 'meat') return;       // 非法选择：忽略
+        this.craft.meatUid = uid;
       }
-      if (this.craft.step === 'meat') { this.craft.step = 'season'; this.addLog('选择调味料（可跳过）。'); this._emit(); return; }
       this._finishCraft();
     }
     craftCancel() { this.craft = null; this.addLog('取消了做菜。'); this._emit(); }   // 放回草药，不消耗
@@ -566,14 +563,13 @@ window.CG = window.CG || {};
       const cr = this.craft; this.craft = null;
       const veg = this.hand.find(c => c.uid === cr.vegUid);
       const meat = cr.meatUid != null ? this.hand.find(c => c.uid === cr.meatUid) : null;
-      const season = cr.seasonUid != null ? this.hand.find(c => c.uid === cr.seasonUid) : null;
       const vegBase = veg ? veg.base : 'tomato';
-      [cr.vegUid, cr.meatUid, cr.seasonUid].forEach(u => {            // 消耗原料：移出手牌 → 消耗堆
+      [cr.vegUid, cr.meatUid].forEach(u => {                          // 消耗原料：移出手牌 → 消耗堆
         if (u == null) return;
         const i = this.hand.findIndex(c => c.uid === u);
         if (i >= 0) this.exhaustPile.push(this.hand.splice(i, 1)[0]);
       });
-      const spec = CG.buildMeal(vegBase, meat ? meat.base : null, season ? season.base : null);
+      const spec = CG.buildMeal(vegBase, meat ? meat.base : null);
       const mealCard = CG.makeFoodCard('meal', spec);
       if (this.hand.length < HAND_LIMIT) this.hand.push(mealCard); else this.discardPile.push(mealCard);
       this.addLog(`做好了「${spec.name}」。`);
@@ -583,7 +579,7 @@ window.CG = window.CG || {};
     giveFoodCard(what, count) {                   // 获得食材卡（进手牌；满则进弃牌堆）
       count = count || 1;
       for (let k = 0; k < count; k++) {
-        const base = (what === 'veg' || what === 'meat' || what === 'season') ? CG.randomFood(what) : what;
+        const base = (what === 'veg' || what === 'meat') ? CG.randomFood(what) : what;
         const c = CG.makeFoodCard(base);
         if (this.hand.length < HAND_LIMIT) this.hand.push(c); else this.discardPile.push(c);
       }

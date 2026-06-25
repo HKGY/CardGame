@@ -144,7 +144,7 @@ window.CG = window.CG || {};
     },
     onPlayCard(uid) { if (battle) battle.playCard(uid); },
     onUseTarot(i) { useTarot(i); },
-    onCraftPick(uid) { if (battle) battle.craftChoose(uid); },   // 厨艺做菜：选兽血 / 调味料（null=跳过）
+    onCraftPick(uid) { if (battle) battle.craftChoose(uid); },   // 做菜：选兽血（null=跳过/清炒）
     onCraftCancel() { if (battle) battle.craftCancel(); },
     onPickCard(uid) { if (battle) battle.pickResolve(uid); },    // 消耗包：燃烧/重生 选牌（null=跳过）
     onDebugWin() { if (battle) battle.debugWin(); },   // 调试按钮：直接赢得本场战斗

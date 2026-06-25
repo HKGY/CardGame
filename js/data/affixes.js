@@ -62,7 +62,7 @@ window.CG = window.CG || {};
     vulnerable: '使敌人获得 {n} 点易伤', weak: '使敌人获得 {n} 点虚弱', frail: '使敌人获得 {n} 点脆弱', poison: '使敌人获得 {n} 点中毒',
     thorns: '获得 {n} 点荆棘', conjure: '生成 1 张带 {n} 颗随机宝石的牌（本回合 0 费）', summon: '召唤骷髅或使其血量上限增加 {n}',
     strength: '获得 {n} 点力量', dexterity: '获得 {n} 点敏捷', enemyLoseStr: '使敌人失去 {n} 点力量', enemyLoseDex: '使敌人失去 {n} 点敏捷',
-    food_veg: '生成 {n} 张草药', food_meat: '生成 {n} 张兽血', food_season: '生成 {n} 张调料',
+    food_veg: '生成 {n} 张草药', food_meat: '生成 {n} 张兽血',
     heal: '回复 {n} 点生命', fire: '给敌人附 {n} 层火', water: '给敌人附 {n} 层水', thunder: '给敌人附 {n} 层雷', ice: '给敌人附 {n} 层冰',
     mult: '本牌伤害/格挡/治疗 ×{n}', lifesteal: '吸血 {n}%', combo: '本牌攻击额外命中 {n} 次', multi: '消耗全部能量，整张牌打出等同能量的次数',
     copyDiscard: '将这张牌复制 {n} 份到弃牌堆', recallDiscard: '将弃牌堆中 {n} 张牌加入手牌', recycleDraw: '将弃牌堆中 {n} 张牌洗回抽牌堆',
@@ -190,7 +190,6 @@ window.CG = window.CG || {};
     summon:     sched(1.5, v => ({ type: 'summon', value: v }), v => ({ summon: v }), { now: 'summon', next: 'summon_next', every: 'summon_every' }, '召唤物', { num: true, prim: 'now', color: COLOR.summon }),   // 召唤/壮大单骷髅(血量上限 n)
     food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, '草药', { maxCount: 1, color: COLOR.food }),
     food_meat:  sched(2.0, v => ({ type: 'give', what: 'meat', value: v }), () => ({ give: 'meat' }), { now: 'food_meat', next: 'food_meat_next', every: 'food_meat_every' }, '兽血', { maxCount: 1, color: COLOR.food }),
-    food_season:sched(2.0, v => ({ type: 'give', what: 'season', value: v }), () => ({ give: 'season' }), { now: 'food_season', next: 'food_season_next', every: 'food_season_every' }, '调料', { maxCount: 1, color: COLOR.food }),
     strength:   statB(1.5, v => ({ prepare: v }), v => ({ addStr: v }), v => ({ type: 'tempStrength', value: v }), { now: 'tempStr', next: 'strength_next', every: 'strength' }, '力量', COLOR.strength),
     dexterity:  statB(1.5, v => ({ prepDex: v }), v => ({ addDex: v }), v => ({ type: 'tempDexterity', value: v }), { now: 'tempDex', next: 'dexterity_next', every: 'dexterity' }, '敏捷', COLOR.dexterity),
     enemyLoseStr: statB(1.5, v => ({ enemyStr: v, enemyTemp: true }), v => ({ enemyStr: v }), v => ({ type: 'enemyStat', key: 'strength', value: v, temp: true }), { now: 'enemyLoseStrTemp', next: 'enemyLoseStr_next', every: 'enemyLoseStr' }, '敌失力量', COLOR.enemyLoseStr),
@@ -548,8 +547,8 @@ window.CG = window.CG || {};
     scrap:    P('甲片包', '🛡️', '#a8b0c0', '生成（本/下/每回合）/ 强化甲片。', ['makeScrap', 'makeScrap_next', 'makeScrap_every', 'scrapUp'], [], ['scrapPlayed']),
     endsword: P('终末之剑包', '🗡️', '#d0c060', '锻造（增伤）/ 招架（增格挡，本/下/每回合），刷新终末之剑。', ['forge', 'forge_next', 'forge_every', 'parry', 'parry_next', 'parry_every']),
     wisp:     P('磷火包', '🟢', '#9ee0a0', '生成磷火(0费得能量保留消耗，本/下/每回合) + 磷火强化 + 幻境(本回合临时牌效果+50%)。', ['makeWisp', 'makeWisp_next', 'makeWisp_every', 'wispUp', 'illusion', 'illusion_next', 'illusion_every']),
-    // 厨艺：草药+兽血+调料合一（做菜需荤+素配合，拆开无法成菜）
-    cook:     P('魔药包', '⚗️', '#b07ad0', '药材（草药 / 兽血 / 调料）：草药+兽血做成餐点。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
+    // 魔药：草药+兽血合一（做菜需荤+素配合，拆开无法成菜）
+    cook:     P('魔药包', '⚗️', '#b07ad0', '药材（草药 / 兽血）：草药+兽血做成餐点。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every']),
     // 元素：火/水/雷/冰合一（反应需 ≥2 种元素，拆开无法触发反应）
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发元素反应。', ['fire', 'water', 'thunder', 'ice']),
     // ===== 时点修饰词包（v3.14）=====：自身不带价值；选了它，本局其它已选主题的价值才获得对应「下回合/每回合」变体。
