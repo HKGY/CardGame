@@ -218,8 +218,9 @@ test('遗物修正：幸运脚（宝石词条≥2）、Steam（商店半价）',
   assert.equal(run.shopMult(), 0.5);
 });
 
-test('开局随机卡包：基础包 + 按内容量(size)随机加主题直到达标；本局只在这几个里出包', () => {
-  const run = newRun('packs-run');
+test('开局随机卡包(旅者)：基础包 + 按内容量(size)随机加主题直到达标；本局只在这几个里出包', () => {
+  CG.RNG.seed('packs-run');
+  const run = new CG.Run('traveler');   // 旅者 packs:null → 随机 rollRunPacks（其它职业用固定包组合）
   assert.ok(run.packs.length >= 2, '至少基础 + 几个主题');
   assert.equal(new Set(run.packs).size, run.packs.length, '不重复');
   assert.ok(run.packs.includes('basic'), '必含基础包');
@@ -234,6 +235,28 @@ test('开局随机卡包：基础包 + 按内容量(size)随机加主题直到�
   const f = CG.fusionPack();
   fusionFromThemes(run.packs, f);   // 校验：每个融合词条的 代价/条件 与 价值 都来自选定主题
 });
+
+test('职业系统：每职业一套合法包组合 + 初始牌组；旅者随机', () => {
+  const ids = Object.keys(CG.CLASSES);
+  assert.ok(ids.length >= 16, '至少 16 个职业');
+  for (const id of ids) {
+    const c = CG.CLASSES[id];
+    // 包：旅者 packs:null（随机）；其余固定且都是合法 id、不含 fusion/修饰词包专属问题
+    if (id !== 'traveler') { assert.ok(c.packs && c.packs.length, id + ' 应有固定包'); c.packs.forEach(p => assert.ok(CG.PACKS[p], id + ' 的包 ' + p + ' 合法')); }
+    const packs = CG.classPacks(id);
+    assert.ok(packs.includes('basic'), id + ' classPacks 必含 basic');
+    // 牌组：长度 = deck 三数之和；元素都是合法卡
+    const deck = CG.buildDeck(id);
+    const d = c.deck || [5, 5, 0];
+    assert.strictEqual(deck.length, d[0] + d[1] + (d[2] || 0), id + ' 牌组数对');
+    deck.forEach(card => assert.ok(CG.cardStats(card), id + ' 牌组卡合法'));
+  }
+  // 选定职业 → Run 用其包组合（非随机）
+  CG.RNG.seed('cls'); const r = new CG.Run('rogue');
+  assert.deepStrictEqual(new Set(r.packs.filter(p => p !== 'basic')), new Set(CG.CLASSES.rogue.packs));
+  CG.setActivePacks(null);
+});
+
 // 融合包＝选定主题 values(now)/costs/conds 并集的交叉积；选了修饰词包则按映射加入对应 下/每回合 变体。
 function fusionFromThemes(packIds, f) {
   const valueSet = new Set(packIds.flatMap(id => CG.PACKS[id].values || []));

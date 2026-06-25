@@ -601,17 +601,37 @@ window.CG = window.CG || {};
 
   // ---------- 职业 / 初始牌组 ----------
   CG.CLASS_IDS = ['warrior', 'shield', 'priest'];
+  // 职业 = 一套固定主题包组合(packs) + 初始牌组(deck:[打击,格挡,治疗])。旅者 packs:null → 随机。
+  //   注：⭐姿态(stance)/预见(foresight)/变化(transform) 等新机制待建，相关职业先用现有包，建好后再并入 packs。
   CG.CLASSES = {
-    warrior: { name: '战士', icon: '⚔️', desc: '5 攻击法术 + 5 格挡法术；攻守均衡。', shopCard: 'spell' },
-    shield:  { name: '盾兵', icon: '🛡️', desc: '4 攻击 + 6 格挡法术；侧重防守。', shopCard: 'spell' },
-    priest:  { name: '牧师', icon: '✚',  desc: '4 攻击 + 4 格挡 + 2 治疗法术；续航流。', shopCard: 'spell' },
+    warrior:    { name: '战士',   icon: '⚔️', desc: '攻守均衡；以易伤压制。', deck: [5, 5, 0], packs: ['vuln', 'power', 'block', 'strength', 'combo'] },
+    berserker:  { name: '狂战士', icon: '🪓', desc: '牺牲防御换强大进攻，可耗血换增益。', deck: [7, 3, 0], packs: ['power', 'blood', 'amplify', 'assault', 'combo'] },
+    knight:     { name: '骑士',   icon: '🛡️', desc: '身披重甲，挥舞终末之剑。', deck: [4, 6, 0], packs: ['endsword', 'ward', 'block', 'thorns', 'immune'] },
+    leader:     { name: '领袖',   icon: '🚩', desc: '不断强化自身的增益型职业。', deck: [5, 5, 0], packs: ['strength', 'dexterity', 'vitality', 'enhance', 'hold'] },
+    monk:       { name: '僧侣',   icon: '🧘', desc: '强力近战，以姿态切换战术。', deck: [6, 4, 0], packs: ['power', 'combo', 'energy', 'strength', 'block'] },
+    rogue:      { name: '盗贼',   icon: '🗡️', desc: '灵巧：毒液、匕首与甲片。', deck: [6, 4, 0], packs: ['poison', 'dagger', 'scrap', 'spread', 'sapdex'] },
+    archer:     { name: '射手',   icon: '🏹', desc: '擅长计划：弃牌与下回合的运转。', deck: [5, 5, 0], packs: ['draw', 'pile', 'nextMod', 'energy', 'cycle'] },
+    tech:       { name: '科技',   icon: '🔌', desc: '电力与每回合的引擎。', deck: [5, 5, 0], packs: ['elec', 'everyMod', 'cycle', 'energy', 'conjure'] },
+    mage:       { name: '法师',   icon: '🔮', desc: '元素与减益的法术大师。', deck: [6, 4, 0], packs: ['elements', 'vuln', 'weak', 'frail', 'sorcery'] },
+    healer:     { name: '医师',   icon: '✚',  desc: '治疗续航 + 永久强化。', deck: [3, 4, 3], packs: ['vitality', 'enhance', 'block', 'ward', 'hold'] },
+    warlock:    { name: '巫灵',   icon: '⚗️', desc: '魔药、灾厄与灵魂的巫术。', deck: [5, 5, 0], packs: ['cook', 'curse', 'soul', 'blood', 'ash'] },
+    diviner:    { name: '占卜',   icon: '🌠', desc: '预言未来：许愿与预见。', deck: [4, 6, 0], packs: ['divine', 'soul', 'conjure', 'flow', 'draw'] },
+    summoner:   { name: '召唤',   icon: '💀', desc: '召唤亡者，散布灾厄。', deck: [4, 6, 0], packs: ['summon', 'curse', 'blood', 'sapstr', 'poison'] },
+    illusionist:{ name: '幻惑',   icon: '🎭', desc: '幻术与变化之术。', deck: [5, 5, 0], packs: ['conjure', 'wisp', 'amplify', 'sorcery', 'divine'] },
+    demon:      { name: '恶魔',   icon: '😈', desc: '消耗与灼烧的恶魔之力。', deck: [6, 4, 0], packs: ['ash', 'burn', 'blood', 'curse', 'immune'] },
+    traveler:   { name: '旅者',   icon: '🎒', desc: '随机应变：随机的初始卡包。', deck: [5, 5, 0], packs: null },
+  };
+  // 本局可用包：职业指定则用其 packs（恒含 basic）；旅者/未指定 → 随机 rollRunPacks。
+  CG.classPacks = function (cls) {
+    const c = CG.CLASSES[cls];
+    if (!c || !c.packs || !c.packs.length) return CG.rollRunPacks();
+    return ['basic'].concat(c.packs.filter(id => CG.PACKS[id] && id !== 'basic'));
   };
   // 按职业构建初始牌组：每张卡＝空法术 + 一颗「无代价首石」+ 1 个空孔（可镶第二颗，付代价/均摊）。
   CG.buildDeck = function (cls) {
+    const d = (CG.CLASSES[cls] && CG.CLASSES[cls].deck) || [5, 5, 0];
     const gemmed = valId => CG.makeCard('spell', 2, [CG.makeGem([{ id: valId, level: 1 }])]);
     const rep = (valId, n) => Array.from({ length: n }, () => gemmed(valId));
-    if (cls === 'shield') return [...rep(CG.STRIKE, 4), ...rep(CG.GUARD, 6)];
-    if (cls === 'priest') return [...rep(CG.STRIKE, 4), ...rep(CG.GUARD, 4), ...rep(CG.HEAL, 2)];
-    return [...rep(CG.STRIKE, 5), ...rep(CG.GUARD, 5)];   // warrior（默认）
+    return [...rep(CG.STRIKE, d[0]), ...rep(CG.GUARD, d[1]), ...rep(CG.HEAL, d[2] || 0)];
   };
 })(window.CG);

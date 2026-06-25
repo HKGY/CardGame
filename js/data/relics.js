@@ -111,7 +111,8 @@ window.CG = window.CG || {};
     // 节奏 / 牌库
     free_ticket: { name: '免费票', icon: '🎟️', pack: 'flow', desc: '【价值】每回合开始：接下来 1 张牌免费打出', onTurnStart: b => { b.freeCards = (b.freeCards || 0) + 1; } },
     top_hat: { name: '高礼帽', icon: '🎩', pack: 'conjure', desc: '【价值】首回合：生成 1 张带随机宝石的牌', firstTurn: fx('conjure', 1) },
-    crystal_ball: { name: '水晶球', icon: '🌠', pack: 'divine', desc: '【价值】首回合：生成 2 张灵魂到抽牌堆', firstTurn: fx('makePeek', 2) },
+    crystal_ball: { name: '水晶球', icon: '🔮', pack: 'soul', desc: '【价值】首回合：生成 2 张灵魂到抽牌堆', firstTurn: fx('makePeek', 2) },
+    wish_charm: { name: '祈愿符', icon: '🌠', pack: 'divine', desc: '【价值】首回合：从抽牌堆选择 1 张加入手牌', firstTurn: fx('wish', 1) },
     twin_mirror: { name: '双子镜', icon: '🪄', pack: 'sorcery', desc: '【价值】首回合：复制 1 张随机手牌', firstTurn: fx('duplicate', 1) },
     dumpster_key: { name: '废料钥匙', icon: '📚', pack: 'pile', desc: '【价值】每回合开始：从弃牌堆取回 1 张牌', onTurnStart: b => { if (b.discardPile.length && b.hand.length < 10) b.hand.push(b.discardPile.pop()); } },
     grindstone: { name: '砂轮', icon: '📈', pack: 'enhance', desc: '【价值】开局：牌库所有攻击牌伤害永久 +1', battleStart: fx('mindblast', 1) },

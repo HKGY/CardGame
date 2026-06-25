@@ -99,12 +99,13 @@ window.CG = window.CG || {};
     run.onChange(route);
     route();
   }
-  // 读取种子输入、选择职业后开始；packs=调试菜单手动选的卡包（从开始菜单传入）
-  function chooseClassAndStart(packs, enemyM) {
-    // 职业 / 卡组选择暂时禁用：默认「战士」直接开始（保留 CLASSES/buildDeck 备用）
+  // 读取种子输入、选择职业后开始；packs=菜单选的卡包；cls=选定职业（决定牌组；不选则战士）
+  let lastClass = 'warrior';
+  function chooseClassAndStart(packs, enemyM, cls) {
     if (enemyM != null) lastEnemyM = enemyM;     // 记住本次难度，重开（onRestart 不带参）时沿用
+    if (cls && CG.CLASSES[cls]) lastClass = cls; // 记住职业，重开时沿用
     const seedEl = document.getElementById('seed-input');
-    newRun('warrior', seedEl ? seedEl.value : '', { packs: packs, enemyM: lastEnemyM });
+    newRun(lastClass, seedEl ? seedEl.value : '', { packs: packs, enemyM: lastEnemyM });
   }
 
   // 使用一张塔罗牌（战斗 / 地图通用）
@@ -164,7 +165,7 @@ window.CG = window.CG || {};
     setupMute();
     CG.UI.init(battleHandlers);
     CG.Screens.init({
-      onStart:        (packs, enemyM) => chooseClassAndStart(packs, enemyM),
+      onStart:        (packs, enemyM, cls) => chooseClassAndStart(packs, enemyM, cls),
       onSelectNode:   node => run.selectNode(node),
       onChooseReward: spec => run.chooseReward(spec),
       onTakeTarot:    () => run.takeTarot(),

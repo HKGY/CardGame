@@ -18,6 +18,7 @@ window.CG = window.CG || {};
   let lastRewardPending = null;
   let debugPacks = new Set(); // 开始菜单：本局选定的主题（默认＝基础 + 3 随机，可自选；全部融合成一个融合包）
   let menuPacksInit = false;  // 首次渲染菜单时把默认主题填进去
+  let selectedClass = 'warrior';   // 开始菜单·选定职业（决定初始牌组 + 主题包组合）
   let selectedM = null;       // 开始菜单·敌人难度倍率（首次渲染时取 config 默认 0.7）
   let debugGem = [];          // 调试菜单·自定义宝石：构建中的词条 [{id, level}]
   let debugCost = 'energy', debugValue = 'damage', debugLevel = 1;   // 自选组合：当前选中的 代价/价值/等级原子
@@ -114,7 +115,11 @@ window.CG = window.CG || {};
   function renderMenuDebug() {
     const box = $('menu-debug');
     if (!box) return;
-    if (!menuPacksInit) { debugPacks = new Set(CG.rollRunPacks()); menuPacksInit = true; }   // 默认：基础 + 3 随机主题
+    if (!menuPacksInit) { debugPacks = new Set(CG.classPacks(selectedClass)); menuPacksInit = true; }   // 默认：选定职业(战士)的包组合
+    const classBtns = Object.keys(CG.CLASSES).map(id => {
+      const c = CG.CLASSES[id];
+      return `<button class="class-opt ${id === selectedClass ? 'on' : ''}" data-class="${id}" title="${c.desc}">${c.icon} ${c.name}</button>`;
+    }).join('');
     const toggles = (CG.PACK_IDS || []).filter(id => id !== 'fusion').map(id => {
       const p = CG.PACKS[id];
       return `<button class="pack-toggle ${debugPacks.has(id) ? 'on' : ''}" data-pack="${id}" style="--pk:${p.color}" title="${p.desc}">${p.icon} ${p.name}</button>`;
@@ -124,7 +129,9 @@ window.CG = window.CG || {};
     const diffBtns = ((CG.CONFIG.difficulty && CG.CONFIG.difficulty.options) || [1])
       .map(v => `<button class="diff-opt ${v === m ? 'on' : ''}" data-diff="${v}">${(+v).toFixed(1)}</button>`).join('');
     box.innerHTML =
-      `<div class="menu-debug-head">⚔️ <b>敌人强度</b> M（敌人血量/伤害/力量等 ×M，越低越易；默认 0.7）</div>
+      `<div class="menu-debug-head">🎓 选择<b>职业</b>（决定初始牌组 + 本局主题包组合；可在下方微调主题）</div>
+       <div class="menu-class-opts">${classBtns}</div>
+       <div class="menu-debug-head">⚔️ <b>敌人强度</b> M（敌人血量/伤害/力量等 ×M，越低越易；默认 0.7）</div>
        <div class="menu-diff-opts">${diffBtns}</div>
        <div class="menu-debug-head">🎴 选择本局<b>主题</b>（选定的主题会融合成一个「融合包」，本局所有扩充包都从中混合产出）</div>
        <div class="menu-debug-packs">${toggles}</div>
@@ -137,6 +144,8 @@ window.CG = window.CG || {};
     syncMenuStart();
   }
   function onMenuDebugClick(ev) {
+    const ct = ev.target.closest('[data-class]');
+    if (ct) { selectedClass = ct.dataset.class; debugPacks = new Set(CG.classPacks(selectedClass)); CG.Audio.play('select'); return renderMenuDebug(); }   // 选职业 → 填入其包组合
     const dt = ev.target.closest('[data-diff]');
     if (dt) { selectedM = +dt.dataset.diff; CG.Audio.play('select'); return renderMenuDebug(); }
     const t = ev.target.closest('[data-pack]');
@@ -231,11 +240,11 @@ window.CG = window.CG || {};
   function startGame() {
     const packs = getSelectedPacks();
     const m = getSelectedM();
-    if (REDUCE) { H.onStart(packs, m); return; }
+    if (REDUCE) { H.onStart(packs, m, selectedClass); return; }
     const menu = $('screen-menu');
     menu.classList.add('menu-exit');
     pendingMapRise = true;
-    setTimeout(() => { menu.classList.remove('menu-exit'); H.onStart(packs, m); }, 380);
+    setTimeout(() => { menu.classList.remove('menu-exit'); H.onStart(packs, m, selectedClass); }, 380);
   }
 
   // ---------- 百科大全 ----------
