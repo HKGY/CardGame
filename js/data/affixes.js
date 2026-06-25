@@ -42,6 +42,7 @@ window.CG = window.CG || {};
     hp: 3.0, gold: 1.0, discard: 3.0, maxhp: 1.0, exhaustCard: 6.0, losePower: 1.0, makeDross: 6.0, ethereal: 3.0, minionHp: 1.5,   // ethereal＝虚无(回合末未打出则消耗)；minionHp＝消耗召唤物血量
     selfVuln: 2.0, selfWeak: 2.0, selfFrail: 2.0,     // 自身减益代价（2VP/层）
     loseStr: 3.0, loseDex: 3.0,                       // 扣自身力量/敏捷（可为负，真代价）
+    leaveStance: 6.0, dieNextTurn: 30.0,              // v3.15 僧侣·姿态代价：离开姿态 / 下回合死亡
   };
   CG.VALUES = V;
 
@@ -293,6 +294,8 @@ window.CG = window.CG || {};
     selfFrail: { name: '自脆弱', fmt: n => `自脆弱 ${n}`, status: 'frail', time: true },
     loseStr:   { name: '失力量', fmt: n => `失 ${n} 力量` },
     loseDex:   { name: '失敏捷', fmt: n => `失 ${n} 敏捷` },
+    leaveStance:{ name: '离开姿态', fmt: () => '离开姿态' },        // v3.15 僧侣：打出时离开当前姿态（无姿态则无效）
+    dieNextTurn:{ name: '下回合死亡', fmt: () => '下回合死亡' },    // v3.15 僧侣：下回合开始时死亡（巨大代价 30VP）
   };
   // 条件原子：cond=true（不扣真资源）；qty=战斗中取「当前量」的键（playCard 求值）；vp=每单位条件量的 VP。
   //  量型：价值量 = floor(条件当前量 × 条件VP/价值VP × 等级)（与普通资源同一套「代价→价值」换算）。
@@ -545,7 +548,7 @@ window.CG = window.CG || {};
     soul:     P('灵魂包', '🔮', '#9a7ad0', '生成灵魂(0费抽2消耗) + 灵魂强化。', ['makePeek', 'makePeek_next', 'makePeek_every', 'peekUp'], [], ['peekPlayed']),
     foresight:P('预见包', '👁️', '#8a9ad8', '预见：看抽牌堆顶 n 张，任选丢入弃牌堆。', ['foresight'], [], ['foresightTurn']),
     transform:P('变化包', '🎭', '#c08ad0', '变化：手牌变成同结构随机新牌 / 变成模仿打击·防御·重击。', ['transform', 'mimicry']),
-    stance:   P('姿态包', '🧘', '#e0a040', '进入愤怒(伤害翻倍)/宁静(离开+2能量) + 箴言(满10进神格)。', ['enterRage', 'enterSerenity', 'maxim'], [], ['inStance']),
+    stance:   P('姿态包', '🧘', '#e0a040', '进入愤怒(伤害翻倍)/宁静(离开+2能量) + 箴言(满10进神格)；代价：离开姿态/下回合死亡。', ['enterRage', 'enterSerenity', 'maxim'], ['leaveStance', 'dieNextTurn'], ['inStance']),
     sorcery:  P('术法包', '🪄', '#c59ad8', '复制手牌 / 心灵震慑 / 复制到弃牌。', ['duplicate', 'mindblast', 'copyDiscard']),
     pile:     P('牌术包', '📚', '#8fbcd0', '弃牌回手 / 洗回库 / 打出牌库顶 / 镶随机宝石（本/下/每回合）。', ['recallDiscard', 'recallDiscard_next', 'recallDiscard_every', 'recycleDraw', 'recycleDraw_next', 'recycleDraw_every', 'playTopDraw', 'playTopDraw_next', 'playTopDraw_every', 'socketRand', 'socketRand_next', 'socketRand_every']),
     enhance:  P('强化包', '📈', '#c8a86a', '本牌成长（伤害/格挡/降费/锤炼）。', ['growDmg', 'growBlk', 'selfCostDown', 'temper'], ['gold'], ['emptyHand', 'curGold']),

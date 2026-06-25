@@ -161,6 +161,8 @@ window.CG = window.CG || {};
     enterRage(game) { if (game._enterStance) game._enterStance('rage'); },                          // v3.15 僧侣·姿态
     enterSerenity(game) { if (game._enterStance) game._enterStance('serenity'); },
     maxim(game, eff) { game._maxim = (game._maxim || 0) + eff.value; while (game._maxim >= 10 && game._enterStance) { game._maxim -= 10; game._enterStance('divinity'); } },   // 满 10 箴言 → 神格
+    leaveStance(game) { if (game._leaveStance) game._leaveStance(); },                              // v3.15 姿态代价：离开当前姿态
+    dieNextTurn(game) { game._dieNextTurn = true; game.addLog && game.addLog('代价：下回合开始时死亡。'); },   // v3.15 姿态代价：下回合死亡
     daggerUp(game, eff) { game._daggerBonus = (game._daggerBonus || 0) + 4 * eff.value; game._refreshWeapon('dagger', game._daggerBonus); },   // #25 匕首伤害 +4×n（本场，刷新所有匕首）
     scrapUp(game, eff) { game._scrapBonus = (game._scrapBonus || 0) + 3 * eff.value; game._refreshWeapon('scrap', game._scrapBonus); },        // #26 甲片格挡 +3×n（本场）
     forge(game, eff) {   // #33 锻造：终末之剑伤害 +n（不论何处）；若各堆均无则创造一张进手牌

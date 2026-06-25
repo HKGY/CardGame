@@ -250,6 +250,8 @@ window.CG = window.CG || {};
     if (hpLoss)  effects.push({ type: 'loseHp', value: hpLoss });
     if (goldCostN) effects.push({ type: 'loseGold', value: goldCostN });   // v3 金币代价
     if (costMax.losePower) effects.push({ type: 'losePower', value: costMax.losePower });   // #29 消耗电力代价
+    if (costMax.leaveStance) effects.push({ type: 'leaveStance', value: 1 });   // v3.15 姿态代价：离开姿态（二元，忽略 amount）
+    if (costMax.dieNextTurn) effects.push({ type: 'dieNextTurn', value: 1 });   // v3.15 姿态代价：下回合死亡
     if (costMax.makeDross) effects.push({ type: 'clutter', value: costMax.makeDross });     // #31 生成渣滓代价
     if (costMax.minionHp) effects.push({ type: 'loseMinionHp', value: costMax.minionHp });  // #42 消耗召唤物血量代价
     if (silenceLv) effects.push({ type: 'silence', value: silenceLv });

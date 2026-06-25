@@ -1023,3 +1023,18 @@ test('v3.15 僧侣·姿态：愤怒×2 / 宁静离开+2能量 / 箴言满10进�
   const eh2 = g.enemy.hp; g.dealAttackDamage(g.player, g.enemy, 10); assert.strictEqual(eh2 - g.enemy.hp, 30);
   g._startPlayerTurn(); assert.strictEqual(g._stance, null);   // 下回合自动退出
 });
+
+test('v3.15 姿态代价：离开姿态 / 下回合死亡', () => {
+  assert.ok(CG.AFFIXES['leaveStance_damage'] && CG.AFFIXES['dieNextTurn_damage']);
+  assert.strictEqual(CG.affixCostText('leaveStance_damage', 1), '离开姿态');
+  assert.strictEqual(CG.affixCostText('dieNextTurn_damage', 1), '下回合死亡');
+  // 离开姿态代价（非首石）：在愤怒中打出 → 离开
+  let g = CG.makeBattle(); g.player.energy = 30; g._enterStance('rage');
+  let c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'leaveStance_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g._stance, null);
+  // 下回合死亡代价：打出 → 标记；下回合开始死亡
+  g = CG.makeBattle(); g.player.energy = 30;
+  c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'dieNextTurn_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.ok(g._dieNextTurn); g.endTurn(); if (g.phase === 'enemy') g.runEnemyTurn();
+  assert.strictEqual(g.phase, 'lost');
+});
