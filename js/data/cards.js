@@ -655,7 +655,7 @@ window.CG = window.CG || {};
     demon:      { name: '恶魔',   icon: '😈', desc: '消耗与自残的恶魔之力。', deck: [6, 4, 0], packs: ['exhaust', 'attack', 'selfharm', 'voodoo'] },
     // —— v3.16 新增 4 职业：让 点穴/金钱/塑造/起源 各有归属（至此 39 包全部 ≥1 职业）——
     acupoint:   { name: '点穴师', icon: '🥋', desc: '以穴制敌：印记与中毒的慢性压制。', deck: [3, 6, 1], packs: ['mark', 'weaken', 'poison', 'charge'] },
-    bounty:     { name: '赏金猎人', icon: '💰', desc: '用金币砸出强力一击。', deck: [6, 4, 0], packs: ['money', 'power', 'attack', 'gadget'] },
+    bounty:     { name: '赏金猎人', icon: '💰', desc: '以金币为燃料，投资增值、砸出强力一击。', deck: [6, 4, 0], packs: ['money', 'power', 'gadget', 'momentum'] },
     artificer:  { name: '造物师', icon: '🎨', desc: '临时牌大军 + 掌握现实。', deck: [5, 5, 0], packs: ['shape', 'servant', 'dagger', 'scrap'] },
     evolver:    { name: '演化者', icon: '🥚', desc: '逐级演化、终末爆发。', deck: [4, 5, 1], packs: ['origin', 'reboot', 'charge', 'tempo'] },
     traveler:   { name: '旅者',   icon: '🎒', desc: '随机应变：随机的初始卡包。', deck: [5, 5, 0], packs: null },
