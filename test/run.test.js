@@ -238,7 +238,11 @@ test('开局随机卡包(旅者)：基础包 + 按内容量(size)随机加主题
 
 test('职业系统：每职业一套合法包组合 + 初始牌组；旅者随机', () => {
   const ids = Object.keys(CG.CLASSES);
-  assert.ok(ids.length >= 16, '至少 16 个职业');
+  assert.ok(ids.length >= 20, '至少 20 个职业');
+  // v3.16：每个非修饰词主题包都被 ≥1 职业引用（点穴/金钱/塑造/起源 等不再孤儿）
+  const used = new Set(['basic']);
+  ids.forEach(id => { (CG.CLASSES[id].packs || []).forEach(p => used.add(p)); });
+  CG.PACK_IDS.filter(p => p !== 'fusion' && !CG.PACKS[p].timingMod).forEach(p => assert.ok(used.has(p), p + ' 应被某职业引用'));
   for (const id of ids) {
     const c = CG.CLASSES[id];
     // 包：旅者 packs:null（随机）；其余固定且都是合法 id、不含 fusion/修饰词包专属问题
