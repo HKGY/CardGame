@@ -12,7 +12,7 @@ test('原子生成：真资源代价 × 全部价值都存在', () => {
   assert.ok(CG.AFFIXES['energy_damage'] && CG.AFFIXES['hp_damage'] && CG.AFFIXES['gold_block'] && CG.AFFIXES['discard_heal']);
   assert.ok(CG.AFFIXES['curBlock_damage'] && CG.AFFIXES['enemyDebuff_block']);   // 条件 × 数值价值（curPower 已改为消耗电力代价）
   assert.ok(!CG.AFFIXES['depth_block'] && !CG.AFFIXES['heat_damage'] && !CG.AFFIXES['kills_damage'] && !CG.AFFIXES['heldTurns_block']);   // 已删的弃用条件代价
-  assert.ok(CG.PACKS.block.affixes.includes('curBlock_block'));   // v3.12 条件代价归入其同主题包（壁垒包：当前格挡×格挡）
+  assert.ok(CG.PACKS.defense.affixes.includes('curBlock_block'));   // v3.16 条件代价归入其同主题包（防御包：当前格挡×格挡）
 });
 
 test('空法术基底：0 效果、费 1', () => {
@@ -482,19 +482,16 @@ test('召唤重做：单骷髅单位（创建 / +血量上限）；时点基值 
   assert.strictEqual(g.skeleton.maxHp, 8); assert.strictEqual(g.skeleton.hp, 8);   // 已存在 → +4 血量上限
 });
 
-test('召唤物修饰词：自身向价值改投骷髅、量×2（VP 减半）；无骷髅则跳过', () => {
-  // 量翻倍：召唤物伤害=12(玩家6)、召唤物格挡=10(玩家5)、召唤物力量=4(玩家2)、召唤物治疗=8(玩家4)
+test('召唤物修饰词（v3.16 骷髅只保留 伤害/力量/治疗）：改投骷髅、量×2；无骷髅则跳过', () => {
+  // 量翻倍：召唤物伤害=12(玩家6)、召唤物力量=4(玩家2)、召唤物治疗=8→4(v3.14 heal 3VP)
   assert.strictEqual(CG.affixValueText('energy_damage_m', 1), '召唤物对敌人造成 12 点伤害');
-  assert.strictEqual(CG.affixValueText('energy_block_m', 1), '召唤物获得 10 点格挡');
-  assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物每回合获得 4 点力量');   // v3.14 召唤物力量＝永久(every)档 _m，带每回合前缀
+  assert.strictEqual(CG.affixValueText('energy_strength_m', 1), '召唤物每回合获得 4 点力量');   // 召唤物力量＝永久(every)档 _m，带每回合前缀
   assert.strictEqual(CG.affixValueText('energy_heal_m', 1), '召唤物回复 4 点生命');   // v3.14 heal 3VP → heal_m 1.5VP → val 4
-  // 只配自身向价值：能量/造牌/多重/敌减益 没有 _m 变体
+  // v3.16 骷髅只保留 伤害/力量/治疗：格挡/敏捷/荆棘 召唤物变体已删；能量/造牌/敌减益也无 _m
+  assert.ok(!CG.AFFIXES['energy_block_m'] && !CG.AFFIXES['energy_dexterity_m'] && !CG.AFFIXES['energy_thorns_m']);
   assert.ok(!CG.AFFIXES['energy_energy_m'] && !CG.AFFIXES['energy_conjure_m'] && !CG.AFFIXES['energy_vulnerable_m'] && !CG.AFFIXES['energy_poison_m']);
   const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
   g.player.energy = 30; g.skeleton = { hp: 6, maxHp: 6, block: 0, statuses: {} };
-  // 召唤物格挡 → 骷髅 +10 block（非玩家）
-  g.hand = [spell([{ id: 'energy_block_m', level: 1 }])]; g.playCard(g.hand[0].uid);
-  assert.strictEqual(g.skeleton.block, 10); assert.strictEqual(g.player.block, 0);
   // 召唤物伤害 → 骷髅攻击敌人 12
   const hp = g.enemy.hp;
   g.hand = [spell([{ id: 'energy_damage_m', level: 1 }])]; g.playCard(g.hand[0].uid);
@@ -503,9 +500,9 @@ test('召唤物修饰词：自身向价值改投骷髅、量×2（VP 减半）�
   g.hand = [spell([{ id: 'energy_strength_m', level: 1 }])]; g.playCard(g.hand[0].uid);
   assert.strictEqual(g.skeleton.statuses.strength, 4);
   // 无骷髅 → 召唤物效果跳过、不报错、不落到玩家
-  g.skeleton = null; g.player.block = 0;
-  g.hand = [spell([{ id: 'energy_block_m', level: 1 }])]; g.playCard(g.hand[0].uid);
-  assert.strictEqual(g.player.block, 0);
+  g.skeleton = null; const ehp2 = g.enemy.hp;
+  g.hand = [spell([{ id: 'energy_damage_m', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g.enemy.hp, ehp2); assert.strictEqual(g.player.block, 0);
 });
 
 test('召唤物替玩家抵挡：召唤物格挡→玩家格挡→召唤物血→玩家血', () => {
@@ -751,7 +748,7 @@ test('#41 灾厄：层数 > 敌生命 → 敌回合末死亡', () => {
 test('#42 召唤物血量代价 / #44 追加灾厄 / #51 伤害转格挡', () => {
   let g = bt(); g.skeleton = { hp: 6, maxHp: 6, block: 0, statuses: {} };
   pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'minionHp_damage', level: 1 }]]);
-  assert.strictEqual(g.skeleton.hp, 2);   // 消耗 4 召唤物血
+  assert.strictEqual(g.skeleton, null);   // v3.16 牺牲召唤物：消耗全部血量
   g = bt(); pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_curseStrike', level: 1 }]]);
   assert.strictEqual(g.enemy.statuses.curse, 6);   // 追加＝伤害6 的灾厄
   g = bt(); pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_dmgToBlock', level: 1 }]]);
@@ -861,11 +858,12 @@ test('buildDeck 各职业产出 10 张可解析法术', () => {
 
 // ===== v3.12：按主题重分包（47 主题）+ 新价值/条件 + 交叉积融合 =====
 test('v3.12 新价值/条件原子存在且文本自然', () => {
-  ['energy_corpseBomb', 'energy_catalyze', 'energy_burn', 'energy_regen', 'energy_arc', 'energy_charge',
-    'energy_nirvana', 'energy_undying', 'energy_temper', 'energy_duplicate', 'energy_mindblast',
+  ['energy_corpseBomb', 'energy_catalyze', 'energy_regen', 'energy_arc',
+    'energy_temper', 'energy_duplicate',
     'poisonApplied_poison', 'lowHp_damage'].forEach(id => assert.ok(CG.AFFIXES[id], id + ' 应存在'));
+  // v3.16 已删：灼烧 burn / 涅槃 nirvana / 不坏 undying / 充电 charge / 心灵震慑 mindblast
+  assert.ok(!CG.AFFIXES['energy_burn'] && !CG.AFFIXES['energy_nirvana'] && !CG.AFFIXES['energy_undying'] && !CG.AFFIXES['energy_charge'] && !CG.AFFIXES['energy_mindblast']);
   assert.strictEqual(CG.affixValueText('energy_catalyze', 1), '立即结算敌人身上的中毒 1 次');
-  assert.strictEqual(CG.affixValueText('energy_burn', 1), '使敌人获得 4 点灼烧');
   assert.strictEqual(CG.affixValueText('poisonApplied_poison', 1), '本场每施加 1 次中毒，使敌人获得 2 点中毒');
 });
 
@@ -892,27 +890,30 @@ test('v3.12 施加中毒次数：计数 + 条件缩放', () => {
   assert.strictEqual(g._poisonApplied, 2, '施加 2 次中毒');
 });
 
-test('v3.12 灼烧 / 再生 价值', () => {
-  let g = bt(); g.enemy.hp = 200; pg(g, [[{ id: 'energy_burn', level: 1 }]]);
-  assert.strictEqual(g.enemy.statuses.burn, 4, '灼烧 4');
+test('v3.16 印记 / 再生 价值', () => {
+  // 印记：敌方状态，每回合受=层数伤害、不衰减
+  let g = bt(); g.enemy.hp = 200; g.enemy.maxHp = 200; pg(g, [[{ id: 'energy_mark', level: 1 }]]);
+  assert.strictEqual(g.enemy.statuses.mark, 6, '印记 6');
+  const eh = g.enemy.hp; g.endTurn(); g.runEnemyTurn();
+  assert.strictEqual(eh - g.enemy.hp, 6, '敌方回合受到 6 点印记伤害');
+  assert.strictEqual(g.enemy.statuses.mark, 6, '印记不衰减');
   g = bt(); g.player.hp = 40; pg(g, [[{ id: 'energy_regen', level: 1 }]]);
   assert.strictEqual(g.player.statuses.regen, 2, '再生 2');
 });
 
-test('v3.12 复活机制：电弧随电力增伤 / 涅槃被消耗时再发动', () => {
+test('v3.16 电弧随电力增伤 / 复制随机手牌', () => {
   let g = bt(); g.player.power = 5; g.enemy.hp = 200; g.enemy.maxHp = 200;
   const eh = g.enemy.hp; pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_arc', level: 1 }]]);
   assert.strictEqual(eh - g.enemy.hp, 11, '打击6 + 电弧(电力5×1) = 11');
-  // 涅槃：虚无代价使其回合末从手牌消耗 → 再发动打击
-  g = bt(); g.enemy.hp = 200; g.enemy.maxHp = 200;
-  const card = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'ethereal_nirvana', level: 1 }]); g.hand = [card];
-  const eh2 = g.enemy.hp; g.endTurn();
-  assert.strictEqual(eh2 - g.enemy.hp, 6, '涅槃：被消耗时再发动一次打击');
-  assert.ok(g.exhaustPile.some(c => c.uid === card.uid), '虚无牌已进消耗堆');
+  // 复制：复制 1 张随机手牌
+  g = bt(); g.player.energy = 30; const filler = spell([{ id: CG.STRIKE, level: 1 }]);
+  const dup = spell([{ id: 'energy_duplicate', level: 1 }]); g.hand = [dup, filler];
+  const h0 = g.hand.length; g.playCard(dup.uid);
+  assert.ok(g.hand.length >= h0 - 1 + 1, '复制产生一张副本进手牌');   // 打出 dup(-1) + 复制 filler(+1)
 });
 
-test('v3.12 交叉积融合：选定主题的「任意代价 × 任意价值」都能产出', () => {
-  CG.setActivePacks(['blood', 'power']);            // 血液(失血/自减益代价) + 强攻(伤害价值)
+test('v3.16 交叉积融合：选定主题的「任意代价 × 任意价值」都能产出', () => {
+  CG.setActivePacks(['selfharm', 'voodoo', 'basic']);   // 自残(失血) + 巫蛊(自减益) + 基础(伤害价值)
   const f = CG.fusionPack();
   assert.ok(f.buffs.includes('hp_damage'), '失血换伤害（跨主题）应在融合池');
   assert.ok(f.buffs.includes('selfVuln_damage'), '自易伤换伤害应在融合池');
@@ -920,13 +921,14 @@ test('v3.12 交叉积融合：选定主题的「任意代价 × 任意价值」�
   CG.setActivePacks(null);
 });
 
-test('v3.12 词条归主题：按 代价→条件→价值 优先级', () => {
-  assert.strictEqual(CG.affixGroupOf('hp_damage'), 'blood');          // 失血代价 → 血液
-  assert.strictEqual(CG.affixGroupOf('exhaustCard_nirvana'), 'ash');  // 消耗手牌代价 → 灰烬
-  assert.strictEqual(CG.affixGroupOf('enemyPoison_poison'), 'poison');// 敌中毒条件 → 猛毒
-  assert.strictEqual(CG.affixGroupOf('energy_corpseBomb'), 'poison'); // 价值尸爆 → 猛毒
-  assert.strictEqual(CG.affixGroupOf('energy_combo'), 'combo');       // 价值连击 → 连击
-  assert.ok(CG.PACK_IDS.length >= 40, '已拆成 ~47 个细分主题');
+test('v3.16 词条归主题：按 代价→条件→价值 优先级', () => {
+  assert.strictEqual(CG.affixGroupOf('hp_damage'), 'selfharm');       // 失血代价 → 自残
+  assert.strictEqual(CG.affixGroupOf('exhaustCard_damage'), 'exhaust');// 消耗手牌代价 → 消耗
+  assert.strictEqual(CG.affixGroupOf('enemyPoison_poison'), 'poison');// 敌中毒条件 → 毒液
+  assert.strictEqual(CG.affixGroupOf('energy_corpseBomb'), 'poison'); // 价值尸爆 → 毒液
+  assert.strictEqual(CG.affixGroupOf('energy_combo'), 'power');       // 价值连击 → 强攻
+  assert.strictEqual(CG.affixGroupOf('energy_mark'), 'mark');         // 价值印记 → 点穴
+  assert.ok(CG.PACK_IDS.length >= 39, '已拆成 39 个细分主题');
 });
 
 test('v3.12 每个价值/代价/条件原子都有归属主题（无孤儿）', () => {
@@ -947,8 +949,8 @@ test('v3.13 磷火卡 + 生成磷火/灵魂强化/磷火强化/幻境', () => {
   g = bt(); pg(g, [[{ id: 'energy_peekUp', level: 1 }]]); const pk = CG.makeFoodCard('peek'); pk._bonus = g._peekBonus; assert.strictEqual(CG.cardStats(pk).effects[0].value, 3);
   // 磷火强化 +0.5（2 级 → 磷火 +1 能量）
   g = bt(); pg(g, [[{ id: 'energy_wispUp', level: 1 }]]); pg(g, [[{ id: 'energy_wispUp', level: 1 }]]); const wp = CG.makeFoodCard('wisp'); wp._bonus = Math.floor(g._wispBonus); assert.strictEqual(CG.cardStats(wp).effects[0].value, 2);
-  // 幻境：本回合生成的临时卡牌效果 +50%（向上取整）→ 匕首 4→6
-  g = bt(); pg(g, [[{ id: 'energy_illusion', level: 1 }]]); CG.Effects.apply(g, { type: 'makeDagger', value: 1 }, g.player);
+  // 掌握现实（取代幻境）：本场临时卡牌数值 +50%（向上取整）→ 匕首 4→6
+  g = bt(); pg(g, [[{ id: 'energy_masterReality', level: 1 }]]); CG.Effects.apply(g, { type: 'makeDagger', value: 1 }, g.player);
   assert.strictEqual(CG.cardStats(g.hand.find(c => c.base === 'dagger')).value, 6);
 });
 
@@ -958,7 +960,7 @@ test('v3.13 锻造/招架 +6（1 能量校准）', () => {
 });
 
 test('v3.13 指定原子已时点化（本/下/每回合变体存在且可结算）', () => {
-  ['forge', 'parry', 'vigor', 'wish', 'curse', 'expandEvery', 'recallDiscard', 'recycleDraw', 'playTopDraw', 'socketRand', 'keepBlockFull', 'makeDagger', 'makeScrap', 'makePeek', 'makeWisp', 'illusion'].forEach(b => {
+  ['forge', 'parry', 'vigor', 'wish', 'curse', 'expandEvery', 'recallDiscard', 'recycleDraw', 'playTopDraw', 'socketRand', 'keepBlockFull', 'makeDagger', 'makeScrap', 'makePeek', 'makeWisp'].forEach(b => {
     assert.ok(CG.AFFIXES['energy_' + b + '_every'] && CG.AFFIXES['energy_' + b + '_next'], b + ' 应有 每回合/下回合 变体');
   });
   // 每回合生成匕首：打出后入 _everyTurn，回合开始重复结算
@@ -984,19 +986,25 @@ test('v3.15 占卜·预见：看牌库顶 n 张、任选丢入弃牌堆 + 本回
   assert.strictEqual(g.pick.type, 'foresight');
 });
 
-test('v3.15 幻惑·变化/变化为模仿 + 模仿牌', () => {
-  assert.ok(CG.AFFIXES['energy_transform'] && CG.AFFIXES['energy_mimicry'] && CG.PACKS.transform);
-  // 模仿牌：3 种、0 费、消耗
-  const ms = CG.foodStats(CG.makeFoodCard('mimic_strike')); assert.strictEqual(ms.exhaust, true); assert.ok(ms.effects.some(e => e.type === 'damage' && e.value === 6) && ms.effects.some(e => e.type === 'draw'));
-  assert.strictEqual(CG.foodStats(CG.makeFoodCard('mimic_defend')).effects[0].value, 9);
-  assert.strictEqual(CG.foodStats(CG.makeFoodCard('mimic_heavy')).effects[0].value, 12);
-  // 变化为模仿：手牌变成模仿牌（同 uid 位被替换）
+test('v3.16 变化(炼金) / 变化为仆从(仆从) + 仆从牌 + 仆从强化', () => {
+  assert.ok(CG.AFFIXES['energy_transform'] && CG.AFFIXES['energy_toServeStrike'] && CG.PACKS.alchemy && CG.PACKS.servant);
+  // 仆从牌：3 种、0 费、消耗
+  const ms = CG.foodStats(CG.makeFoodCard('serve_strike')); assert.strictEqual(ms.exhaust, true); assert.ok(ms.effects.some(e => e.type === 'damage' && e.value === 6) && ms.effects.some(e => e.type === 'draw'));
+  assert.strictEqual(CG.foodStats(CG.makeFoodCard('serve_sacr')).effects[0].value, 9);
+  assert.strictEqual(CG.foodStats(CG.makeFoodCard('serve_dive')).effects[0].value, 12);
+  // 变化为仆从打击：手牌变成仆从牌（同 uid 位被替换）
   let g = CG.makeBattle(); g.player.energy = 30;
-  const tgt = spell([{ id: CG.STRIKE, level: 1 }]), c = spell([{ id: 'energy_mimicry', level: 1 }]); g.hand = [tgt, c]; g.playCard(c.uid);
-  assert.strictEqual(g.pick.type, 'mimicry'); g.pickResolve(tgt.uid);
-  assert.ok(g.hand.some(x => CG.BASE_CARDS[x.base] && CG.BASE_CARDS[x.base].kind === 'mimic')); assert.strictEqual(g.pick, null);
+  const tgt = spell([{ id: CG.STRIKE, level: 1 }]), c = spell([{ id: 'energy_toServeStrike', level: 1 }]); g.hand = [tgt, c]; g.playCard(c.uid);
+  assert.strictEqual(g.pick.type, 'toServeStrike'); g.pickResolve(tgt.uid);
+  assert.ok(g.hand.some(x => x.base === 'serve_strike')); assert.strictEqual(g.pick, null);
+  // 仆从强化：名字含「仆从」的牌 +3（生成的仆从打击 6→9）
+  g = CG.makeBattle(); g.player.energy = 30;
+  g.hand = [spell([{ id: 'energy_servantUp', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(g._servantBonus, 3);
+  const sv = CG.makeFoodCard('serve_strike'); sv._bonus = g._servantBonus;
+  assert.strictEqual(CG.cardStats(sv).value, 9);
   // 变化：重掷该牌宝石（仍是法杖、孔位数不变）
-  CG.setActivePacks(['power', 'block']);
+  CG.setActivePacks(['power', 'defense']);
   g = CG.makeBattle(); g.player.energy = 30;
   const w = spell([{ id: CG.STRIKE, level: 1 }]), c2 = spell([{ id: 'energy_transform', level: 1 }]); g.hand = [w, c2]; g.playCard(c2.uid);
   assert.strictEqual(g.pick.type, 'transform'); const n0 = w.sockets.length; g.pickResolve(w.uid);
@@ -1037,4 +1045,117 @@ test('v3.15 姿态代价：离开姿态 / 下回合死亡', () => {
   c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'dieNextTurn_damage', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
   assert.ok(g._dieNextTurn); g.endTurn(); if (g.phase === 'enemy') g.runEnemyTurn();
   assert.strictEqual(g.phase, 'lost');
+});
+
+// ===== v3.16 39 包重构：新机制 =====
+test('v3.16 印记：敌方状态，每回合受=层数伤害、不衰减', () => {
+  const g = bt(); g.enemy.hp = 200; g.enemy.maxHp = 200;
+  pg(g, [[{ id: 'energy_mark', level: 1 }]]);
+  assert.strictEqual(g.enemy.statuses.mark, 6);
+  const eh = g.enemy.hp; g.endTurn(); g.runEnemyTurn();
+  assert.strictEqual(eh - g.enemy.hp, 6); assert.strictEqual(g.enemy.statuses.mark, 6);   // 受 6、不衰减
+});
+
+test('v3.16 终末之剑·横扫(命中全体) / 剑圣(额外打出一次)', () => {
+  let g = bt(2);
+  pg(g, [[{ id: 'energy_sweep', level: 1 }]]); assert.ok(g._endswordSweep);
+  const es = CG.makeFoodCard('endsword'); g.player.energy = 30; g.hand = [es];
+  const hps = g.enemies.map(e => e.hp); g.playCard(es.uid);
+  assert.ok(g.enemies.every((e, i) => e.hp < hps[i]), '横扫：所有敌人受伤');
+  g = bt();
+  pg(g, [[{ id: 'energy_swordSaint', level: 1 }]]); assert.strictEqual(g._endswordRepeat, 1);
+  const es2 = CG.makeFoodCard('endsword'); g.player.energy = 30; g.hand = [es2];
+  const hp = g.enemy.hp; g.playCard(es2.uid);
+  assert.strictEqual(hp - g.enemy.hp, 20);   // 终末之剑 10 × (1+剑圣1) = 20
+});
+
+test('v3.16 神格：直接进入(30VP) / 免疫减益 / 命中随机敌人 / 自我消耗', () => {
+  // 神格
+  let g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  for (let i = 0; i < 6; i++) g.drawPile.push(spell([{ id: CG.STRIKE, level: 1 }]));
+  g.player.energy = 30; const c = spell([{ id: 'energy_enterDivinity', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g._stance, 'divinity');
+  // 免疫减益
+  g = bt(); pg(g, [[{ id: 'energy_debuffImmune', level: 1 }]]); assert.strictEqual(g._debuffImmune, 1);
+  g.applyStatus(g.player, 'vulnerable', 3); assert.ok(!g.player.statuses.vulnerable); assert.strictEqual(g._debuffImmune, 0);
+  // 命中随机敌人代价
+  g = bt(2); const total = g.enemies.reduce((s, e) => s + e.hp, 0);
+  pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'randomTarget_damage', level: 1 }]]);
+  assert.ok(g.enemies.reduce((s, e) => s + e.hp, 0) < total);
+  // 自我消耗代价
+  g = bt(); const sc = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'selfExhaust_damage', level: 1 }]); g.player.energy = 30; g.hand = [sc]; g.playCard(sc.uid);
+  assert.ok(g.exhaustPile.some(x => x.uid === sc.uid));
+});
+
+test('v3.16 重启：回到手里 / 回到牌库 / 把一张牌放回牌库', () => {
+  let g = bt(); let c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_returnHand', level: 1 }]); g.player.energy = 30; g.hand = [c]; g.playCard(c.uid);
+  assert.ok(g.hand.some(x => x.uid === c.uid), '回到手里');
+  g = bt(); c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_returnDeck', level: 1 }]); g.player.energy = 30; g.hand = [c]; g.playCard(c.uid);
+  assert.ok(g.drawPile.some(x => x.uid === c.uid), '回到牌库');
+  g = bt(); const filler = spell([{ id: CG.STRIKE, level: 1 }]); c = spell([{ id: 'energy_putBackDeck', level: 1 }]); g.player.energy = 30; g.hand = [c, filler]; g.playCard(c.uid);
+  assert.strictEqual(g.pick.type, 'putBack'); g.pickResolve(filler.uid);
+  assert.ok(g.drawPile.some(x => x.uid === filler.uid) && !g.pick, '把一张牌放回牌库');
+});
+
+test('v3.16 起源 α→β→Ω 变化链：Ω 每回合对全体造成 50 伤害', () => {
+  const g = bt(); g.player.energy = 30;
+  const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_alpha', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.ok(g.hand.some(x => x.base === 'beta') && g.exhaustPile.some(x => x.uid === c.uid), 'α → β');
+  const beta = g.hand.find(x => x.base === 'beta'); g.player.energy = 30; g.playCard(beta.uid);
+  assert.ok(g.hand.some(x => x.base === 'omiga'), 'β → Ω');
+  const om = g.hand.find(x => x.base === 'omiga'); g.player.energy = 30; g.playCard(om.uid);
+  assert.ok((g._everyTurn || []).some(e => e.type === 'omigaBlast'));
+  g.enemy.hp = 200; g.enemy.maxHp = 200; const eh = g.enemy.hp; g._startPlayerTurn();
+  assert.strictEqual(eh - g.enemy.hp, 50, 'Ω 每回合对全体 50');
+});
+
+test('v3.16 塑造：生成惩戒/平安 + 掌握现实', () => {
+  let g = bt(); pg(g, [[{ id: 'energy_makeSmite', level: 1 }]]);
+  const sm = g.hand.find(c => c.base === 'smite'); assert.ok(sm); const ss = CG.cardStats(sm);
+  assert.strictEqual(ss.value, 12); assert.strictEqual(ss.retain, true); assert.strictEqual(ss.exhaust, true);
+  g = bt(); pg(g, [[{ id: 'energy_makePeace', level: 1 }]]);
+  assert.strictEqual(CG.cardStats(g.hand.find(c => c.base === 'peace')).value, 12);
+});
+
+test('v3.16 结束回合代价：打出后立即结束回合', () => {
+  const g = bt(); const c = spell([{ id: CG.STRIKE, level: 1 }], [{ id: 'endTurnCost_damage', level: 1 }]);
+  g.player.energy = 30; g.hand = [c, spell([{ id: CG.STRIKE, level: 1 }])]; g.playCard(c.uid);
+  assert.strictEqual(g.phase, 'enemy');
+});
+
+test('v3.16 新条件：敌人个数 / 上一张造成伤害·获得格挡 / 被保留 / 本回合丢弃过牌 / 箴言层数 / 打出仆从数', () => {
+  // 敌人个数（量型 3VP）：2 敌 → 每有 1 敌得 3 → 6
+  let g = CG.makeBattle({ enemyIds: ['green_slime', 'green_slime'], deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  g.player.energy = 30; let eh = g.enemy.hp; let cc = spell([{ id: 'enemyCount_damage', level: 1 }]); g.hand = [cc]; g.playCard(cc.uid);
+  assert.strictEqual(eh - g.enemy.hp, 6);
+  // 上一张造成伤害（门型）
+  g = bt(); g.player.energy = 30; g.hand = [spell([{ id: CG.STRIKE, level: 1 }])]; g.playCard(g.hand[0].uid);
+  eh = g.enemy.hp; g.hand = [spell([{ id: 'prevDmg_damage', level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid);
+  assert.strictEqual(eh - g.enemy.hp, 6);
+  g = bt(); g.player.energy = 30; g.hand = [spell([{ id: CG.GUARD, level: 1 }])]; g.playCard(g.hand[0].uid);   // 上一张是格挡、非伤害
+  eh = g.enemy.hp; g.hand = [spell([{ id: 'prevDmg_damage', level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid);
+  assert.strictEqual(eh - g.enemy.hp, 0);
+  // 上一张获得格挡（门型）
+  g = bt(); g.player.energy = 30; g.hand = [spell([{ id: CG.GUARD, level: 1 }])]; g.playCard(g.hand[0].uid);
+  g.hand = [spell([{ id: 'prevBlk_block', level: 1 }])]; g.player.energy = 30; const b0 = g.player.block; g.playCard(g.hand[0].uid);
+  assert.ok(g.player.block - b0 >= 5);
+  // 被保留（门型）：retain 卡跨回合后被保留
+  g = bt(); g.player.energy = 30;
+  const rc = spell([{ id: 'retained_damage', level: 1 }], [{ id: 'energy_retain', level: 1 }]); g.hand = [rc];
+  g.endTurn(); if (g.phase === 'enemy') g.runEnemyTurn();
+  assert.ok(rc._wasRetained, '保留标记');
+  const kept = g.hand.find(x => x.uid === rc.uid); assert.ok(kept);
+  assert.ok(g._gateMet('retained', kept), '保留的牌满足 retained 门型');
+  assert.ok(!g._gateMet('retained', spell([{ id: 'retained_damage', level: 1 }])), '未保留的牌不满足');
+  // 本回合丢弃过牌（门型）
+  g = bt(); g.player.energy = 30; g._discard(spell([{ id: CG.STRIKE, level: 1 }]));
+  eh = g.enemy.hp; g.hand = [spell([{ id: 'discardedTurn_damage', level: 1 }])]; g.playCard(g.hand[0].uid);
+  assert.strictEqual(eh - g.enemy.hp, 6);
+  // 本场获得箴言层数（量型 1VP）
+  g = bt(); CG.Effects.apply(g, { type: 'maxim', value: 5 }, g.player); assert.strictEqual(g._maximGained, 5);
+  eh = g.enemy.hp; pg(g, [[{ id: 'maximGained_damage', level: 1 }]]); assert.strictEqual(eh - g.enemy.hp, 5);
+  // 本场打出仆从数（量型 1VP）
+  g = bt(); g.player.energy = 30; const sv = CG.makeFoodCard('serve_strike'); g.hand = [sv]; g.playCard(sv.uid);
+  eh = g.enemy.hp; g.hand = [spell([{ id: 'servantPlayed_damage', level: 1 }])]; g.player.energy = 30; g.playCard(g.hand[0].uid);
+  assert.strictEqual(eh - g.enemy.hp, 1);
 });

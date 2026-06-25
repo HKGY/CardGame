@@ -306,13 +306,22 @@ window.CG = window.CG || {};
         sub('放大本牌（翻倍/吸血→放大包、连击→强攻包；作用于本牌其它价值）') + row(sig.map(([l, c]) => chip(l, c)));
     } else if (tab === 'pack') {
       const names = vals => (vals || []).map(v => { const va = (CG.VALUE_ATOMS || {})[v] || {}; return `<span class="cx-aff">${va.name || v}</span>`; }).join('、');
+      const costNames = cs => (cs || []).map(c => `<span class="cx-aff">${(CG.COST_REAL[c] || {}).name || c}</span>`).join('、');
+      const condNames = (cs, gate) => (cs || []).filter(c => !!(CG.COST_COND[c] || {}).gate === gate).map(c => `<span class="cx-aff">${(CG.COST_COND[c] || {}).name || c}</span>`).join('、');
       const active = (H.getRun && H.getRun() && H.getRun().packs) || null;
       const card = id => {
         const p = CG.PACKS[id], on = !active || active.includes(id);
+        const gates = condNames(p.conds, true), mags = condNames(p.conds, false), costs = costNames(p.costs);
+        // 百科：每个包除「价值」外，列其三种代价（专属真资源代价 / 门型条件 / 量型条件）
         return `<div class="codex-pack${on ? '' : ' off'}">` +
           `<div class="codex-pack-head" style="color:${p.color}">${p.icon} ${p.name}${active && on ? ' <span class="cx-on">本局</span>' : ''}</div>` +
           `<div class="codex-desc">${p.desc}</div>` +
-          `<div class="cx-affs"><b>价值</b> ${names(p.values)}</div></div>`;
+          ((p.values && p.values.length) ? `<div class="cx-affs"><b>价值</b> ${names(p.values)}</div>` : '') +
+          (p.timingMod ? `<div class="cx-affs"><b>修饰</b> 解锁本局价值的「${p.timingMod === 'next' ? '下回合' : '每回合'}」变体</div>` : '') +
+          (costs ? `<div class="cx-affs"><b>真资源代价</b> ${costs}</div>` : '') +
+          (gates ? `<div class="cx-affs"><b>门型条件</b> ${gates}</div>` : '') +
+          (mags ? `<div class="cx-affs"><b>量型条件</b> ${mags}</div>` : '') +
+          `</div>`;
       };
       html = '<p class="codex-note">每个词条属于一个<b>主题</b>；开局选定的主题<b>融合成一个「🌀 融合包」</b>，本局产出的宝石都从其混合池里抽。' +
         (active ? `当前融合 ${active.length} 个：${active.map(id => CG.PACKS[id].icon + CG.PACKS[id].name).join(' ')}` : '') + '</p>' +

@@ -42,13 +42,21 @@ window.CG = window.CG || {};
     endsword:{ name: '终末之剑', cost: 2, type: 'attack', kind: 'endsword', icon: '⚔️' },          // 兵械包·锻造创造：2 费、造 10(+锻造)伤害(+招架格挡)、保留
     peek:    { name: '灵魂',   cost: 0, type: 'skill',  kind: 'peek',  icon: '🔮' },               // 机巧包：0 费、抽 2 张、打出即消耗
     wisp:    { name: '磷火',   cost: 0, type: 'skill',  kind: 'wisp',  icon: '🟢' },               // 0 费、获得 1(+强化)能量、保留、打出即消耗
-    mimic_strike: { name: '模仿打击', cost: 0, type: 'attack', kind: 'mimic', mimic: 'strike', icon: '🗡️' },   // 幻惑·变化：0费 6伤+抽1 消耗
-    mimic_defend: { name: '模仿防御', cost: 0, type: 'skill',  kind: 'mimic', mimic: 'defend', icon: '🛡️' },   // 0费 9格挡 消耗
-    mimic_heavy:  { name: '模仿重击', cost: 0, type: 'attack', kind: 'mimic', mimic: 'heavy',  icon: '⚔️' },   // 0费 12伤 消耗
+    // 仆从牌（仆从包·变化获得；0 费、消耗；数值受 仆从强化 _bonus + 掌握现实/幻境 _mult）
+    serve_strike: { name: '仆从打击', cost: 0, type: 'attack', kind: 'servant', serve: 'strike', icon: '🗡️' },   // 0费 6伤+抽1 消耗
+    serve_sacr:   { name: '仆从捐躯', cost: 0, type: 'skill',  kind: 'servant', serve: 'sacr',   icon: '🛡️' },   // 0费 9格挡 消耗
+    serve_dive:   { name: '仆从俯冲', cost: 0, type: 'attack', kind: 'servant', serve: 'dive',   icon: '⚔️' },   // 0费 12伤 消耗
+    // 塑造牌（惩戒/平安；1 费、保留、消耗；数值受 掌握现实/幻境 _mult）
+    smite:   { name: '惩戒',   cost: 1, type: 'attack', kind: 'smite', icon: '⚡' },               // 1费 12伤 保留 消耗
+    peace:   { name: '平安',   cost: 1, type: 'skill',  kind: 'peace', icon: '🕊️' },               // 1费 12格挡 保留 消耗
+    // 起源牌（α→β→Ω 变化链；β/Ω 消耗）
+    beta:    { name: 'β',      cost: 2, type: 'skill',  kind: 'origin', origin: 'beta',  icon: '🌀' },   // 2费 打出后变化为 Ω 消耗
+    omiga:   { name: 'Ω',      cost: 3, type: 'skill',  kind: 'origin', origin: 'omiga', icon: '💠' },   // 3费 调度「每回合对全体造成 50 伤害」消耗
   };
   // 药材分类（随机生成用）
   CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'] };
-  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek' || b.kind === 'wisp' || b.kind === 'mimic')); };
+  const SPECIAL_KINDS = ['spoiled', 'meal', 'dross', 'shiv', 'dagger', 'scrap', 'endsword', 'peek', 'wisp', 'servant', 'smite', 'peace', 'origin'];
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || SPECIAL_KINDS.includes(b.kind))); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -136,8 +144,9 @@ window.CG = window.CG || {};
     let potentN = 0;     // 放大包：翻倍（potent 是 playCard 加成）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry', enterRage: 'enterRage', enterSerenity: 'enterSerenity', maxim: 'maxim' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
-    const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
+    let becomeCard = null;   // 起源 α/β：打出后变化为指定临时牌
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', enterRage: 'enterRage', enterSerenity: 'enterSerenity', maxim: 'maxim', enterDivinity: 'enterDivinity', sweep: 'sweep', swordSaint: 'swordSaint', debuffImmune: 'debuffImmune', makeSmite: 'makeSmite', makePeace: 'makePeace', servantUp: 'servantUp' };   // 注：vigor 走既有 vigorN 路径；mark 走 apply 路径；masterReality→illusion
+    const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock', 'putBackDeck', 'returnHand', 'returnDeck', 'toServeStrike', 'toServeSacr', 'toServeDive'];
     all.forEach(({ def: d, level: rawL, free }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
       score += (d.score || 0) * L;
@@ -190,6 +199,7 @@ window.CG = window.CG || {};
       for (const k of NB_FIELD) if (d[k]) NB[k] = (NB[k] || 0) + d[k] * L; // 新批：卡级字段
       if (d.multi)    multiN += d.multi;   // 多重为标志位（maxCount 1、不随等级）
       if (d.potent) potentN += d.potent * L;   // 放大：翻倍（playCard 加成）
+      if (d.becomeCard) becomeCard = d.becomeCard;     // 起源 α：打出后变化为 β
       if (d.exhaust)   exhaust = true;                 // 销毁：打出后移除
       if (d.apply) for (const k in d.apply) statuses[k] = (statuses[k] || 0) + d.apply[k] * L;
       if (d.selfStatus) selfStatuses[d.selfStatus] = (selfStatuses[d.selfStatus] || 0) + (d.flat != null ? d.flat : (d.cap != null ? Math.min(d.cap, L) : L));   // flat=无视等级固定值（生产正面）/ cap=封顶（生产负面）
@@ -224,6 +234,9 @@ window.CG = window.CG || {};
     hpLoss    += costMax.hp      || 0;
     goldCostN += costMax.gold    || 0;
     clutchN   += costMax.discard || 0;
+    if (costMax.selfExhaust) exhaust = true;             // v3.16 自我消耗代价：打出后消耗本牌
+    const endTurnAfter = !!costMax.endTurnCost;          // v3.16 结束回合代价
+    const randomTarget = !!costMax.randomTarget;         // v3.16 命中随机敌人代价
 
     const socketCount = sockets.length;
     const cost = Math.max(0, (b.cost || 0) + costD + (inst.holdCost || 0) - (inst.costDown || 0));
@@ -306,6 +319,8 @@ window.CG = window.CG || {};
       potent: potentN, multiHit: multiHitN, multi: multiN,                        // 放大包(potent/多重)+强攻包(连击 multiHit) playCard 加成
       copyToDiscard: NB.copyToDiscard || 0, growDmg: NB.growDmg || 0, growBlk: NB.growBlk || 0, selfCostDown: NB.selfCostDown || 0, aoe: NB.aoe || 0, playTwice: NB.playTwice || 0, wish: NB.wish || 0,   // 新批卡级字段（playCard 用）
       curseStrike: NB.curseStrike || 0, dmgToBlock: NB.dmgToBlock || 0, ethereal: !!costMax.ethereal,   // v3.8：追加灾厄/伤害转格挡（playCard）+ 虚无(endTurn 消耗)
+      putBackDeck: NB.putBackDeck || 0, toServeStrike: NB.toServeStrike || 0, toServeSacr: NB.toServeSacr || 0, toServeDive: NB.toServeDive || 0,   // v3.16 重启/仆从：pick 类（playCard 入队）
+      returnHand: !!NB.returnHand, returnDeck: !!NB.returnDeck, becomeCard, endTurnAfter, randomTarget,   // v3.16 重启/起源/爆发/强攻 卡级标志
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -330,9 +345,10 @@ window.CG = window.CG || {};
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
     // 新批价值字段（v3.6）：条件 × 这些价值时，按同一映射拆成效果 / 卡级字段（与 cardStats 一致）
-    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry', enterRage: 'enterRage', enterSerenity: 'enterSerenity', maxim: 'maxim' };
+    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', enterRage: 'enterRage', enterSerenity: 'enterSerenity', maxim: 'maxim', enterDivinity: 'enterDivinity', sweep: 'sweep', swordSaint: 'swordSaint', debuffImmune: 'debuffImmune', makeSmite: 'makeSmite', makePeace: 'makePeace', servantUp: 'servantUp' };
     for (const k in NBE) if (f[k]) out.now.push({ type: NBE[k], value: f[k] });
-    for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock']) if (f[k]) out[k] = (out[k] || 0) + f[k];
+    for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock', 'putBackDeck', 'returnHand', 'returnDeck', 'toServeStrike', 'toServeSacr', 'toServeDive']) if (f[k]) out[k] = (out[k] || 0) + f[k];
+    if (f.becomeCard) out.becomeCard = f.becomeCard;
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
     if (f.enemyDex)  out.now.push({ type: 'enemyStat', key: 'dexterity', value: f.enemyDex, temp: !!f.enemyTemp });
     if (f.give)      out.now.push({ type: 'give', what: f.give, value: 1 });
@@ -441,11 +457,20 @@ window.CG = window.CG || {};
     } else if (b.kind === 'wisp') {
       const e = Math.ceil((1 + (inst._bonus || 0)) * mult);   // 磷火：基础 +1 能量 + wispUp 强化(floor(_wispBonus)) ×幻境；保留 + 消耗
       s.type = 'skill'; s.kind = 'skill'; s.retain = true; s.exhaust = true; s.value = e; s.effects = [{ type: 'energy', value: e }]; s.baseText = `磷火：获得 ${e} 点能量，保留，打出即消耗`;
-    } else if (b.kind === 'mimic') {                          // 幻惑·模仿牌：0费、消耗
+    } else if (b.kind === 'servant') {                        // 仆从牌：0费、消耗；数值 + 仆从强化 _bonus，再 ×幻境/掌握现实
+      const bonus = inst._bonus || 0;
       s.exhaust = true;
-      if (b.mimic === 'strike') { const d = Math.ceil(6 * mult); s.type = 'attack'; s.value = d; s.effects = [{ type: 'damage', value: d }, { type: 'draw', value: 1 }]; s.baseText = `模仿打击：造成 ${d} 点伤害、抽 1 张，打出即消耗`; }
-      else if (b.mimic === 'defend') { const blk = Math.ceil(9 * mult); s.type = 'skill'; s.value = blk; s.effects = [{ type: 'block', value: blk }]; s.baseText = `模仿防御：获得 ${blk} 点格挡，打出即消耗`; }
-      else { const d = Math.ceil(12 * mult); s.type = 'attack'; s.value = d; s.effects = [{ type: 'damage', value: d }]; s.baseText = `模仿重击：造成 ${d} 点伤害，打出即消耗`; }
+      if (b.serve === 'strike') { const d = Math.ceil((6 + bonus) * mult); s.type = 'attack'; s.value = d; s.effects = [{ type: 'damage', value: d }, { type: 'draw', value: 1 }]; s.baseText = `仆从打击：造成 ${d} 点伤害、抽 1 张，打出即消耗`; }
+      else if (b.serve === 'sacr') { const blk = Math.ceil((9 + bonus) * mult); s.type = 'skill'; s.value = blk; s.effects = [{ type: 'block', value: blk }]; s.baseText = `仆从捐躯：获得 ${blk} 点格挡，打出即消耗`; }
+      else { const d = Math.ceil((12 + bonus) * mult); s.type = 'attack'; s.value = d; s.effects = [{ type: 'damage', value: d }]; s.baseText = `仆从俯冲：造成 ${d} 点伤害，打出即消耗`; }
+    } else if (b.kind === 'smite') {                          // 塑造·惩戒：1费、保留、消耗、12 伤
+      const d = Math.ceil(12 * mult); s.type = 'attack'; s.value = d; s.retain = true; s.exhaust = true; s.effects = [{ type: 'damage', value: d }]; s.baseText = `惩戒：造成 ${d} 点伤害，保留，打出即消耗`;
+    } else if (b.kind === 'peace') {                          // 塑造·平安：1费、保留、消耗、12 格挡
+      const blk = Math.ceil(12 * mult); s.type = 'skill'; s.value = blk; s.retain = true; s.exhaust = true; s.effects = [{ type: 'block', value: blk }]; s.baseText = `平安：获得 ${blk} 点格挡，保留，打出即消耗`;
+    } else if (b.kind === 'origin') {                         // 起源·β/Ω：打出后变化/调度，消耗
+      s.exhaust = true;
+      if (b.origin === 'beta') { s.becomeCard = 'omiga'; s.baseText = 'β：打出后变化为 Ω，打出即消耗'; }
+      else { s.effects = [{ type: 'scheduleEvery', eff: { type: 'omigaBlast', value: 50 } }]; s.baseText = 'Ω：之后每回合对所有敌人造成 50 点伤害，打出即消耗'; }
     }
     return s;
   };
@@ -490,7 +515,7 @@ window.CG = window.CG || {};
     if (!ids || !ids.length) { if (CG.PACKS) delete CG.PACKS.fusion; return null; }
     // 取各选定「价值主题」的 values(只 now)/costs/conds 并集；「下回合/每回合」是修饰词包(timingMod)、单列。
     const valueSet = new Set(), costSet = new Set(), condSet = new Set(), mods = [];
-    ids.forEach(id => { const p = CG.PACKS && CG.PACKS[id]; if (!p || p.fusion) return; if (p.timingMod) { mods.push(p.timingMod); return; } (p.values || []).forEach(v => valueSet.add(v)); (p.costs || []).forEach(c => costSet.add(c)); (p.conds || []).forEach(c => condSet.add(c)); });
+    ids.forEach(id => { const p = CG.PACKS && CG.PACKS[id]; if (!p || p.fusion) return; if (p.timingMod) mods.push(p.timingMod); (p.values || []).forEach(v => valueSet.add(v)); (p.costs || []).forEach(c => costSet.add(c)); (p.conds || []).forEach(c => condSet.add(c)); });   // v3.16 计划/科技 既带 timingMod 又有自身价值：两者都收集
     // 时点修饰词：选了「每回合/下回合」包，才把已选 now 价值的对应时点变体加入池子（仅对存在该变体的价值）。
     const allValues = new Set(valueSet), tv = CG.timingVariants || {};
     mods.forEach(t => valueSet.forEach(nowId => { const variant = tv[nowId] && tv[nowId][t]; if (variant && CG.VALUE_ATOMS[variant]) allValues.add(variant); }));
@@ -613,21 +638,21 @@ window.CG = window.CG || {};
   // 职业 = 一套固定主题包组合(packs) + 初始牌组(deck:[打击,格挡,治疗])。旅者 packs:null → 随机。
   //   注：⭐姿态(stance)/预见(foresight)/变化(transform) 等新机制待建，相关职业先用现有包，建好后再并入 packs。
   CG.CLASSES = {
-    warrior:    { name: '战士',   icon: '⚔️', desc: '攻守均衡；以易伤压制。', deck: [5, 5, 0], packs: ['vuln', 'power', 'block', 'strength', 'combo'] },
-    berserker:  { name: '狂战士', icon: '🪓', desc: '牺牲防御换强大进攻，可耗血换增益。', deck: [7, 3, 0], packs: ['power', 'blood', 'amplify', 'assault', 'combo'] },
-    knight:     { name: '骑士',   icon: '🛡️', desc: '身披重甲，挥舞终末之剑。', deck: [4, 6, 0], packs: ['endsword', 'ward', 'block', 'thorns', 'immune'] },
-    leader:     { name: '领袖',   icon: '🚩', desc: '不断强化自身的增益型职业。', deck: [5, 5, 0], packs: ['strength', 'dexterity', 'vitality', 'enhance', 'hold'] },
-    monk:       { name: '僧侣',   icon: '🧘', desc: '强力近战，以姿态切换战术。', deck: [6, 4, 0], packs: ['stance', 'power', 'combo', 'energy', 'strength'] },
-    rogue:      { name: '盗贼',   icon: '🗡️', desc: '灵巧：毒液、匕首与甲片。', deck: [6, 4, 0], packs: ['poison', 'dagger', 'scrap', 'spread', 'sapdex'] },
-    archer:     { name: '射手',   icon: '🏹', desc: '擅长计划：弃牌与下回合的运转。', deck: [5, 5, 0], packs: ['draw', 'pile', 'nextMod', 'energy', 'cycle'] },
-    tech:       { name: '科技',   icon: '🔌', desc: '电力与每回合的引擎。', deck: [5, 5, 0], packs: ['elec', 'everyMod', 'cycle', 'energy', 'conjure'] },
-    mage:       { name: '法师',   icon: '🔮', desc: '元素与减益的法术大师。', deck: [6, 4, 0], packs: ['elements', 'vuln', 'weak', 'frail', 'sorcery'] },
-    healer:     { name: '医师',   icon: '✚',  desc: '治疗续航 + 永久强化。', deck: [3, 4, 3], packs: ['vitality', 'enhance', 'block', 'ward', 'hold'] },
-    warlock:    { name: '巫灵',   icon: '⚗️', desc: '魔药、灾厄与灵魂的巫术。', deck: [5, 5, 0], packs: ['cook', 'curse', 'soul', 'blood', 'ash'] },
-    diviner:    { name: '占卜',   icon: '🌠', desc: '预言未来：许愿与预见。', deck: [4, 6, 0], packs: ['divine', 'foresight', 'soul', 'conjure', 'flow'] },
-    summoner:   { name: '召唤',   icon: '💀', desc: '召唤亡者，散布灾厄。', deck: [4, 6, 0], packs: ['summon', 'curse', 'blood', 'sapstr', 'poison'] },
-    illusionist:{ name: '幻惑',   icon: '🎭', desc: '幻术与变化之术。', deck: [5, 5, 0], packs: ['transform', 'conjure', 'wisp', 'amplify', 'sorcery'] },
-    demon:      { name: '恶魔',   icon: '😈', desc: '消耗与灼烧的恶魔之力。', deck: [6, 4, 0], packs: ['ash', 'burn', 'blood', 'curse', 'immune'] },
+    warrior:    { name: '战士',   icon: '⚔️', desc: '攻守均衡；以易伤压制。', deck: [5, 5, 0], packs: ['attack', 'defense', 'power', 'bastion'] },
+    berserker:  { name: '狂战士', icon: '🪓', desc: '牺牲防御换强大进攻，可耗血换增益。', deck: [7, 3, 0], packs: ['power', 'attack', 'selfharm', 'burst'] },
+    knight:     { name: '骑士',   icon: '🛡️', desc: '身披重甲，挥舞终末之剑。', deck: [4, 6, 0], packs: ['endsword', 'bastion', 'defense', 'ghost'] },
+    leader:     { name: '领袖',   icon: '🚩', desc: '为自身/友军提供增益。', deck: [5, 5, 0], packs: ['momentum', 'servant', 'attack', 'defense'] },
+    monk:       { name: '僧侣',   icon: '🧘', desc: '强力近战，以姿态切换战术。', deck: [6, 4, 0], packs: ['stance', 'attack', 'power', 'tempo'] },
+    rogue:      { name: '盗贼',   icon: '🗡️', desc: '灵巧：毒液、匕首与甲片。', deck: [6, 4, 0], packs: ['poison', 'dagger', 'scrap', 'charge'] },
+    archer:     { name: '射手',   icon: '🏹', desc: '擅长计划：弃牌与下回合的运转。', deck: [5, 5, 0], packs: ['plan', 'gadget', 'reboot', 'tempo'] },
+    tech:       { name: '科技',   icon: '🔌', desc: '电力与每回合的引擎。', deck: [5, 5, 0], packs: ['tech', 'elec', 'momentum', 'summon'] },
+    mage:       { name: '法师',   icon: '🔮', desc: '元素与减益的法术大师。', deck: [6, 4, 0], packs: ['elements', 'weaken', 'attack', 'defense'] },
+    healer:     { name: '医师',   icon: '✚',  desc: '治疗续航 + 永久强化。', deck: [3, 4, 3], packs: ['vitality', 'smith', 'defense', 'bastion'] },
+    warlock:    { name: '巫灵',   icon: '⚗️', desc: '魔药、灾厄与灵魂的巫术。', deck: [5, 5, 0], packs: ['cook', 'curse', 'soul', 'poison'] },
+    diviner:    { name: '占卜',   icon: '🌠', desc: '预言未来：预见与运筹。', deck: [4, 6, 0], packs: ['foresight', 'reboot', 'soul', 'alchemy'] },
+    summoner:   { name: '召唤',   icon: '💀', desc: '召唤亡者，散布灾厄。', deck: [4, 6, 0], packs: ['summon', 'servant', 'curse', 'selfharm'] },
+    illusionist:{ name: '幻惑',   icon: '🎭', desc: '幻术与变化之术。', deck: [5, 5, 0], packs: ['alchemy', 'wisp', 'reboot', 'curse'] },
+    demon:      { name: '恶魔',   icon: '😈', desc: '消耗与自残的恶魔之力。', deck: [6, 4, 0], packs: ['exhaust', 'attack', 'selfharm', 'voodoo'] },
     traveler:   { name: '旅者',   icon: '🎒', desc: '随机应变：随机的初始卡包。', deck: [5, 5, 0], packs: null },
   };
   CG.CLASS_IDS = Object.keys(CG.CLASSES);

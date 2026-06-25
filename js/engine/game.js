@@ -111,7 +111,7 @@ window.CG = window.CG || {};
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0; this._stance = null; this._maxim = 0; this._dieNextTurn = false;   // v3.6/3.7/3.8/3.12/3.13/3.15 新批战斗态（姿态跨回合保留）
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0; this._stance = null; this._maxim = 0; this._dieNextTurn = false; this._endswordSweep = false; this._endswordRepeat = 0; this._debuffImmune = 0; this._servantBonus = 0; this._maximGained = 0; this._prevDmg = false; this._prevBlk = false;   // v3.6/3.7/3.8/3.12/3.13/3.15 新批战斗态（姿态跨回合保留）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -152,7 +152,7 @@ window.CG = window.CG || {};
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
       this._keepBlock = 0;                      // 死守包·重甲：剩余「格挡不清空」回合数（打出重甲后 = 等级 N）
       this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0; this._stance = null; this._maxim = 0; this._dieNextTurn = false;   // v3.6/3.7/3.8/3.12/3.13/3.15 新批战斗态（姿态跨回合保留）
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0; this._stance = null; this._maxim = 0; this._dieNextTurn = false; this._endswordSweep = false; this._endswordRepeat = 0; this._debuffImmune = 0; this._servantBonus = 0; this._maximGained = 0; this._prevDmg = false; this._prevBlk = false;   // v3.6/3.7/3.8/3.12/3.13/3.15 新批战斗态（姿态跨回合保留）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -211,7 +211,7 @@ window.CG = window.CG || {};
       this._discardedThisTurn = 0;                 // 弃牌包·倾倒：本回合已丢弃牌数
       this._inspire = 0;                           // 律动·灵感：每回合重置（活力 _vigor 不在此重置＝跨回合保留）
       this._ampDebuff = 0; this._ampBuff = 0;      // 放大·倍损/倍益：每回合重置（「本回合」效果）
-      this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._illusion = 0; this._foresightThisTurn = false;   // v3.6/3.13/3.15 本回合型：每回合重置
+      this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._illusion = 0; this._foresightThisTurn = false; this._prevDmg = false; this._prevBlk = false;   // v3.6/3.13/3.15/3.16 本回合型：每回合重置
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -261,7 +261,7 @@ window.CG = window.CG || {};
       }
       // === 留置包 ===：保留(retain)的牌不进弃牌堆，留在手里跨回合（沉重 heavyhold 也算 retain）。
       const kept = [];
-      for (const c of this.hand) { const cs = CG.cardStats(c); if (cs.ethereal) this._exhaustCard(c); else if (cs.retain) kept.push(c); else this.discardPile.push(c); }   // #40 虚无：回合末仍在手则消耗；否则保留/弃牌
+      for (const c of this.hand) { const cs = CG.cardStats(c); if (cs.ethereal) this._exhaustCard(c); else if (cs.retain) { c._wasRetained = true; kept.push(c); } else this.discardPile.push(c); }   // #40 虚无：回合末仍在手则消耗；否则保留(标记 _wasRetained 供 retained 门型)/弃牌
       this.hand = kept;
       this._tickStatuses(this.player);
       spoiled.forEach(kind => {
@@ -281,6 +281,7 @@ window.CG = window.CG || {};
         if (!e.alive || e.hp <= 0) continue;
         e.block = 0;
         if (e.statuses.poison) { this._dotDamage(e, e.statuses.poison, false); this._corpseBombCheck(e); }   // 中毒：持续伤害（毒死则尸爆）
+        if (e.statuses.mark) { this._dotDamage(e, e.statuses.mark, false); this._corpseBombCheck(e); }   // v3.16 印记：每回合受=层数伤害、不衰减（不进 _tickStatuses）
         if (e.statuses.burn) this._dealBurn(e, e.statuses.burn);                // 灼伤：可被格挡（敌人此时无格挡）
         if (e.statuses.leech) this._dotDamage(e, e.statuses.leech, true);      // 寄生：持续伤害 + 回血
         this._checkEnd();
@@ -337,6 +338,11 @@ window.CG = window.CG || {};
       let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
       if (s.noPlay) { this.addLog(`${s.name} 不能直接打出。`); this._emit(); return; }   // 腐坏卡
       if (s.kind === 'veg') return this._startCraft(card);             // 草药 → 进入炼药
+      // v3.16 终末之剑·横扫(命中全体)/剑圣(额外打出)：持续 buff 作用于每张终末之剑
+      if (CG.BASE_CARDS[card.base] && CG.BASE_CARDS[card.base].kind === 'endsword') {
+        if (this._endswordSweep) s = Object.assign({}, s, { aoe: 1 });
+        if (this._endswordRepeat) s = Object.assign({}, s, { repeatTimes: (s.repeatTimes || 1) + this._endswordRepeat });
+      }
       if (idx < (this._paralyze || 0)) { this.addLog(`麻痹：最左 ${this._paralyze} 张牌本回合无法打出。`); this._emit(); return; }
       // 资源：改造(超频)→改用电力付费(耗能×N)、数值×N；否则走能量(回响可免费)
       const oc = s.overclock || 0;
@@ -373,6 +379,9 @@ window.CG = window.CG || {};
             case 'peekPlayed':   return (this._basePlays && this._basePlays.peek) || 0;
             case 'cardsMade':    return this._cardsMade || 0;          // #49 本场生成卡牌数
             case 'poisonApplied': return this._poisonApplied || 0;     // v3.12 本场施加中毒次数
+            case 'enemyCount':   return this.aliveEnemies().length;    // v3.16 当前存活敌人数
+            case 'maximGained':  return this._maximGained || 0;        // v3.16 本场获得箴言层数
+            case 'servantPlayed': return ((this._basePlays && this._basePlays.serve_strike) || 0) + ((this._basePlays && this._basePlays.serve_sacr) || 0) + ((this._basePlays && this._basePlays.serve_dive) || 0);   // v3.16 本场打出仆从数
             default:            return 0;
           }
         };
@@ -391,7 +400,8 @@ window.CG = window.CG || {};
           if (ve.multiHit)  s = Object.assign({}, s, { multiHit: (s.multiHit || 0) + ve.multiHit });
           if (ve.multi)     s = Object.assign({}, s, { multi: (s.multi || 0) + ve.multi });
           if (ve.element)   s = Object.assign({}, s, { element: ve.element, elementLevel: ve.elementLevel });
-          ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice'].forEach(k => { if (ve[k]) s = Object.assign({}, s, { [k]: (s[k] || 0) + ve[k] }); });   // v3.6 卡级字段（条件路径）
+          ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'putBackDeck', 'returnHand', 'returnDeck', 'toServeStrike', 'toServeSacr', 'toServeDive'].forEach(k => { if (ve[k]) s = Object.assign({}, s, { [k]: (s[k] || 0) + ve[k] }); });   // v3.6/3.16 卡级字段（条件路径）
+          if (ve.becomeCard) s = Object.assign({}, s, { becomeCard: ve.becomeCard });
         });
       }
       // 电弧：本牌数值额外 +（当前电力 × 等级）
@@ -430,6 +440,7 @@ window.CG = window.CG || {};
       else { if (free) this.freeCards -= 1; this.player.energy -= payCost; }   // 否则扣能量（回响免费）
       this.hand.splice(idx, 1);
       this.addLog(`你打出了 ${s.name}${oc ? `（耗电力 ${payPower}）` : ''}。`);
+      if (s.randomTarget) { const a = this.aliveEnemies(); if (a.length) { this.target = this.enemies.indexOf(a[Math.floor(Math.random() * a.length)]); this._refreshTarget(); } }   // v3.16 命中随机敌人代价
 
       // #20 下n张牌打两次：消耗一层 _playTwice（授予该层的牌自身不算「下一张」，授予在 resolve 结算后才 +）
       const dbl = (this._playTwice || 0) > 0; if (dbl) this._playTwice -= 1;
@@ -500,7 +511,16 @@ window.CG = window.CG || {};
         this._turnPlays[card.uid] = cnt;
         if (cnt <= s.windfury) { this.hand.push(card); returned = true; }
       }
-      if (!returned) { if (s.exhaust) this._exhaustCard(card); else this.discardPile.push(card); }  // 销毁→消耗堆（触发涅槃/不坏）
+      // v3.16 连击门型：记录这张牌是否造成过伤害 / 获得过格挡（供下一张牌的 prevDmg/prevBlk 判定）
+      this._prevDmg = (s.effects || []).some(e => e.type === 'damage') || (s.multiHit || 0) > 0;
+      this._prevBlk = (s.effects || []).some(e => e.type === 'block') || (s.dmgToBlock || 0) > 0;
+      // 打出后归宿：起源变化(becomeCard) > 回到手里 > 回到牌库 > 风怒回手 > 消耗 > 弃牌
+      if (!returned) {
+        if (s.becomeCard) { this._exhaustCard(card); const nc = CG.makeFoodCard(s.becomeCard); this._stampIllusion(nc); this._addToHand(nc); }   // 起源 α/β：变化为下一形态
+        else if (s.returnHand && this.hand.length < HAND_LIMIT) this.hand.push(card);                                                            // v3.16 回到手里
+        else if (s.returnDeck) this.drawPile.splice(Math.floor(Math.random() * (this.drawPile.length + 1)), 0, card);                            // v3.16 回到牌库
+        else if (s.exhaust) this._exhaustCard(card); else this.discardPile.push(card);
+      }
 
       this._checkEnd();
       if (this.phase === 'won' || this.phase === 'lost') { this._emit(); return; }
@@ -510,11 +530,15 @@ window.CG = window.CG || {};
       for (let i = 0; i < (s.reborn || 0); i++) this._pickQueue.push('reborn');
       for (let i = 0; i < (s.reclaim || 0); i++) this._pickQueue.push('reclaim');   // 弃牌包·拾遗
       for (let i = 0; i < (s.wish || 0); i++) this._pickQueue.push('wish');         // #37 许愿：从抽牌堆挑牌进手
+      for (let i = 0; i < (s.putBackDeck || 0); i++) this._pickQueue.push('putBack');     // v3.16 把一张牌放回牌库
+      for (let i = 0; i < (s.toServeStrike || 0); i++) this._pickQueue.push('toServeStrike');   // v3.16 变化为仆从打击
+      for (let i = 0; i < (s.toServeSacr || 0); i++) this._pickQueue.push('toServeSacr');
+      for (let i = 0; i < (s.toServeDive || 0); i++) this._pickQueue.push('toServeDive');
       if (this._pendingForesight) { this._foresightWin = this.drawPile.slice(0, this._pendingForesight).map(c => c.uid); this._pickQueue.push('foresight'); this._pendingForesight = 0; }   // v3.15 预见：队列重置后再入队
       for (let i = 0; i < (this._pendingTransform || 0); i++) this._pickQueue.push('transform');   // v3.15 变化
-      for (let i = 0; i < (this._pendingMimicry || 0); i++) this._pickQueue.push('mimicry');       // v3.15 变化为模仿
-      this._pendingTransform = 0; this._pendingMimicry = 0;
+      this._pendingTransform = 0;
       this._nextPick();
+      if (s.endTurnAfter && this.phase === 'player' && !this.pick && !this.craft) this.endTurn();   // v3.16 结束回合代价：所有结算完成后立即结束回合
       };   // resolve()
       // 代价链：先弃牌代价（自选丢弃）→ 再消耗代价（#15 自选消耗）→ resolve
       const afterDiscard = () => { if (s.exhaustCost > 0) this._beginExhaustCost(s.exhaustCost, resolve); else resolve(); };
@@ -636,13 +660,13 @@ window.CG = window.CG || {};
       this._stance = null;
     }
     _startTransform(n) { this._pickQueue = this._pickQueue || []; for (let i = 0; i < n; i++) this._pickQueue.push('transform'); this._nextPick(); }   // v3.15 变化：塔罗/遗物直起
-    _startMimicry(n) { this._pickQueue = this._pickQueue || []; for (let i = 0; i < n; i++) this._pickQueue.push('mimicry'); this._nextPick(); }
+    _startToServe(which, n) { this._pickQueue = this._pickQueue || []; const t = { strike: 'toServeStrike', sacr: 'toServeSacr', dive: 'toServeDive' }[which] || 'toServeStrike'; for (let i = 0; i < (n || 1); i++) this._pickQueue.push(t); this._nextPick(); }   // v3.16 变化为仆从：塔罗/遗物直起
     _nextPick() {                                 // 处理 _pickQueue 的下一个交互选牌；无候选则跳过；队列空则收尾
       while (this._pickQueue && this._pickQueue.length) {
         const t = this._pickQueue.shift();
-        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : t === 'foresight' ? this._foresightCands() : t === 'transform' ? this.hand.filter(c => c.base === 'spell' && (c.sockets || []).length) : t === 'mimicry' ? this.hand.filter(c => c.base === 'spell') : this.exhaustPile;
+        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : t === 'foresight' ? this._foresightCands() : t === 'transform' ? this.hand.filter(c => c.base === 'spell' && (c.sockets || []).length) : (t === 'putBack' || t === 'toServeStrike' || t === 'toServeSacr' || t === 'toServeDive') ? this.hand : this.exhaustPile;
         if (!cands.length) continue;
-        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌', foresight: '预见：看牌库顶，选要丢入弃牌堆的牌（可跳过保留）', transform: '变化：选 1 张手牌变成同结构随机新牌', mimicry: '变化为模仿：选 1 张手牌变成随机模仿牌' };
+        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌', foresight: '预见：看牌库顶，选要丢入弃牌堆的牌（可跳过保留）', transform: '变化：选 1 张手牌变成同结构随机新牌', putBack: '把 1 张手牌放回抽牌堆', toServeStrike: '变化：选 1 张手牌变成「仆从打击」', toServeSacr: '变化：选 1 张手牌变成「仆从捐躯」', toServeDive: '变化：选 1 张手牌变成「仆从俯冲」' };
         this.pick = { type: t, title: titles[t], noSkip: t === 'burn' };   // 燃烧＝消耗手牌，不允许跳过
         this._emit();
         return;
@@ -680,8 +704,12 @@ window.CG = window.CG || {};
         if (uid != null) { const c = this.hand.find(x => x.uid === uid); if (c && (c.sockets || []).length) { c.sockets = c.sockets.map(() => CG.rollGem({ tier: 'monster' })); this.addLog('变化：一张手牌变成了新牌。'); } }
         this.pick = null; this._nextPick(); return;
       }
-      if (t === 'mimicry') {                      // v3.15 变化为模仿：该牌变成随机模仿打击/防御/重击
-        if (uid != null) { const i = this.hand.findIndex(x => x.uid === uid); if (i >= 0) { const m = ['mimic_strike', 'mimic_defend', 'mimic_heavy'][Math.floor(Math.random() * 3)]; this.hand.splice(i, 1, CG.makeFoodCard(m)); this.addLog('变化为模仿：一张手牌变成了模仿牌。'); } }
+      if (t === 'putBack') {                      // v3.16 把一张手牌放回抽牌堆
+        if (uid != null) { const i = this.hand.findIndex(x => x.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this.drawPile.splice(Math.floor(Math.random() * (this.drawPile.length + 1)), 0, c); this.addLog('把一张牌放回了抽牌堆。'); } }
+        this.pick = null; this._nextPick(); return;
+      }
+      if (t === 'toServeStrike' || t === 'toServeSacr' || t === 'toServeDive') {   // v3.16 变化为仆从牌（同 uid 位被替换）
+        if (uid != null) { const i = this.hand.findIndex(x => x.uid === uid); if (i >= 0) { const base = { toServeStrike: 'serve_strike', toServeSacr: 'serve_sacr', toServeDive: 'serve_dive' }[t]; const nc = CG.makeFoodCard(base); nc._bonus = this._servantBonus || 0; this._stampIllusion(nc); this.hand.splice(i, 1, nc); this.addLog('一张手牌变化为仆从牌。'); } }
         this.pick = null; this._nextPick(); return;
       }
       if (uid != null) {
@@ -736,6 +764,10 @@ window.CG = window.CG || {};
         case 'lowHp':         return this.player.hp * 2 < this.player.maxHp;
         case 'foresightTurn': return !!this._foresightThisTurn;
         case 'inStance':      return this._stance === 'rage' || this._stance === 'serenity';
+        case 'prevDmg':       return !!this._prevDmg;          // v3.16 本回合上一张牌造成过伤害
+        case 'prevBlk':       return !!this._prevBlk;          // v3.16 本回合上一张牌获得过格挡
+        case 'retained':      return !!(card && card._wasRetained);   // v3.16 这张牌是保留下来的
+        case 'discardedTurn': return (this._discardedThisTurn || 0) > 0;   // v3.16 本回合丢弃过牌
         default:              return false;
       }
     }
@@ -766,7 +798,7 @@ window.CG = window.CG || {};
       if (remove) this._everyTurn = (this._everyTurn || []).filter(e => this._isEveryCost(e));
     }
     _addToHand(card) { if (this.hand.length < HAND_LIMIT) this.hand.push(card); else this.discardPile.push(card); }   // 术士包等：造牌进手（满则进弃牌堆）
-    _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'curse'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和（含灾厄）
+    _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'curse', 'mark'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 目标减益层数总和（含灾厄/印记）
     // 律动·回溯：拍下/恢复一份「完整战斗快照」（双方生命/格挡/电力/状态，元素光环亦在 statuses 内）
     _snapshot() {
       return {
@@ -888,6 +920,8 @@ window.CG = window.CG || {};
     }
 
     applyStatus(target, key, amount) {
+      // v3.16 免疫减益：玩家被施加减益时，消耗一层免疫（不论层数，整次施加被挡）
+      if (target === this.player && amount > 0 && (this._debuffImmune || 0) > 0 && ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'mark', 'curse'].includes(key)) { this._debuffImmune -= 1; this.addLog('免疫了一次减益。'); return; }
       if (amount > 0) {   // 放大包：本回合翻倍施加的减益(给敌)/增益(给己)
         if (this._ampDebuff > 0 && target !== this.player && ['vulnerable', 'weak', 'frail', 'poison', 'burn'].includes(key)) amount *= 2;
         if (this._ampBuff > 0 && target === this.player && ['strength', 'dexterity', 'regen', 'thorns', 'nourish'].includes(key)) amount *= 2;

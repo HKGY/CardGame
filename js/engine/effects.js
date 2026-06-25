@@ -141,7 +141,7 @@ window.CG = window.CG || {};
     recycleDraw(game, eff) { for (let i = 0; i < eff.value && game.discardPile.length; i++) { const j = Math.floor(Math.random() * game.discardPile.length); const c = game.discardPile.splice(j, 1)[0]; game.drawPile.splice(Math.floor(Math.random() * (game.drawPile.length + 1)), 0, c); } },   // #5 弃牌区 n 张 → 随机洗回抽牌堆
     playFromDraw(game, eff) { for (let i = 0; i < eff.value && game.drawPile.length; i++) { const c = game.drawPile.pop(); game._applyCardEffects(c); game.discardPile.push(c); } },   // #19 打出抽牌堆顶 n 张（免费）
     socketRandom(game, eff) { let n = eff.value; for (const c of game.hand) { if (n <= 0) break; if (CG.isFood(c.base)) continue; const st = CG.cardStats(c); if (st.emptySockets > 0) { c.sockets = (c.sockets || []).concat(CG.rollGem({ tier: 'monster' })); n--; } } },   // #6 给 n 张有空位手牌镶随机宝石(本场)
-    debuffMult(game, eff, source, target) { const t = target || game.enemy; if (!t) return; const f = 1 + eff.value; ['vulnerable', 'weak', 'frail', 'poison', 'burn'].forEach(k => { if (t.statuses[k]) t.statuses[k] = Math.floor(t.statuses[k] * f); }); },   // #3 敌人所有减益层数 ×(1+n)
+    debuffMult(game, eff, source, target) { const t = target || game.enemy; if (!t) return; const f = 1 + eff.value; ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'mark', 'curse'].forEach(k => { if (t.statuses[k]) t.statuses[k] = Math.floor(t.statuses[k] * f); }); },   // #3 敌人所有减益层数 ×(1+n)
     immune(game, eff) { game._immuneHits = (game._immuneHits || 0) + eff.value; },                  // #27 免疫下 n 次伤害
     vulnAmp(game, eff) { game._vulnAmp = (game._vulnAmp || 0) + eff.value; },                       // #13 敌易伤受伤额外 +25%×n（本场）
     weakAmp(game, eff) { game._weakAmp = true; },                                                   // #14 敌虚弱减攻额外 +15%（本场、不叠加）
@@ -157,10 +157,9 @@ window.CG = window.CG || {};
     wish(game, eff) { game._pickQueue = game._pickQueue || []; for (let i = 0; i < eff.value; i++) game._pickQueue.push('wish'); if (game._nextPick) game._nextPick(); },   // v3.13 许愿（调度版）：从抽牌堆挑 n 张进手
     foresight(game, eff) { game._pendingForesight = (game._pendingForesight || 0) + eff.value; game._foresightThisTurn = true; },   // v3.15 占卜·预见：标记待预见（playCard 在 pick 队列重置后再起预见，避免被清空）；塔罗/遗物走 _startForesight 直起
     transform(game, eff) { game._pendingTransform = (game._pendingTransform || 0) + eff.value; },   // v3.15 幻惑·变化：标记待变化（同上，playCard 队列重置后再入队）
-    mimicry(game, eff) { game._pendingMimicry = (game._pendingMimicry || 0) + eff.value; },         // v3.15 幻惑·变化为模仿
     enterRage(game) { if (game._enterStance) game._enterStance('rage'); },                          // v3.15 僧侣·姿态
     enterSerenity(game) { if (game._enterStance) game._enterStance('serenity'); },
-    maxim(game, eff) { game._maxim = (game._maxim || 0) + eff.value; while (game._maxim >= 10 && game._enterStance) { game._maxim -= 10; game._enterStance('divinity'); } },   // 满 10 箴言 → 神格
+    maxim(game, eff) { game._maxim = (game._maxim || 0) + eff.value; game._maximGained = (game._maximGained || 0) + eff.value; while (game._maxim >= 10 && game._enterStance) { game._maxim -= 10; game._enterStance('divinity'); } },   // 满 10 箴言 → 神格（_maximGained 计本场累计）
     leaveStance(game) { if (game._leaveStance) game._leaveStance(); },                              // v3.15 姿态代价：离开当前姿态
     dieNextTurn(game) { game._dieNextTurn = true; game.addLog && game.addLog('代价：下回合开始时死亡。'); },   // v3.15 姿态代价：下回合死亡
     daggerUp(game, eff) { game._daggerBonus = (game._daggerBonus || 0) + 4 * eff.value; game._refreshWeapon('dagger', game._daggerBonus); },   // #25 匕首伤害 +4×n（本场，刷新所有匕首）
@@ -174,13 +173,24 @@ window.CG = window.CG || {};
     // === v3.8 ===
     curse(game, eff, source, target) { game.applyStatus(target || game.enemy, 'curse', eff.value); },   // #41 灾厄：层数 > 敌人生命则其回合末死亡
     makePeek(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('peek'); c._bonus = game._peekBonus || 0; game._stampIllusion(c); game._cardsMade = (game._cardsMade || 0) + 1; game.drawPile.splice(Math.floor(Math.random() * (game.drawPile.length + 1)), 0, c); } },   // #39 生成 n 张灵魂到抽牌堆（带强化/幻境）
-    loseMinionHp(game, eff) { const sk = game.skeleton; if (sk) { sk.hp = Math.max(0, sk.hp - eff.value); if (sk.hp <= 0) game.skeleton = null; } },   // #42 消耗召唤物血量代价
+    loseMinionHp(game) { if (game.skeleton) { game.skeleton = null; game.addLog && game.addLog('牺牲了召唤物。'); } },   // v3.16 消耗召唤物代价：牺牲（消耗全部血量）
     expandEvery(game, eff) { game._everyCap = (game._everyCap || 3) + eff.value; },   // #46 扩容：每回合增益上限 +n
     harvestEvery(game, eff) { game._resolveEveryBuffs(eff.value, false); },           // #47 收割：立即获得 n 次现有每回合增益
     detonateEvery(game, eff) { game._resolveEveryBuffs(4 * eff.value, true); },       // #50 爆破：立即获得 4n 次并失去
     recycle(game, eff) { const made = game.hand.filter(c => !c._initial); game.hand = game.hand.filter(c => c._initial); made.forEach(c => game._exhaustCard(c)); game.drawCards(made.length); },   // #48 回收：消耗手牌中非初始牌、抽等量
     // === 活力（强袭包）===
     vigor(game, eff) { game._vigor = (game._vigor || 0) + eff.value; },   // #35 活力：下一张造成伤害的牌 +n 攻击（playCard 消耗）
+    // === v3.16 39 包重构：新效果 ===
+    mark(game, eff, source, target) { game.applyStatus(target || game.enemy, 'mark', eff.value); },   // 点穴：印记（敌方状态，每回合受=层数伤害、不衰减）
+    sweep(game) { game._endswordSweep = true; },                                                       // 终末之剑攻击所有敌人
+    swordSaint(game, eff) { game._endswordRepeat = (game._endswordRepeat || 0) + eff.value; },         // 终末之剑额外打出 n 次
+    enterDivinity(game) { if (game._enterStance) game._enterStance('divinity'); },                     // 直接进入神格
+    debuffImmune(game, eff) { game._debuffImmune = (game._debuffImmune || 0) + eff.value; },           // 免疫接下来 n 次施加给自己的减益
+    makeSmite(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('smite'); game._stampIllusion(c); game._cardsMade = (game._cardsMade || 0) + 1; game._addToHand(c); } },   // 塑造：生成 n 张惩戒
+    makePeace(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('peace'); game._stampIllusion(c); game._cardsMade = (game._cardsMade || 0) + 1; game._addToHand(c); } },   // 塑造：生成 n 张平安
+    servantUp(game, eff) { game._servantBonus = (game._servantBonus || 0) + 3 * eff.value; ['serve_strike', 'serve_sacr', 'serve_dive'].forEach(b => game._refreshWeapon(b, game._servantBonus)); },   // 仆从强化：名字含「仆从」的牌 +3×n（刷新所有仆从牌）
+    becomeCard(game, eff) { const c = CG.makeFoodCard(eff.card); game._stampIllusion(c); game._addToHand(c); },   // 起源：变化为指定临时牌（α→β、β→Ω；通过 s.becomeCard 在 playCard 触发，此处供调度复用）
+    omigaBlast(game, eff) { game.aliveEnemies().forEach(e => { const bh = e.hp, bb = e.block; game._dealRaw(e, eff.value); game._fire('damage', { side: 'enemy', ei: game._idxOf(e), hpLoss: bh - e.hp, blocked: Math.min(bb, eff.value) }); }); },   // 起源·Ω：每回合对所有敌人造成 50 伤害
   };
   function randHand(game) { const h = game.hand || []; return h.length ? h[Math.floor(Math.random() * h.length)] : null; }
 

@@ -30,6 +30,7 @@ window.CG = window.CG || {};
     nourish:    { label: '滋养', cls: 'badge-buff' },
     burn:       { label: '灼伤', cls: 'badge-poison' },
     curse:      { label: '灾厄', cls: 'badge-poison' },
+    mark:       { label: '印记', cls: 'badge-poison' },
     fire:       { label: '🔥火', cls: 'badge-fire' },
     water:      { label: '💧水', cls: 'badge-water' },
     thunder:    { label: '⚡雷', cls: 'badge-thunder' },
@@ -459,9 +460,9 @@ window.CG = window.CG || {};
     damage: v => `⚔️${v}`, block: v => `🛡️${v}`, draw: v => `抽${v}`, energy: v => `⚡${v}`, gainPower: v => `🔌${v}`,
     heal: v => `❤️${v}`, strength: v => `力量+${v}`, dexterity: v => `敏捷+${v}`, thorns: v => `荆棘${v}`,
     tempStrength: v => `力量+${v}`, tempDexterity: v => `敏捷+${v}`, tempThorns: v => `荆棘${v}`,
-    vulnerable: v => `易伤${v}`, weak: v => `虚弱${v}`, frail: v => `脆弱${v}`, poison: v => `中毒${v}`, curse: v => `灾厄${v}`,
+    vulnerable: v => `易伤${v}`, weak: v => `虚弱${v}`, frail: v => `脆弱${v}`, poison: v => `中毒${v}`, curse: v => `灾厄${v}`, mark: v => `印记${v}`,
     loseHp: v => `失${v}血`, loseGold: v => `失${v}金`, losePower: v => `失${v}电`, clutter: v => `+${v}渣滓`,
-    summon: v => `召唤${v}`, conjure: () => `造牌`, give: () => `药材`,
+    summon: v => `召唤${v}`, conjure: () => `造牌`, give: () => `药材`, omigaBlast: v => `Ω全体${v}`,
     // 效果类型 ≠ 价值原子 id 的两个，单列；其余「操作/生成」类经 effLabel 的 bareName 兜底取中文
     playFromDraw: v => `打出牌库顶${v > 1 ? ' ' + v : ''}`, socketRandom: v => `镶随机宝石${v > 1 ? ' ' + v : ''}`,
   };
@@ -480,6 +481,13 @@ window.CG = window.CG || {};
     if (game._stance) { const n = { rage: '😡愤怒', serenity: '🧘宁静', divinity: '✨神格' }[game._stance]; h += `<span class="badge badge-buff" title="姿态：同时只能一种">${n}</span>`; }
     if (game._maxim > 0) h += `<span class="badge badge-buff" title="箴言：满 10 进入神格">📜${game._maxim}</span>`;
     if (game._dieNextTurn) h += `<span class="badge badge-vuln" title="下回合开始时死亡">☠️下回合死亡</span>`;
+    return h;
+  }
+  function miscBadge(game) {   // v3.16 杂项玩家 buff：免疫减益 / 终末之剑·横扫·剑圣
+    let h = '';
+    if ((game._debuffImmune || 0) > 0) h += `<span class="badge badge-buff" title="免疫接下来若干次施加给你的减益">🚫减益 ${game._debuffImmune}</span>`;
+    if (game._endswordSweep) h += `<span class="badge badge-buff" title="终末之剑攻击所有敌人">🗡️横扫</span>`;
+    if ((game._endswordRepeat || 0) > 0) h += `<span class="badge badge-buff" title="终末之剑额外打出">🗡️剑圣 ${game._endswordRepeat}</span>`;
     return h;
   }
   function scheduleBadges(game) {   // 每回合(常驻) + 下回合(一次性) 待结算效果 → 徽标
@@ -588,7 +596,7 @@ window.CG = window.CG || {};
     renderEnemies(game);
 
     const incoming = game.playerIncomingDamage();   // 本回合预计净伤害（随格挡实时变化）
-    const incBadge = (incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '') + scheduleBadges(game) + stanceBadge(game);
+    const incBadge = (incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '') + scheduleBadges(game) + stanceBadge(game) + miscBadge(game);
     renderUnit('player', p, '你', '', incBadge);
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());
@@ -678,7 +686,8 @@ window.CG = window.CG || {};
       ov.classList.remove('hidden'); return;
     }
     if (game.pick) {
-      const pool = (game.pick.type === 'burn' || game.pick.type === 'discardCost' || game.pick.type === 'exhaustCost' || game.pick.type === 'transform' || game.pick.type === 'mimicry') ? game.hand : game.pick.type === 'reclaim' ? game.discardPile : game.pick.type === 'wish' ? game.drawPile : game.pick.type === 'foresight' ? (game._foresightCands ? game._foresightCands() : []) : game.exhaustPile;
+      const HAND_PICKS = ['burn', 'discardCost', 'exhaustCost', 'transform', 'putBack', 'toServeStrike', 'toServeSacr', 'toServeDive'];
+      const pool = HAND_PICKS.includes(game.pick.type) ? game.hand : game.pick.type === 'reclaim' ? game.discardPile : game.pick.type === 'wish' ? game.drawPile : game.pick.type === 'foresight' ? (game._foresightCands ? game._foresightCands() : []) : game.exhaustPile;
       const noSkip = !!game.pick.noSkip;   // 丢弃/消耗手牌：必须选一张、不给「跳过」
       const cards = pool.length
         ? pool.map(c => cardFace(c, { clickable: true, data: { pick: c.uid } })).join('')
