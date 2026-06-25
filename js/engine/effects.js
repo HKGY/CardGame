@@ -152,7 +152,7 @@ window.CG = window.CG || {};
     makeScrap(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('scrap'); c._bonus = game._scrapBonus || 0; game._stampIllusion(c); game._cardsMade = (game._cardsMade || 0) + 1; game._addToHand(c); } },     // #24 生成 n 张甲片
     makeWisp(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('wisp'); c._bonus = Math.floor(game._wispBonus || 0); game._stampIllusion(c); game._cardsMade = (game._cardsMade || 0) + 1; game._addToHand(c); } },   // v3.13 生成 n 张磷火（带强化/幻境）
     illusion(game, eff) { game._illusion = (game._illusion || 0) + 0.5 * eff.value; },   // v3.13 幻境：本回合生成的临时卡牌效果 +50%×n（回合末清）
-    peekUp(game, eff) { game._peekBonus = (game._peekBonus || 0) + eff.value; game._refreshWeapon('peek', game._peekBonus); },   // v3.13 洞悉强化：本场洞悉抽牌 +n
+    peekUp(game, eff) { game._peekBonus = (game._peekBonus || 0) + eff.value; game._refreshWeapon('peek', game._peekBonus); },   // v3.13 灵魂强化：本场灵魂抽牌 +n
     wispUp(game, eff) { game._wispBonus = (game._wispBonus || 0) + 0.5 * eff.value; game._refreshWeapon('wisp', Math.floor(game._wispBonus)); },   // v3.13 磷火强化：本场磷火能量 +0.5n（floor）
     wish(game, eff) { game._pickQueue = game._pickQueue || []; for (let i = 0; i < eff.value; i++) game._pickQueue.push('wish'); if (game._nextPick) game._nextPick(); },   // v3.13 许愿（调度版）：从抽牌堆挑 n 张进手
     daggerUp(game, eff) { game._daggerBonus = (game._daggerBonus || 0) + 4 * eff.value; game._refreshWeapon('dagger', game._daggerBonus); },   // #25 匕首伤害 +4×n（本场，刷新所有匕首）
@@ -164,8 +164,8 @@ window.CG = window.CG || {};
     },
     parry(game, eff) { game._endswordBlk = (game._endswordBlk || 0) + eff.value; game._refreshEndsword(); },   // #36 招架：终末之剑 +n 格挡（不论何处）
     // === v3.8 ===
-    curse(game, eff, source, target) { game.applyStatus(target || game.enemy, 'curse', eff.value); },   // #41 咒言：层数 > 敌人生命则其回合末死亡
-    makePeek(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('peek'); c._bonus = game._peekBonus || 0; game._stampIllusion(c); game._cardsMade = (game._cardsMade || 0) + 1; game.drawPile.splice(Math.floor(Math.random() * (game.drawPile.length + 1)), 0, c); } },   // #39 生成 n 张洞悉到抽牌堆（带强化/幻境）
+    curse(game, eff, source, target) { game.applyStatus(target || game.enemy, 'curse', eff.value); },   // #41 灾厄：层数 > 敌人生命则其回合末死亡
+    makePeek(game, eff) { for (let i = 0; i < eff.value; i++) { const c = CG.makeFoodCard('peek'); c._bonus = game._peekBonus || 0; game._stampIllusion(c); game._cardsMade = (game._cardsMade || 0) + 1; game.drawPile.splice(Math.floor(Math.random() * (game.drawPile.length + 1)), 0, c); } },   // #39 生成 n 张灵魂到抽牌堆（带强化/幻境）
     loseMinionHp(game, eff) { const sk = game.skeleton; if (sk) { sk.hp = Math.max(0, sk.hp - eff.value); if (sk.hp <= 0) game.skeleton = null; } },   // #42 消耗召唤物血量代价
     expandEvery(game, eff) { game._everyCap = (game._everyCap || 3) + eff.value; },   // #46 扩容：每回合增益上限 +n
     harvestEvery(game, eff) { game._resolveEveryBuffs(eff.value, false); },           // #47 收割：立即获得 n 次现有每回合增益

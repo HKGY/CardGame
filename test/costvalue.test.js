@@ -727,7 +727,7 @@ test('#37 许愿：从抽牌堆选择一张加入手牌（pick）', () => {
 // ===== v3.8（38-51）=====
 const EB = 'energy_produce_block';   // 每回合格挡 buff 分子（produce_block 值=2）
 
-test('#38/#39 洞悉牌(0费抽2消耗) + 生成洞悉到抽牌堆', () => {
+test('#38/#39 灵魂牌(0费抽2消耗) + 生成灵魂到抽牌堆', () => {
   assert.ok(CG.BASE_CARDS.peek && CG.BASE_CARDS.peek.cost === 0);
   assert.deepStrictEqual(CG.cardStats(CG.makeFoodCard('peek')).effects.map(e => e.type + e.value).join(','), 'draw2');
   const g = bt(); pg(g, [[{ id: 'energy_makePeek', level: 1 }]]);
@@ -741,28 +741,28 @@ test('#40 虚无代价：回合末仍在手则消耗', () => {
   assert.ok(!g.hand.some(c => c.uid === eth.uid) && g.exhaustPile.some(c => c.uid === eth.uid));
 });
 
-test('#41 咒言：层数 > 敌生命 → 敌回合末死亡', () => {
-  assert.strictEqual(CG.affixValueText('energy_curse', 1), '使敌人获得 10 点咒言');   // 0.6VP→10
+test('#41 灾厄：层数 > 敌生命 → 敌回合末死亡', () => {
+  assert.strictEqual(CG.affixValueText('energy_curse', 1), '使敌人获得 10 点灾厄');   // 0.6VP→10
   const g = bt(); g.enemy.hp = 8; pg(g, [[{ id: 'energy_curse', level: 1 }]]);
   assert.strictEqual(g.enemy.statuses.curse, 10);
-  g.endTurn(); g.runEnemyTurn(); assert.ok(!g.enemy.alive);   // 咒言10 > 8血 → 回合末死
+  g.endTurn(); g.runEnemyTurn(); assert.ok(!g.enemy.alive);   // 灾厄10 > 8血 → 回合末死
 });
 
-test('#42 召唤物血量代价 / #44 追加咒言 / #51 伤害转格挡', () => {
+test('#42 召唤物血量代价 / #44 追加灾厄 / #51 伤害转格挡', () => {
   let g = bt(); g.skeleton = { hp: 6, maxHp: 6, block: 0, statuses: {} };
   pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'minionHp_damage', level: 1 }]]);
   assert.strictEqual(g.skeleton.hp, 2);   // 消耗 4 召唤物血
   g = bt(); pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_curseStrike', level: 1 }]]);
-  assert.strictEqual(g.enemy.statuses.curse, 6);   // 追加＝伤害6 的咒言
+  assert.strictEqual(g.enemy.statuses.curse, 6);   // 追加＝伤害6 的灾厄
   g = bt(); pg(g, [[{ id: CG.STRIKE, level: 1 }], [{ id: 'energy_dmgToBlock', level: 1 }]]);
   assert.strictEqual(g.player.block, 6);   // 获得＝伤害6 的格挡
 });
 
-test('#43/#49 量型条件：打出匕首/甲片/洞悉次数、生成卡牌数', () => {
+test('#43/#49 量型条件：打出匕首/甲片/灵魂次数、生成卡牌数', () => {
   assert.ok(CG.AFFIXES['daggerPlayed_damage'] && CG.AFFIXES['scrapPlayed_block'] && CG.AFFIXES['peekPlayed_draw'] && CG.AFFIXES['cardsMade_damage']);
   let g = bt(); g.player.energy = 30; const d = CG.makeFoodCard('dagger'); g.hand = [d]; g.playCard(d.uid);
   assert.strictEqual(g._basePlays.dagger, 1);
-  g = bt(); pg(g, [[{ id: 'energy_makePeek', level: 1 }]]); assert.strictEqual(g._cardsMade, 2);   // 生成 2 张洞悉
+  g = bt(); pg(g, [[{ id: 'energy_makePeek', level: 1 }]]); assert.strictEqual(g._cardsMade, 2);   // 生成 2 张灵魂
 });
 
 const KINDS = ['energy_produce_block', 'energy_produce_draw', 'energy_produce_energy', 'energy_damage_every'];   // 4 种不同的每回合增益
@@ -936,14 +936,14 @@ test('v3.12 每个价值/代价/条件原子都有归属主题（无孤儿）', 
 });
 
 // ===== v3.13：磷火/幻境/强化 + 时点化 =====
-test('v3.13 磷火卡 + 生成磷火/洞悉强化/磷火强化/幻境', () => {
+test('v3.13 磷火卡 + 生成磷火/灵魂强化/磷火强化/幻境', () => {
   // 磷火卡：0 费、+1 能量、保留、消耗
   let g = bt(); g.player.energy = 2; const w = CG.makeFoodCard('wisp'); g.hand = [w]; g.playCard(w.uid);
   assert.strictEqual(g.player.energy, 3); assert.ok(g.exhaustPile.some(c => c.uid === w.uid));
   const ws = CG.foodStats(CG.makeFoodCard('wisp')); assert.strictEqual(ws.retain, true); assert.strictEqual(ws.exhaust, true);
   // 生成磷火
   g = bt(); pg(g, [[{ id: 'energy_makeWisp', level: 1 }]]); assert.strictEqual(g.hand.filter(c => c.base === 'wisp').length, 1);
-  // 洞悉强化 +1（洞悉抽 2→3）
+  // 灵魂强化 +1（灵魂抽 2→3）
   g = bt(); pg(g, [[{ id: 'energy_peekUp', level: 1 }]]); const pk = CG.makeFoodCard('peek'); pk._bonus = g._peekBonus; assert.strictEqual(CG.cardStats(pk).effects[0].value, 3);
   // 磷火强化 +0.5（2 级 → 磷火 +1 能量）
   g = bt(); pg(g, [[{ id: 'energy_wispUp', level: 1 }]]); pg(g, [[{ id: 'energy_wispUp', level: 1 }]]); const wp = CG.makeFoodCard('wisp'); wp._bonus = Math.floor(g._wispBonus); assert.strictEqual(CG.cardStats(wp).effects[0].value, 2);

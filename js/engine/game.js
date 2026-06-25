@@ -297,8 +297,8 @@ window.CG = window.CG || {};
           });
         }
         this._tickStatuses(e);
-        if (e.alive && e.hp > 0 && (e.statuses.curse || 0) > e.hp) {   // #41 咒言：回合结束时层数 > 生命 → 立刻死亡
-          const lost = e.hp; e.hp = 0; this.addLog(`${e.name} 被咒言吞噬！`);
+        if (e.alive && e.hp > 0 && (e.statuses.curse || 0) > e.hp) {   // #41 灾厄：回合结束时层数 > 生命 → 立刻死亡
+          const lost = e.hp; e.hp = 0; this.addLog(`${e.name} 被灾厄吞噬！`);
           this._fire('damage', { side: 'enemy', ei: this._idxOf(e), hpLoss: lost, blocked: 0 });
         }
         this._checkEnd();
@@ -334,7 +334,7 @@ window.CG = window.CG || {};
       const card = this.hand[idx];
       let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
       if (s.noPlay) { this.addLog(`${s.name} 不能直接打出。`); this._emit(); return; }   // 调味料 / 腐坏卡
-      if (s.kind === 'veg') return this._startCraft(card);             // 素菜 → 进入做菜
+      if (s.kind === 'veg') return this._startCraft(card);             // 草药 → 进入做菜
       if (idx < (this._paralyze || 0)) { this.addLog(`麻痹：最左 ${this._paralyze} 张牌本回合无法打出。`); this._emit(); return; }
       // 资源：改造(超频)→改用电力付费(耗能×N)、数值×N；否则走能量(回响可免费)
       const oc = s.overclock || 0;
@@ -366,7 +366,7 @@ window.CG = window.CG || {};
             case 'myDebuff':    return ['vulnerable', 'weak', 'frail'].reduce((s, k) => s + (this.player.statuses[k] || 0), 0);   // 自身减益体系：回收自己背的减益
             case 'hpLossCount': return this._hpLossCount || 0;   // #18 本场失去生命次数
             case 'playedThisTurn': return this._playedThisTurn || 0;   // #34 本回合已打出牌数
-            case 'daggerPlayed': return (this._basePlays && this._basePlays.dagger) || 0;   // #43 本场打出匕首/甲片/洞悉 次数
+            case 'daggerPlayed': return (this._basePlays && this._basePlays.dagger) || 0;   // #43 本场打出匕首/甲片/灵魂 次数
             case 'scrapPlayed':  return (this._basePlays && this._basePlays.scrap) || 0;
             case 'peekPlayed':   return (this._basePlays && this._basePlays.peek) || 0;
             case 'cardsMade':    return this._cardsMade || 0;          // #49 本场生成卡牌数
@@ -460,7 +460,7 @@ window.CG = window.CG || {};
       }
       // 吸血：按对主目标造成的伤害回血（含连击多段）
       if (s.lifesteal > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.heal(Math.floor(dealt * s.lifesteal / 100)); }   // 吸血以 1% 计
-      if (s.curseStrike > 0 && target.hp > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.applyStatus(target, 'curse', dealt * s.curseStrike); }   // #44 追加＝伤害×n 的咒言
+      if (s.curseStrike > 0 && target.hp > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.applyStatus(target, 'curse', dealt * s.curseStrike); }   // #44 追加＝伤害×n 的灾厄
       if (s.dmgToBlock > 0) { const dealt = enemyHpBefore - target.hp; if (dealt > 0) this.gainBlock(this.player, dealt * s.dmgToBlock); }   // #51 获得＝伤害×n 的格挡
       // 元素结算（新模型：敌人至多 1 种 1 层）：有反应→消耗敌方元素并触发一次；附两层(elemLv≥2)则反应后再附 1 层新的；无反应→取代为本元素 1 层。
       if (elem && elemLv > 0) {
@@ -478,7 +478,7 @@ window.CG = window.CG || {};
       // 回响：打出后使本回合接下来若干张牌免费；连击：本回合打出牌计数 +1
       if (s.freeNext) this.freeCards = (this.freeCards || 0) + s.freeNext;
       this._playedThisTurn = (this._playedThisTurn || 0) + 1;
-      this._basePlays = this._basePlays || {}; this._basePlays[card.base] = (this._basePlays[card.base] || 0) + 1;   // #43 按基底计本场打出次数（匕首/甲片/洞悉）
+      this._basePlays = this._basePlays || {}; this._basePlays[card.base] = (this._basePlays[card.base] || 0) + 1;   // #43 按基底计本场打出次数（匕首/甲片/灵魂）
 
       // === 强化包 / v3.6 本牌成长 ===（成长挂在被打出的 card 实例上＝本场永久）
       if (s.temper > 0) card.growth = (card.growth || 0) + s.temper;     // 锤炼：本牌数值永久 +L
@@ -539,10 +539,10 @@ window.CG = window.CG || {};
     }
 
     // ---------- 厨艺：做菜 ----------
-    // 打出素菜 → 进入做菜：先选荤菜(可跳过)，再选调味料(可跳过)，做成「餐点」进手牌。
+    // 打出草药 → 进入做菜：先选兽血(可跳过)，再选调味料(可跳过)，做成「餐点」进手牌。
     _startCraft(vegCard) {
       this.craft = { vegUid: vegCard.uid, step: 'meat', meatUid: null, seasonUid: null };
-      this.addLog('开始做菜：选择荤菜（可跳过）。');
+      this.addLog('开始做菜：选择兽血（可跳过）。');
       this._emit();
     }
     craftCandidates() {                          // 给 UI：当前步可选的手牌
@@ -561,7 +561,7 @@ window.CG = window.CG || {};
       if (this.craft.step === 'meat') { this.craft.step = 'season'; this.addLog('选择调味料（可跳过）。'); this._emit(); return; }
       this._finishCraft();
     }
-    craftCancel() { this.craft = null; this.addLog('取消了做菜。'); this._emit(); }   // 放回素菜，不消耗
+    craftCancel() { this.craft = null; this.addLog('取消了做菜。'); this._emit(); }   // 放回草药，不消耗
     _finishCraft() {
       const cr = this.craft; this.craft = null;
       const veg = this.hand.find(c => c.uid === cr.vegUid);
@@ -720,7 +720,7 @@ window.CG = window.CG || {};
       if (remove) this._everyTurn = (this._everyTurn || []).filter(e => this._isEveryCost(e));
     }
     _addToHand(card) { if (this.hand.length < HAND_LIMIT) this.hand.push(card); else this.discardPile.push(card); }   // 术士包等：造牌进手（满则进弃牌堆）
-    _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'curse'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和（含咒言）
+    _enemyDebuffLayers(e) { return ['vulnerable', 'weak', 'frail', 'poison', 'burn', 'curse'].reduce((s, k) => s + (e.statuses[k] || 0), 0); }   // 猎杀包：目标减益层数总和（含灾厄）
     // 律动·回溯：拍下/恢复一份「完整战斗快照」（双方生命/格挡/电力/状态，元素光环亦在 statuses 内）
     _snapshot() {
       return {

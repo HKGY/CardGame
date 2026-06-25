@@ -31,11 +31,11 @@ window.CG = window.CG || {};
     makeDagger: 3.0, makeScrap: 3.0, daggerUp: 6.0, scrapUp: 6.0,                                 // 兵械（匕首/甲片）
     immune: 12.0, dmgCap1: 18.0,                                                                  // 防御
     retain: 3.0, forge: 1.0, vigor: 1.0, parry: 1.0, wish: 12.0,                                  // v3.7：保留/锻造(终末之剑)/活力/招架/许愿
-    makePeek: 3.0, curse: 0.6, curseStrike: 6.0, dmgToBlock: 6.0,                                 // v3.8：生成洞悉/咒言/追加咒言/伤害转格挡
+    makePeek: 3.0, curse: 0.6, curseStrike: 6.0, dmgToBlock: 6.0,                                 // v3.8：生成灵魂/灾厄/追加灾厄/伤害转格挡
     expandEvery: 6.0, harvestEvery: 6.0, detonateEvery: 6.0, recycle: 6.0,                        // v3.8：每回合机制(扩容/收割/爆破) + 回收
     corpseBomb: 6.0, catalyze: 12.0,                                                              // v3.12 猛毒包：尸爆(被毒杀→AoE最大生命)/催发(立即结算中毒)
     burn: 1.5, regen: 3.0,                                                                        // v3.12 新价值：灼烧(灰烬包,过血量DoT)/再生(生机包,回合开始回血)
-    makeWisp: 6.0, illusion: 6.0, peekUp: 6.0, wispUp: 6.0,                                        // v3.13 生成磷火/幻境(临时牌+50%)/洞悉强化(+1)/磷火强化(+0.5)
+    makeWisp: 6.0, illusion: 6.0, peekUp: 6.0, wispUp: 6.0,                                        // v3.13 生成磷火/幻境(临时牌+50%)/灵魂强化(+1)/磷火强化(+0.5)
     arc: 6.0, charge: 6.0, nirvana: 6.0, undying: 6.0, temper: 6.0, duplicate: 6.0, mindblast: 6.0,   // v3.12 复活既有引擎机制为价值原子：电弧/充电(电力)、涅槃/不坏(灰烬)、锤炼(机巧)、复制/心灵震慑(术士)
     // —— 代价原子 ——（v3.14：失血 hp 3VP；自易伤·虚弱·脆弱 仍 2VP）
     hp: 3.0, gold: 1.0, discard: 3.0, maxhp: 1.0, exhaustCard: 6.0, losePower: 1.0, makeDross: 6.0, ethereal: 3.0, minionHp: 1.5,   // ethereal＝虚无(回合末未打出则消耗)；minionHp＝消耗召唤物血量
@@ -62,7 +62,7 @@ window.CG = window.CG || {};
     vulnerable: '使敌人获得 {n} 点易伤', weak: '使敌人获得 {n} 点虚弱', frail: '使敌人获得 {n} 点脆弱', poison: '使敌人获得 {n} 点中毒',
     thorns: '获得 {n} 点荆棘', conjure: '生成 1 张带 {n} 颗随机宝石的牌（本回合 0 费）', summon: '召唤骷髅或使其血量上限增加 {n}',
     strength: '获得 {n} 点力量', dexterity: '获得 {n} 点敏捷', enemyLoseStr: '使敌人失去 {n} 点力量', enemyLoseDex: '使敌人失去 {n} 点敏捷',
-    food_veg: '生成 {n} 张素菜', food_meat: '生成 {n} 张荤菜', food_season: '生成 {n} 张调料',
+    food_veg: '生成 {n} 张草药', food_meat: '生成 {n} 张兽血', food_season: '生成 {n} 张调料',
     heal: '回复 {n} 点生命', fire: '给敌人附 {n} 层火', water: '给敌人附 {n} 层水', thunder: '给敌人附 {n} 层雷', ice: '给敌人附 {n} 层冰',
     mult: '本牌伤害/格挡/治疗 ×{n}', lifesteal: '吸血 {n}%', combo: '本牌攻击额外命中 {n} 次', multi: '消耗全部能量，整张牌打出等同能量的次数',
     copyDiscard: '将这张牌复制 {n} 份到弃牌堆', recallDiscard: '将弃牌堆中 {n} 张牌加入手牌', recycleDraw: '将弃牌堆中 {n} 张牌洗回抽牌堆',
@@ -74,19 +74,19 @@ window.CG = window.CG || {};
     makeDagger: '生成 {n} 张匕首', makeScrap: '生成 {n} 张甲片', daggerUp: '本场匕首伤害 +{n}', scrapUp: '本场甲片格挡 +{n}',
     immune: '免疫接下来 {n} 次伤害', dmgCap1: '本回合受到的伤害降为 1', retain: '这张牌回合结束时不丢弃',
     forge: '终末之剑伤害 +{n}（不论它在何处；没有则创造一张加入手牌）', vigor: '使下一张造成伤害的牌攻击 +{n}', parry: '终末之剑格挡 +{n}（不论它在何处）',
-    wish: '从抽牌堆中选择 {n} 张牌加入手牌', makePeek: '生成 {n} 张洞悉到抽牌堆',
-    curse: '使敌人获得 {n} 点咒言', curseStrike: '追加等同本牌伤害 ×{n} 的咒言给敌人', dmgToBlock: '获得等同本牌伤害 ×{n} 的格挡',
+    wish: '从抽牌堆中选择 {n} 张牌加入手牌', makePeek: '生成 {n} 张灵魂到抽牌堆',
+    curse: '使敌人获得 {n} 点灾厄', curseStrike: '追加等同本牌伤害 ×{n} 的灾厄给敌人', dmgToBlock: '获得等同本牌伤害 ×{n} 的格挡',
     expandEvery: '每回合增益上限 +{n}', harvestEvery: '立即获得 {n} 次现有每回合增益', detonateEvery: '立即结算现有每回合增益 {n} 次后失去它们', recycle: '消耗手牌中所有非初始牌，并抽取等量的牌',
     corpseBomb: '被中毒杀死的敌人，对其他敌人造成等同其最大生命值的伤害', catalyze: '立即结算敌人身上的中毒 {n} 次',
     burn: '使敌人获得 {n} 点灼烧', regen: '获得 {n} 点再生', nirvana: '这张牌被消耗时，其效果再发动 {n} 次', undying: '这张牌被消耗时，生成 {n} 张副本加入手牌',
     arc: '打出时本牌数值额外 +（当前电力 ×{n}）', charge: '消耗至多 {n} 点电力，转化为等量能量', temper: '打出后本场这张牌数值永久 +{n}', duplicate: '复制 {n} 张随机手牌', mindblast: '牌库中所有攻击牌的伤害永久 +{n}',
-    makeWisp: '生成 {n} 张磷火', illusion: '本回合内生成的临时卡牌效果提升 50%（叠加 {n} 次）', peekUp: '本场洞悉抽牌 +{n}', wispUp: '本场磷火能量 +{n}',
+    makeWisp: '生成 {n} 张磷火', illusion: '本回合内生成的临时卡牌效果提升 50%（叠加 {n} 次）', peekUp: '本场灵魂抽牌 +{n}', wispUp: '本场磷火能量 +{n}',
   };
   const COND_TMPL = {
     curBlock: { q: '每有 {x} 点当前格挡' }, enemyDebuff: { q: '敌方每有 {x} 层减益' }, exhaustPile: { q: '消耗堆每有 {x} 张牌' },
     handSize: { q: '手牌每有 {x} 张' }, emptyHand: { q: '手牌每空出 {x} 张' }, curGold: { q: '每持有 {x} 点金币' }, turnNum: { q: '每过 {x} 个回合' },
     myDebuff: { q: '自身每有 {x} 层减益' }, hpLossCount: { q: '本场每失去 {x} 次生命' }, playedThisTurn: { q: '本回合每打出 {x} 张牌' },
-    daggerPlayed: { q: '本场每打出 {x} 张匕首' }, scrapPlayed: { q: '本场每打出 {x} 张甲片' }, peekPlayed: { q: '本场每打出 {x} 张洞悉' }, cardsMade: { q: '本场每生成 {x} 张牌' }, poisonApplied: { q: '本场每施加 {x} 次中毒' },
+    daggerPlayed: { q: '本场每打出 {x} 张匕首' }, scrapPlayed: { q: '本场每打出 {x} 张甲片' }, peekPlayed: { q: '本场每打出 {x} 张灵魂' }, cardsMade: { q: '本场每生成 {x} 张牌' }, poisonApplied: { q: '本场每施加 {x} 次中毒' },
     firstPlay: { gate: '这张牌本场首次打出时' }, hurt: { gate: '本场已受过伤时' }, noBlock: { gate: '没有格挡时' },
     enemyVuln: { gate: '敌人处于易伤时' }, enemyWeak: { gate: '敌人处于虚弱时' }, enemyFrail: { gate: '敌人处于脆弱时' }, enemyPoison: { gate: '敌人处于中毒时' },
     lostHpTurn: { gate: '本回合失去过生命时' }, exhaustedTurn: { gate: '本回合消耗过牌时' },
@@ -136,9 +136,9 @@ window.CG = window.CG || {};
     parry:        { name: '招架', vpRes: 'parry', maxCount: 1, mech: u => ({ parry: u }) },               // #36 终末之剑 +1 格挡(不论何处)
     wish:         { name: '许愿', vpRes: 'wish', mech: u => ({ wish: u }) },                              // #37 从抽牌堆选择 n 张加入手牌
     // —— v3.8 ——
-    makePeek:     { name: '生成洞悉', vpRes: 'makePeek', mech: u => ({ makePeek: u }) },                  // #39 生成 n 张洞悉到抽牌堆
-    curse:        { name: '咒言', vpRes: 'curse', mech: u => ({ apply: { curse: u } }) },                 // #41 咒言：层数 > 敌人生命则其回合末死亡
-    curseStrike:  { name: '追加咒言', vpRes: 'curseStrike', mech: u => ({ curseStrike: u }) },            // #44 追加＝伤害×n 的咒言
+    makePeek:     { name: '生成灵魂', vpRes: 'makePeek', mech: u => ({ makePeek: u }) },                  // #39 生成 n 张灵魂到抽牌堆
+    curse:        { name: '灾厄', vpRes: 'curse', mech: u => ({ apply: { curse: u } }) },                 // #41 灾厄：层数 > 敌人生命则其回合末死亡
+    curseStrike:  { name: '追加灾厄', vpRes: 'curseStrike', mech: u => ({ curseStrike: u }) },            // #44 追加＝伤害×n 的灾厄
     dmgToBlock:   { name: '伤害转格挡', vpRes: 'dmgToBlock', mech: u => ({ dmgToBlock: u }) },            // #51 获得＝伤害×n 的格挡
     expandEvery:  { name: '扩容', vpRes: 'expandEvery', mech: u => ({ expandEvery: u }) },                // #46 每回合增益上限 +n
     harvestEvery: { name: '收割', vpRes: 'harvestEvery', mech: u => ({ harvestEvery: u }) },              // #47 立即获得 n 次现有每回合增益
@@ -160,8 +160,8 @@ window.CG = window.CG || {};
     temper:       { name: '锤炼', vpRes: 'temper', color: '#c8a86a', mech: u => ({ temper: u }) },                           // 打出后本牌数值永久 +n（本场）
     duplicate:    { name: '复制', vpRes: 'duplicate', color: COLOR.conjure, mech: u => ({ duplicate: u }) },                 // 复制 n 张随机手牌
     mindblast:    { name: '心灵震慑', vpRes: 'mindblast', maxCount: 1, color: COLOR.conjure, mech: u => ({ mindblast: u }) },  // 牌库中所有攻击牌伤害永久 +n
-    // —— v3.13 强化型（非时点；按 1能量=洞悉强化1=磷火强化0.5 校准）——
-    peekUp:       { name: '洞悉强化', vpRes: 'peekUp', color: COLOR.conjure, mech: u => ({ peekUp: u }) },                    // 本场洞悉抽牌 +n
+    // —— v3.13 强化型（非时点；按 1能量=灵魂强化1=磷火强化0.5 校准）——
+    peekUp:       { name: '灵魂强化', vpRes: 'peekUp', color: COLOR.conjure, mech: u => ({ peekUp: u }) },                    // 本场灵魂抽牌 +n
     wispUp:       { name: '磷火强化', vpRes: 'wispUp', dmul: 0.5, color: COLOR.power, mech: u => ({ wispUp: u }) },           // 本场磷火能量 +0.5×n
   };
 
@@ -188,8 +188,8 @@ window.CG = window.CG || {};
     thorns:     statB(1.0, v => ({ tempThorns: v }), v => ({ addThorns: v }), v => ({ type: 'tempThorns', value: v }), { now: 'tempThorns', next: 'thorns_next', every: 'thorns' }, '荆棘', COLOR.thorns),   // 荆棘(every默认,2VP,永久) / 本回合荆棘(now,1VP,临时) / 下回合荆棘(next)；不再每回合递增
     conjure:    sched(6.0, v => ({ type: 'conjure', value: v }), v => ({ conjure: v }), { now: 'conjure', next: 'conjure_next', every: 'conjure_every' }, '造牌', { num: true, prim: 'now', color: COLOR.conjure }),   // 造一张带随机 n 宝石的牌(本回合 0 费)
     summon:     sched(1.5, v => ({ type: 'summon', value: v }), v => ({ summon: v }), { now: 'summon', next: 'summon_next', every: 'summon_every' }, '召唤物', { num: true, prim: 'now', color: COLOR.summon }),   // 召唤/壮大单骷髅(血量上限 n)
-    food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, '素菜', { maxCount: 1, color: COLOR.food }),
-    food_meat:  sched(2.0, v => ({ type: 'give', what: 'meat', value: v }), () => ({ give: 'meat' }), { now: 'food_meat', next: 'food_meat_next', every: 'food_meat_every' }, '荤菜', { maxCount: 1, color: COLOR.food }),
+    food_veg:   sched(2.0, v => ({ type: 'give', what: 'veg', value: v }), () => ({ give: 'veg' }), { now: 'food_veg', next: 'food_veg_next', every: 'food_veg_every' }, '草药', { maxCount: 1, color: COLOR.food }),
+    food_meat:  sched(2.0, v => ({ type: 'give', what: 'meat', value: v }), () => ({ give: 'meat' }), { now: 'food_meat', next: 'food_meat_next', every: 'food_meat_every' }, '兽血', { maxCount: 1, color: COLOR.food }),
     food_season:sched(2.0, v => ({ type: 'give', what: 'season', value: v }), () => ({ give: 'season' }), { now: 'food_season', next: 'food_season_next', every: 'food_season_every' }, '调料', { maxCount: 1, color: COLOR.food }),
     strength:   statB(1.5, v => ({ prepare: v }), v => ({ addStr: v }), v => ({ type: 'tempStrength', value: v }), { now: 'tempStr', next: 'strength_next', every: 'strength' }, '力量', COLOR.strength),
     dexterity:  statB(1.5, v => ({ prepDex: v }), v => ({ addDex: v }), v => ({ type: 'tempDexterity', value: v }), { now: 'tempDex', next: 'dexterity_next', every: 'dexterity' }, '敏捷', COLOR.dexterity),
@@ -203,14 +203,14 @@ window.CG = window.CG || {};
     keepBlockFull: sched(12,  v => ({ type: 'keepBlockFull', value: v }), v => ({ keepBlockFull: v }),  { now: 'keepBlockFull', next: 'keepBlockFull_next', every: 'keepBlockFull_every' }, '格挡保留', { prim: 'now', maxCount: 1, color: COLOR.block }),
     makeDagger:    sched(3,   v => ({ type: 'makeDagger', value: v }),    v => ({ makeDagger: v }),     { now: 'makeDagger', next: 'makeDagger_next', every: 'makeDagger_every' }, '生成匕首', { prim: 'now', color: '#c0a878' }),
     makeScrap:     sched(3,   v => ({ type: 'makeScrap', value: v }),     v => ({ makeScrap: v }),      { now: 'makeScrap', next: 'makeScrap_next', every: 'makeScrap_every' }, '生成甲片', { prim: 'now', color: '#a8b0c0' }),
-    makePeek:      sched(3,   v => ({ type: 'makePeek', value: v }),      v => ({ makePeek: v }),       { now: 'makePeek', next: 'makePeek_next', every: 'makePeek_every' }, '生成洞悉', { prim: 'now', color: COLOR.conjure }),
+    makePeek:      sched(3,   v => ({ type: 'makePeek', value: v }),      v => ({ makePeek: v }),       { now: 'makePeek', next: 'makePeek_next', every: 'makePeek_every' }, '生成灵魂', { prim: 'now', color: COLOR.conjure }),
     makeWisp:      sched(6,   v => ({ type: 'makeWisp', value: v }),      v => ({ makeWisp: v }),       { now: 'makeWisp', next: 'makeWisp_next', every: 'makeWisp_every' }, '生成磷火', { prim: 'now', color: COLOR.power }),
     illusion:      sched(6,   v => ({ type: 'illusion', value: v }),      v => ({ illusion: v }),       { now: 'illusion', next: 'illusion_next', every: 'illusion_every' }, '幻境', { prim: 'now', color: COLOR.conjure }),
     forge:         sched(1,   v => ({ type: 'forge', value: v }),        v => ({ forge: v }),          { now: 'forge', next: 'forge_next', every: 'forge_every' }, '锻造', { prim: 'now', maxCount: 6, color: '#d0c060' }),
     parry:         sched(1,   v => ({ type: 'parry', value: v }),        v => ({ parry: v }),          { now: 'parry', next: 'parry_next', every: 'parry_every' }, '招架', { prim: 'now', maxCount: 6, color: '#d0c060' }),
     vigor:         sched(1,   v => ({ type: 'vigor', value: v }),        v => ({ vigor: v }),          { now: 'vigor', next: 'vigor_next', every: 'vigor_every' }, '活力', { prim: 'now', color: COLOR.damage }),
     wish:          sched(12,  v => ({ type: 'wish', value: v }),         v => ({ wish: v }),           { now: 'wish', next: 'wish_next', every: 'wish_every' }, '许愿', { prim: 'now', color: COLOR.conjure }),
-    curse:         sched(0.6, v => ({ type: 'curse', value: v }),        v => ({ apply: { curse: v } }), { now: 'curse', next: 'curse_next', every: 'curse_every' }, '咒言', { prim: 'now', color: COLOR.poison }),
+    curse:         sched(0.6, v => ({ type: 'curse', value: v }),        v => ({ apply: { curse: v } }), { now: 'curse', next: 'curse_next', every: 'curse_every' }, '灾厄', { prim: 'now', color: COLOR.poison }),
     expandEvery:   sched(6,   v => ({ type: 'expandEvery', value: v }),  v => ({ expandEvery: v }),    { now: 'expandEvery', next: 'expandEvery_next', every: 'expandEvery_every' }, '扩容', { prim: 'now', color: '#b6d36a' }),
   };
   // 持续型(力量/敏捷)也可加召唤物修饰词：补一个标准 perm 效果 eff 供 minion 变体复用。
@@ -301,9 +301,9 @@ window.CG = window.CG || {};
     myDebuff:    { name: '自身减益层数', qty: 'myDebuff', vp: 1.0 },// 越惨越强：回收自己背的减益
     hpLossCount: { name: '本场失去生命次数', qty: 'hpLossCount', vp: 2.0 },   // #18 量型：本场战斗中失去生命 n 次
     playedThisTurn: { name: '本回合打出牌数', qty: 'playedThisTurn', vp: 2.0 },   // #34 量型：本回合已打出牌数
-    daggerPlayed: { name: '本场打出匕首数', qty: 'daggerPlayed', vp: 1.0 },   // #43 量型：本场打出匕首/甲片/洞悉 次数
+    daggerPlayed: { name: '本场打出匕首数', qty: 'daggerPlayed', vp: 1.0 },   // #43 量型：本场打出匕首/甲片/灵魂 次数
     scrapPlayed:  { name: '本场打出甲片数', qty: 'scrapPlayed', vp: 1.0 },
-    peekPlayed:   { name: '本场打出洞悉数', qty: 'peekPlayed', vp: 1.0 },
+    peekPlayed:   { name: '本场打出灵魂数', qty: 'peekPlayed', vp: 1.0 },
     cardsMade:    { name: '本场生成卡牌数', qty: 'cardsMade', vp: 1.0 },       // #49 量型：本场战斗生成卡牌数
     poisonApplied:{ name: '本场施加中毒次数', qty: 'poisonApplied', vp: 3.0 },  // v3.12 量型：本场战斗施加中毒的次数
     // —— 门型条件(gate，达成给 1 能量等值=6VP)：借鉴 StS 遗物 ——
@@ -513,7 +513,7 @@ window.CG = window.CG || {};
     frail:    P('脆弱包', '🧨', '#5a78c0', '脆弱（本/下/每回合）。', ['frail', 'frail_next', 'frail_every'], [], ['enemyFrail']),
     poison:   P('猛毒包', '☠️', '#8ab84a', '中毒（本/下/每回合）+ 尸爆 + 催发。', ['poison', 'poison_next', 'poison_every', 'corpseBomb', 'catalyze'], [], ['enemyPoison', 'poisonApplied']),
     burn:     P('灼烧包', '🔥', '#ff7a4a', '灼烧（回合结束受伤、可被格挡）。', ['burn']),
-    curse:    P('厄咒包', '🪦', '#7a6a9a', '咒言（本/下/每回合）/ 追加咒言（层数高于敌生命则其回合末死亡）。', ['curse', 'curse_next', 'curse_every', 'curseStrike']),
+    curse:    P('厄咒包', '🪦', '#7a6a9a', '灾厄（本/下/每回合）/ 追加灾厄（层数高于敌生命则其回合末死亡）。', ['curse', 'curse_next', 'curse_every', 'curseStrike']),
     sapstr:   P('夺力包', '🔻', '#5fae8a', '削弱敌人力量（永久/本回合/下回合）。', ['enemyLoseStr', 'enemyLoseStrTemp', 'enemyLoseStr_next']),
     sapdex:   P('夺敏包', '🔽', '#5a86c0', '削弱敌人敏捷（永久/本回合/下回合）。', ['enemyLoseDex', 'enemyLoseDexTemp', 'enemyLoseDex_next']),
     spread:   P('扩散包', '🦠', '#9ab84a', '敌方所有减益层数翻倍。', ['debuffMult'], [], ['enemyDebuff']),
@@ -531,7 +531,7 @@ window.CG = window.CG || {};
     energy:   P('能量包', '⚡', '#f0c850', '能量（本回合 / 下回合）。', ['energy', 'energy_next']),
     flow:     P('律动包', '🎟️', '#4fb8ee', '后续免费 / 后续打两次。', ['freeNext', 'playTwice'], [], ['playedThisTurn']),
     conjure:  P('造牌包', '🎩', '#b59ad8', '造牌（本/下/每回合，带随机宝石）。', ['conjure', 'conjure_next', 'conjure_every'], [], ['cardsMade']),
-    divine:   P('占卜包', '🌠', '#a78ad0', '许愿 / 生成洞悉（本/下/每回合）+ 洞悉强化。', ['wish', 'wish_next', 'wish_every', 'makePeek', 'makePeek_next', 'makePeek_every', 'peekUp'], [], ['peekPlayed']),
+    divine:   P('占卜包', '🌠', '#a78ad0', '许愿 / 生成灵魂（本/下/每回合）+ 灵魂强化。', ['wish', 'wish_next', 'wish_every', 'makePeek', 'makePeek_next', 'makePeek_every', 'peekUp'], [], ['peekPlayed']),
     sorcery:  P('术法包', '🪄', '#c59ad8', '复制手牌 / 心灵震慑 / 复制到弃牌。', ['duplicate', 'mindblast', 'copyDiscard']),
     pile:     P('牌术包', '📚', '#8fbcd0', '弃牌回手 / 洗回库 / 打出牌库顶 / 镶随机宝石（本/下/每回合）。', ['recallDiscard', 'recallDiscard_next', 'recallDiscard_every', 'recycleDraw', 'recycleDraw_next', 'recycleDraw_every', 'playTopDraw', 'playTopDraw_next', 'playTopDraw_every', 'socketRand', 'socketRand_next', 'socketRand_every']),
     enhance:  P('强化包', '📈', '#c8a86a', '本牌成长（伤害/格挡/降费/锤炼）。', ['growDmg', 'growBlk', 'selfCostDown', 'temper'], ['gold'], ['emptyHand', 'curGold']),
@@ -548,8 +548,8 @@ window.CG = window.CG || {};
     scrap:    P('甲片包', '🛡️', '#a8b0c0', '生成（本/下/每回合）/ 强化甲片。', ['makeScrap', 'makeScrap_next', 'makeScrap_every', 'scrapUp'], [], ['scrapPlayed']),
     endsword: P('终末之剑包', '🗡️', '#d0c060', '锻造（增伤）/ 招架（增格挡，本/下/每回合），刷新终末之剑。', ['forge', 'forge_next', 'forge_every', 'parry', 'parry_next', 'parry_every']),
     wisp:     P('磷火包', '🟢', '#9ee0a0', '生成磷火(0费得能量保留消耗，本/下/每回合) + 磷火强化 + 幻境(本回合临时牌效果+50%)。', ['makeWisp', 'makeWisp_next', 'makeWisp_every', 'wispUp', 'illusion', 'illusion_next', 'illusion_every']),
-    // 厨艺：素菜+荤菜+调料合一（做菜需荤+素配合，拆开无法成菜）
-    cook:     P('厨艺包', '🍳', '#e0a45a', '食材（素菜 / 荤菜 / 调料，本/下/每回合）：素菜+荤菜做成餐点。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
+    // 厨艺：草药+兽血+调料合一（做菜需荤+素配合，拆开无法成菜）
+    cook:     P('魔药包', '⚗️', '#b07ad0', '药材（草药 / 兽血 / 调料）：草药+兽血做成餐点。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every', 'food_season', 'food_season_next', 'food_season_every']),
     // 元素：火/水/雷/冰合一（反应需 ≥2 种元素，拆开无法触发反应）
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发元素反应。', ['fire', 'water', 'thunder', 'ice']),
     // ===== 时点修饰词包（v3.14）=====：自身不带价值；选了它，本局其它已选主题的价值才获得对应「下回合/每回合」变体。

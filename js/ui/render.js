@@ -29,7 +29,7 @@ window.CG = window.CG || {};
     thorns:     { label: '荆棘', cls: 'badge-buff' },
     nourish:    { label: '滋养', cls: 'badge-buff' },
     burn:       { label: '灼伤', cls: 'badge-poison' },
-    curse:      { label: '咒言', cls: 'badge-poison' },
+    curse:      { label: '灾厄', cls: 'badge-poison' },
     fire:       { label: '🔥火', cls: 'badge-fire' },
     water:      { label: '💧水', cls: 'badge-water' },
     thunder:    { label: '⚡雷', cls: 'badge-thunder' },
@@ -459,7 +459,7 @@ window.CG = window.CG || {};
     damage: v => `⚔️${v}`, block: v => `🛡️${v}`, draw: v => `抽${v}`, energy: v => `⚡${v}`, gainPower: v => `🔌${v}`,
     heal: v => `❤️${v}`, strength: v => `力量+${v}`, dexterity: v => `敏捷+${v}`, thorns: v => `荆棘${v}`,
     tempStrength: v => `力量+${v}`, tempDexterity: v => `敏捷+${v}`, tempThorns: v => `荆棘${v}`,
-    vulnerable: v => `易伤${v}`, weak: v => `虚弱${v}`, frail: v => `脆弱${v}`, poison: v => `中毒${v}`, curse: v => `咒言${v}`,
+    vulnerable: v => `易伤${v}`, weak: v => `虚弱${v}`, frail: v => `脆弱${v}`, poison: v => `中毒${v}`, curse: v => `灾厄${v}`,
     loseHp: v => `失${v}血`, loseGold: v => `失${v}金`, losePower: v => `失${v}电`, clutter: v => `+${v}渣滓`,
     summon: v => `召唤${v}`, conjure: () => `造牌`, give: () => `食材`,
     // 效果类型 ≠ 价值原子 id 的两个，单列；其余「操作/生成」类经 effLabel 的 bareName 兜底取中文
@@ -662,7 +662,7 @@ window.CG = window.CG || {};
     }
     if (game.craft) {
       const step = game.craft.step;
-      const title = step === 'meat' ? '🍳 做菜 · 选择荤菜（与素菜同炖）' : '🍳 做菜 · 选择调味料';
+      const title = step === 'meat' ? '🍳 做菜 · 选择兽血（与草药同炖）' : '🍳 做菜 · 选择调味料';
       const cands = game.craftCandidates();
       const cards = cands.length
         ? cands.map(c => cardFace(c, { clickable: true, data: { craft: c.uid } })).join('')

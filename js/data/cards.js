@@ -43,7 +43,7 @@ window.CG = window.CG || {};
     dagger:  { name: '匕首',   cost: 0, type: 'attack', kind: 'dagger', icon: '🔪' },             // 兵械包：0 费、造 4(+强化)伤害、打出即消耗
     scrap:   { name: '甲片',   cost: 0, type: 'skill',  kind: 'scrap',  icon: '🛡️' },             // 兵械包：0 费、获得 3(+强化)格挡、打出即消耗
     endsword:{ name: '终末之剑', cost: 2, type: 'attack', kind: 'endsword', icon: '⚔️' },          // 兵械包·锻造创造：2 费、造 10(+锻造)伤害(+招架格挡)、保留
-    peek:    { name: '洞悉',   cost: 0, type: 'skill',  kind: 'peek',  icon: '🔮' },               // 机巧包：0 费、抽 2 张、打出即消耗
+    peek:    { name: '灵魂',   cost: 0, type: 'skill',  kind: 'peek',  icon: '🔮' },               // 机巧包：0 费、抽 2 张、打出即消耗
     wisp:    { name: '磷火',   cost: 0, type: 'skill',  kind: 'wisp',  icon: '🟢' },               // 0 费、获得 1(+强化)能量、保留、打出即消耗
   };
   // 食材分类（随机生成用）
@@ -136,7 +136,7 @@ window.CG = window.CG || {};
     let potentN = 0;     // 放大包：翻倍（potent 是 playCard 加成）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/洞悉强化/磷火强化
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
     all.forEach(({ def: d, level: rawL, free }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -303,7 +303,7 @@ window.CG = window.CG || {};
       discardCost: clutchN, exhaustCost: costMax.exhaustCard || 0,               // 弃牌代价 + #15 消耗手牌代价（pick 型）
       potent: potentN, multiHit: multiHitN, multi: multiN,                        // 放大包(potent/多重)+强攻包(连击 multiHit) playCard 加成
       copyToDiscard: NB.copyToDiscard || 0, growDmg: NB.growDmg || 0, growBlk: NB.growBlk || 0, selfCostDown: NB.selfCostDown || 0, aoe: NB.aoe || 0, playTwice: NB.playTwice || 0, wish: NB.wish || 0,   // 新批卡级字段（playCard 用）
-      curseStrike: NB.curseStrike || 0, dmgToBlock: NB.dmgToBlock || 0, ethereal: !!costMax.ethereal,   // v3.8：追加咒言/伤害转格挡（playCard）+ 虚无(endTurn 消耗)
+      curseStrike: NB.curseStrike || 0, dmgToBlock: NB.dmgToBlock || 0, ethereal: !!costMax.ethereal,   // v3.8：追加灾厄/伤害转格挡（playCard）+ 虚无(endTurn 消耗)
       nextEnergyPenalty: -nextE,
       name,
     };
@@ -354,7 +354,7 @@ window.CG = window.CG || {};
   // 食材卡实例（无孔位）；meal 把动态效果挂在 .meal 上
   CG.makeFoodCard = (base, meal) => { const c = { uid: CG.nextUid(), base }; if (base === 'meal') c.meal = meal || { effects: [], name: '餐点', desc: '', repeatTimes: 1 }; return c; };
 
-  // 菜谱矩阵：荤菜 × 素菜 → 效果种类（数值 = 素菜等级 × 荤菜等级 × 2）
+  // 菜谱矩阵：兽血 × 草药 → 效果种类（数值 = 草药等级 × 兽血等级 × 2）
   CG.RECIPE = {
     fish:    { tomato: 'heal',     potato: 'regen',  carrot: 'thorns' },
     chicken: { tomato: 'strength', potato: 'block',  carrot: 'dexterity' },
@@ -375,7 +375,7 @@ window.CG = window.CG || {};
       default:          return { type: 'heal', value };
     }
   }
-  // 做菜：素菜(必填) + 荤菜(可选) + 调味料(可选) → 餐点 spec { effects, repeatTimes, name, desc, value }
+  // 做菜：草药(必填) + 兽血(可选) + 调味料(可选) → 餐点 spec { effects, repeatTimes, name, desc, value }
   CG.buildMeal = function (vegBase, meatBase, seasonBase) {
     const veg = CG.BASE_CARDS[vegBase];
     let kind, label, value, name;
@@ -386,7 +386,7 @@ window.CG = window.CG || {};
       value = veg.level * meat.level * 4;                 // 高级原料数值相乘 ×4
       name = `${veg.name}炖${meat.name}`;
     } else {
-      kind = 'heal'; label = '回复'; value = veg.level * 2;   // 只放素菜 = 清炒，回复其等级 ×2
+      kind = 'heal'; label = '回复'; value = veg.level * 2;   // 只放草药 = 清炒，回复其等级 ×2
       name = `清炒${veg.name}`;
     }
     let repeatTimes = 1, tag = '', nourish = 0;
@@ -418,8 +418,8 @@ window.CG = window.CG || {};
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };
-    if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选荤菜/调料做成餐点（不选则＝回复 ${b.level}）`; }
-    else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（做菜时可当荤菜）`; }
+    if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选兽血/调料做成餐点（不选则＝回复 ${b.level}）`; }
+    else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（做菜时可当兽血）`; }
     else if (b.food === 'season') { s.kind = 'season'; s.noPlay = true; const m = { salt: '过载1', soy: '滋养1', pepper: '重复1' }; s.baseText = `调味料·不能单独吃；做菜时让餐点获得「${m[b.season]}」`; }
     if (b.kind === 'spoiled') {
       s.noPlay = true;
@@ -446,8 +446,8 @@ window.CG = window.CG || {};
       s.effects = [{ type: 'damage', value: dmg }].concat(blk > 0 ? [{ type: 'block', value: blk }] : []);
       s.baseText = `终末之剑：造成 ${dmg} 点伤害${blk > 0 ? `、获得 ${blk} 格挡` : ''}，保留`;
     } else if (b.kind === 'peek') {
-      const d = Math.ceil((2 + (inst._bonus || 0)) * mult);   // 洞悉：基础抽 2 + peekUp 强化 ×幻境
-      s.type = 'skill'; s.kind = 'skill'; s.exhaust = true; s.effects = [{ type: 'draw', value: d }]; s.baseText = `洞悉：抽 ${d} 张牌，打出即消耗`;
+      const d = Math.ceil((2 + (inst._bonus || 0)) * mult);   // 灵魂：基础抽 2 + peekUp 强化 ×幻境
+      s.type = 'skill'; s.kind = 'skill'; s.exhaust = true; s.effects = [{ type: 'draw', value: d }]; s.baseText = `灵魂：抽 ${d} 张牌，打出即消耗`;
     } else if (b.kind === 'wisp') {
       const e = Math.ceil((1 + (inst._bonus || 0)) * mult);   // 磷火：基础 +1 能量 + wispUp 强化(floor(_wispBonus)) ×幻境；保留 + 消耗
       s.type = 'skill'; s.kind = 'skill'; s.retain = true; s.exhaust = true; s.value = e; s.effects = [{ type: 'energy', value: e }]; s.baseText = `磷火：获得 ${e} 点能量，保留，打出即消耗`;
