@@ -509,6 +509,9 @@ window.CG = window.CG || {};
       for (let i = 0; i < (s.reclaim || 0); i++) this._pickQueue.push('reclaim');   // 弃牌包·拾遗
       for (let i = 0; i < (s.wish || 0); i++) this._pickQueue.push('wish');         // #37 许愿：从抽牌堆挑牌进手
       if (this._pendingForesight) { this._foresightWin = this.drawPile.slice(0, this._pendingForesight).map(c => c.uid); this._pickQueue.push('foresight'); this._pendingForesight = 0; }   // v3.15 预见：队列重置后再入队
+      for (let i = 0; i < (this._pendingTransform || 0); i++) this._pickQueue.push('transform');   // v3.15 变化
+      for (let i = 0; i < (this._pendingMimicry || 0); i++) this._pickQueue.push('mimicry');       // v3.15 变化为模仿
+      this._pendingTransform = 0; this._pendingMimicry = 0;
       this._nextPick();
       };   // resolve()
       // 代价链：先弃牌代价（自选丢弃）→ 再消耗代价（#15 自选消耗）→ resolve
@@ -616,12 +619,14 @@ window.CG = window.CG || {};
       this._nextPick();
     }
     _foresightCands() { return this.drawPile.filter(c => (this._foresightWin || []).includes(c.uid)); }   // 窗口内仍在牌库顶的牌
+    _startTransform(n) { this._pickQueue = this._pickQueue || []; for (let i = 0; i < n; i++) this._pickQueue.push('transform'); this._nextPick(); }   // v3.15 变化：塔罗/遗物直起
+    _startMimicry(n) { this._pickQueue = this._pickQueue || []; for (let i = 0; i < n; i++) this._pickQueue.push('mimicry'); this._nextPick(); }
     _nextPick() {                                 // 处理 _pickQueue 的下一个交互选牌；无候选则跳过；队列空则收尾
       while (this._pickQueue && this._pickQueue.length) {
         const t = this._pickQueue.shift();
-        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : t === 'foresight' ? this._foresightCands() : this.exhaustPile;
+        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : t === 'foresight' ? this._foresightCands() : t === 'transform' ? this.hand.filter(c => c.base === 'spell' && (c.sockets || []).length) : t === 'mimicry' ? this.hand.filter(c => c.base === 'spell') : this.exhaustPile;
         if (!cands.length) continue;
-        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌', foresight: '预见：看牌库顶，选要丢入弃牌堆的牌（可跳过保留）' };
+        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌', foresight: '预见：看牌库顶，选要丢入弃牌堆的牌（可跳过保留）', transform: '变化：选 1 张手牌变成同结构随机新牌', mimicry: '变化为模仿：选 1 张手牌变成随机模仿牌' };
         this.pick = { type: t, title: titles[t], noSkip: t === 'burn' };   // 燃烧＝消耗手牌，不允许跳过
         this._emit();
         return;
@@ -653,6 +658,14 @@ window.CG = window.CG || {};
           this._foresightWin = (this._foresightWin || []).filter(u => u !== uid);
           if (this._foresightCands().length) { this.pick = { type: 'foresight', title: '预见：继续丢牌或跳过保留', noSkip: false }; this._emit(); return; }
         }
+        this.pick = null; this._nextPick(); return;
+      }
+      if (t === 'transform') {                    // v3.15 变化：重掷该牌宝石（同孔位/宝石数、不消耗）
+        if (uid != null) { const c = this.hand.find(x => x.uid === uid); if (c && (c.sockets || []).length) { c.sockets = c.sockets.map(() => CG.rollGem({ tier: 'monster' })); this.addLog('变化：一张手牌变成了新牌。'); } }
+        this.pick = null; this._nextPick(); return;
+      }
+      if (t === 'mimicry') {                      // v3.15 变化为模仿：该牌变成随机模仿打击/防御/重击
+        if (uid != null) { const i = this.hand.findIndex(x => x.uid === uid); if (i >= 0) { const m = ['mimic_strike', 'mimic_defend', 'mimic_heavy'][Math.floor(Math.random() * 3)]; this.hand.splice(i, 1, CG.makeFoodCard(m)); this.addLog('变化为模仿：一张手牌变成了模仿牌。'); } }
         this.pick = null; this._nextPick(); return;
       }
       if (uid != null) {

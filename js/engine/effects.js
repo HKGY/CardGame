@@ -156,6 +156,8 @@ window.CG = window.CG || {};
     wispUp(game, eff) { game._wispBonus = (game._wispBonus || 0) + 0.5 * eff.value; game._refreshWeapon('wisp', Math.floor(game._wispBonus)); },   // v3.13 磷火强化：本场磷火能量 +0.5n（floor）
     wish(game, eff) { game._pickQueue = game._pickQueue || []; for (let i = 0; i < eff.value; i++) game._pickQueue.push('wish'); if (game._nextPick) game._nextPick(); },   // v3.13 许愿（调度版）：从抽牌堆挑 n 张进手
     foresight(game, eff) { game._pendingForesight = (game._pendingForesight || 0) + eff.value; game._foresightThisTurn = true; },   // v3.15 占卜·预见：标记待预见（playCard 在 pick 队列重置后再起预见，避免被清空）；塔罗/遗物走 _startForesight 直起
+    transform(game, eff) { game._pendingTransform = (game._pendingTransform || 0) + eff.value; },   // v3.15 幻惑·变化：标记待变化（同上，playCard 队列重置后再入队）
+    mimicry(game, eff) { game._pendingMimicry = (game._pendingMimicry || 0) + eff.value; },         // v3.15 幻惑·变化为模仿
     daggerUp(game, eff) { game._daggerBonus = (game._daggerBonus || 0) + 4 * eff.value; game._refreshWeapon('dagger', game._daggerBonus); },   // #25 匕首伤害 +4×n（本场，刷新所有匕首）
     scrapUp(game, eff) { game._scrapBonus = (game._scrapBonus || 0) + 3 * eff.value; game._refreshWeapon('scrap', game._scrapBonus); },        // #26 甲片格挡 +3×n（本场）
     forge(game, eff) {   // #33 锻造：终末之剑伤害 +n（不论何处）；若各堆均无则创造一张进手牌

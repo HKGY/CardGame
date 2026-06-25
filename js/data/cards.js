@@ -42,10 +42,13 @@ window.CG = window.CG || {};
     endsword:{ name: '终末之剑', cost: 2, type: 'attack', kind: 'endsword', icon: '⚔️' },          // 兵械包·锻造创造：2 费、造 10(+锻造)伤害(+招架格挡)、保留
     peek:    { name: '灵魂',   cost: 0, type: 'skill',  kind: 'peek',  icon: '🔮' },               // 机巧包：0 费、抽 2 张、打出即消耗
     wisp:    { name: '磷火',   cost: 0, type: 'skill',  kind: 'wisp',  icon: '🟢' },               // 0 费、获得 1(+强化)能量、保留、打出即消耗
+    mimic_strike: { name: '模仿打击', cost: 0, type: 'attack', kind: 'mimic', mimic: 'strike', icon: '🗡️' },   // 幻惑·变化：0费 6伤+抽1 消耗
+    mimic_defend: { name: '模仿防御', cost: 0, type: 'skill',  kind: 'mimic', mimic: 'defend', icon: '🛡️' },   // 0费 9格挡 消耗
+    mimic_heavy:  { name: '模仿重击', cost: 0, type: 'attack', kind: 'mimic', mimic: 'heavy',  icon: '⚔️' },   // 0费 12伤 消耗
   };
   // 药材分类（随机生成用）
   CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'] };
-  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek' || b.kind === 'wisp')); };
+  CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek' || b.kind === 'wisp' || b.kind === 'mimic')); };
 
   const MAX_SOCKETS = 5;                 // 单卡孔位上限（加孔/拓孔不超过此值）
   CG.MAX_SOCKETS = MAX_SOCKETS;
@@ -133,7 +136,7 @@ window.CG = window.CG || {};
     let potentN = 0;     // 放大包：翻倍（potent 是 playCard 加成）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
     all.forEach(({ def: d, level: rawL, free }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -325,7 +328,7 @@ window.CG = window.CG || {};
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
     // 新批价值字段（v3.6）：条件 × 这些价值时，按同一映射拆成效果 / 卡级字段（与 cardStats 一致）
-    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight' };
+    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry' };
     for (const k in NBE) if (f[k]) out.now.push({ type: NBE[k], value: f[k] });
     for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock']) if (f[k]) out[k] = (out[k] || 0) + f[k];
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
@@ -436,6 +439,11 @@ window.CG = window.CG || {};
     } else if (b.kind === 'wisp') {
       const e = Math.ceil((1 + (inst._bonus || 0)) * mult);   // 磷火：基础 +1 能量 + wispUp 强化(floor(_wispBonus)) ×幻境；保留 + 消耗
       s.type = 'skill'; s.kind = 'skill'; s.retain = true; s.exhaust = true; s.value = e; s.effects = [{ type: 'energy', value: e }]; s.baseText = `磷火：获得 ${e} 点能量，保留，打出即消耗`;
+    } else if (b.kind === 'mimic') {                          // 幻惑·模仿牌：0费、消耗
+      s.exhaust = true;
+      if (b.mimic === 'strike') { const d = Math.ceil(6 * mult); s.type = 'attack'; s.value = d; s.effects = [{ type: 'damage', value: d }, { type: 'draw', value: 1 }]; s.baseText = `模仿打击：造成 ${d} 点伤害、抽 1 张，打出即消耗`; }
+      else if (b.mimic === 'defend') { const blk = Math.ceil(9 * mult); s.type = 'skill'; s.value = blk; s.effects = [{ type: 'block', value: blk }]; s.baseText = `模仿防御：获得 ${blk} 点格挡，打出即消耗`; }
+      else { const d = Math.ceil(12 * mult); s.type = 'attack'; s.value = d; s.effects = [{ type: 'damage', value: d }]; s.baseText = `模仿重击：造成 ${d} 点伤害，打出即消耗`; }
     }
     return s;
   };
@@ -617,7 +625,7 @@ window.CG = window.CG || {};
     warlock:    { name: '巫灵',   icon: '⚗️', desc: '魔药、灾厄与灵魂的巫术。', deck: [5, 5, 0], packs: ['cook', 'curse', 'soul', 'blood', 'ash'] },
     diviner:    { name: '占卜',   icon: '🌠', desc: '预言未来：许愿与预见。', deck: [4, 6, 0], packs: ['divine', 'foresight', 'soul', 'conjure', 'flow'] },
     summoner:   { name: '召唤',   icon: '💀', desc: '召唤亡者，散布灾厄。', deck: [4, 6, 0], packs: ['summon', 'curse', 'blood', 'sapstr', 'poison'] },
-    illusionist:{ name: '幻惑',   icon: '🎭', desc: '幻术与变化之术。', deck: [5, 5, 0], packs: ['conjure', 'wisp', 'amplify', 'sorcery', 'divine'] },
+    illusionist:{ name: '幻惑',   icon: '🎭', desc: '幻术与变化之术。', deck: [5, 5, 0], packs: ['transform', 'conjure', 'wisp', 'amplify', 'sorcery'] },
     demon:      { name: '恶魔',   icon: '😈', desc: '消耗与灼烧的恶魔之力。', deck: [6, 4, 0], packs: ['ash', 'burn', 'blood', 'curse', 'immune'] },
     traveler:   { name: '旅者',   icon: '🎒', desc: '随机应变：随机的初始卡包。', deck: [5, 5, 0], packs: null },
   };

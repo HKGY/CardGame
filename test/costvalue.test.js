@@ -983,3 +983,23 @@ test('v3.15 占卜·预见：看牌库顶 n 张、任选丢入弃牌堆 + 本回
   g = mk(); const c2 = spell([{ id: 'firstPlay_foresight', level: 1 }]); g.hand = [c2]; g.playCard(c2.uid);
   assert.strictEqual(g.pick.type, 'foresight');
 });
+
+test('v3.15 幻惑·变化/变化为模仿 + 模仿牌', () => {
+  assert.ok(CG.AFFIXES['energy_transform'] && CG.AFFIXES['energy_mimicry'] && CG.PACKS.transform);
+  // 模仿牌：3 种、0 费、消耗
+  const ms = CG.foodStats(CG.makeFoodCard('mimic_strike')); assert.strictEqual(ms.exhaust, true); assert.ok(ms.effects.some(e => e.type === 'damage' && e.value === 6) && ms.effects.some(e => e.type === 'draw'));
+  assert.strictEqual(CG.foodStats(CG.makeFoodCard('mimic_defend')).effects[0].value, 9);
+  assert.strictEqual(CG.foodStats(CG.makeFoodCard('mimic_heavy')).effects[0].value, 12);
+  // 变化为模仿：手牌变成模仿牌（同 uid 位被替换）
+  let g = CG.makeBattle(); g.player.energy = 30;
+  const tgt = spell([{ id: CG.STRIKE, level: 1 }]), c = spell([{ id: 'energy_mimicry', level: 1 }]); g.hand = [tgt, c]; g.playCard(c.uid);
+  assert.strictEqual(g.pick.type, 'mimicry'); g.pickResolve(tgt.uid);
+  assert.ok(g.hand.some(x => CG.BASE_CARDS[x.base] && CG.BASE_CARDS[x.base].kind === 'mimic')); assert.strictEqual(g.pick, null);
+  // 变化：重掷该牌宝石（仍是法杖、孔位数不变）
+  CG.setActivePacks(['power', 'block']);
+  g = CG.makeBattle(); g.player.energy = 30;
+  const w = spell([{ id: CG.STRIKE, level: 1 }]), c2 = spell([{ id: 'energy_transform', level: 1 }]); g.hand = [w, c2]; g.playCard(c2.uid);
+  assert.strictEqual(g.pick.type, 'transform'); const n0 = w.sockets.length; g.pickResolve(w.uid);
+  assert.strictEqual(w.base, 'spell'); assert.strictEqual(w.sockets.length, n0);
+  CG.setActivePacks(null);
+});

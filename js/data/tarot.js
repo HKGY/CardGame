@@ -75,6 +75,7 @@ window.CG = window.CG || {};
     ['divine',   'wishstar', '祈愿',   '🌠', '从抽牌堆选择 2 张加入手牌', atomAct('wish', 2)],
     ['soul',     'foresee',  '通灵',   '🔮', '生成 2 张灵魂到抽牌堆', atomAct('makePeek', 2)],
     ['foresight','scry',     '窥探',   '👁️', '预见：看牌库顶 3 张、任选丢入弃牌堆', b => { if (b._startForesight) b._startForesight(3); }],
+    ['transform','shift',    '幻形',   '🎭', '将 1 张手牌变化为随机模仿牌', b => { if (b._startMimicry) b._startMimicry(1); }],
     ['sorcery',  'mirror',   '镜像',   '🪄', '复制 1 张随机手牌', (r, b) => { if (b) CG.Effects.apply(b, { type: 'duplicate', value: 1 }, b.player); }],
     ['pile',     'salvage',  '打捞',   '📚', '将弃牌堆中 2 张牌加入手牌', atomAct('recallDiscard', 2)],
     ['enhance',  'whetstone','磨石',   '📈', '使一张随机手牌本场永久 +3 数值', (r, b) => { if (b) CG.Effects.apply(b, { type: 'whet', value: 3 }, b.player); }],

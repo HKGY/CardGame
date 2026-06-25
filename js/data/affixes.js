@@ -31,7 +31,7 @@ window.CG = window.CG || {};
     makeDagger: 3.0, makeScrap: 3.0, daggerUp: 6.0, scrapUp: 6.0,                                 // 兵械（匕首/甲片）
     immune: 12.0, dmgCap1: 18.0,                                                                  // 防御
     retain: 3.0, forge: 1.0, vigor: 1.0, parry: 1.0, wish: 12.0,                                  // v3.7：保留/锻造(终末之剑)/活力/招架/许愿
-    makePeek: 3.0, curse: 0.6, curseStrike: 6.0, dmgToBlock: 6.0, foresight: 2.0,                 // v3.8：生成灵魂/灾厄/追加灾厄/伤害转格挡；v3.15 预见
+    makePeek: 3.0, curse: 0.6, curseStrike: 6.0, dmgToBlock: 6.0, foresight: 2.0, transform: 6.0, mimicry: 6.0,   // v3.8：生成灵魂/灾厄/追加灾厄/伤害转格挡；v3.15 预见/变化/模仿
     expandEvery: 6.0, harvestEvery: 6.0, detonateEvery: 6.0, recycle: 6.0,                        // v3.8：每回合机制(扩容/收割/爆破) + 回收
     corpseBomb: 6.0, catalyze: 12.0,                                                              // v3.12 猛毒包：尸爆(被毒杀→AoE最大生命)/催发(立即结算中毒)
     burn: 1.5, regen: 3.0,                                                                        // v3.12 新价值：灼烧(灰烬包,过血量DoT)/再生(生机包,回合开始回血)
@@ -75,6 +75,7 @@ window.CG = window.CG || {};
     immune: '免疫接下来 {n} 次伤害', dmgCap1: '本回合受到的伤害降为 1', retain: '这张牌回合结束时不丢弃',
     forge: '终末之剑伤害 +{n}（不论它在何处；没有则创造一张加入手牌）', vigor: '使下一张造成伤害的牌攻击 +{n}', parry: '终末之剑格挡 +{n}（不论它在何处）',
     wish: '从抽牌堆中选择 {n} 张牌加入手牌', makePeek: '生成 {n} 张灵魂到抽牌堆', foresight: '预见：看抽牌堆顶 {n} 张，任选丢入弃牌堆',
+    transform: '变化：将 {n} 张手牌变成同结构的随机新牌（不消耗）', mimicry: '将 {n} 张手牌变化为随机「模仿打击/防御/重击」',
     curse: '使敌人获得 {n} 点灾厄', curseStrike: '追加等同本牌伤害 ×{n} 的灾厄给敌人', dmgToBlock: '获得等同本牌伤害 ×{n} 的格挡',
     expandEvery: '每回合增益上限 +{n}', harvestEvery: '立即获得 {n} 次现有每回合增益', detonateEvery: '立即结算现有每回合增益 {n} 次后失去它们', recycle: '消耗手牌中所有非初始牌，并抽取等量的牌',
     corpseBomb: '被中毒杀死的敌人，对其他敌人造成等同其最大生命值的伤害', catalyze: '立即结算敌人身上的中毒 {n} 次',
@@ -164,6 +165,8 @@ window.CG = window.CG || {};
     peekUp:       { name: '灵魂强化', vpRes: 'peekUp', color: COLOR.conjure, mech: u => ({ peekUp: u }) },                    // 本场灵魂抽牌 +n
     wispUp:       { name: '磷火强化', vpRes: 'wispUp', dmul: 0.5, color: COLOR.power, mech: u => ({ wispUp: u }) },           // 本场磷火能量 +0.5×n
     foresight:    { name: '预见', vpRes: 'foresight', color: COLOR.conjure, mech: u => ({ foresight: u }) },                 // v3.15 占卜：看牌库顶 n 张，任选丢入弃牌堆
+    transform:    { name: '变化', vpRes: 'transform', color: COLOR.conjure, mech: u => ({ transform: u }) },                // v3.15 幻惑：手牌变成同结构随机新牌
+    mimicry:      { name: '变化为模仿', vpRes: 'mimicry', color: COLOR.conjure, mech: u => ({ mimicry: u }) },              // v3.15 幻惑：手牌变成模仿打击/防御/重击
   };
 
   /* —— 通用「本回合(now)/下回合(next)/每回合(every)」时点修饰器 ——
@@ -535,6 +538,7 @@ window.CG = window.CG || {};
     divine:   P('许愿包', '🌠', '#a78ad0', '许愿：从抽牌堆挑牌进手（本/下/每回合）。', ['wish', 'wish_next', 'wish_every']),
     soul:     P('灵魂包', '🔮', '#9a7ad0', '生成灵魂(0费抽2消耗) + 灵魂强化。', ['makePeek', 'makePeek_next', 'makePeek_every', 'peekUp'], [], ['peekPlayed']),
     foresight:P('预见包', '👁️', '#8a9ad8', '预见：看抽牌堆顶 n 张，任选丢入弃牌堆。', ['foresight'], [], ['foresightTurn']),
+    transform:P('变化包', '🎭', '#c08ad0', '变化：手牌变成同结构随机新牌 / 变成模仿打击·防御·重击。', ['transform', 'mimicry']),
     sorcery:  P('术法包', '🪄', '#c59ad8', '复制手牌 / 心灵震慑 / 复制到弃牌。', ['duplicate', 'mindblast', 'copyDiscard']),
     pile:     P('牌术包', '📚', '#8fbcd0', '弃牌回手 / 洗回库 / 打出牌库顶 / 镶随机宝石（本/下/每回合）。', ['recallDiscard', 'recallDiscard_next', 'recallDiscard_every', 'recycleDraw', 'recycleDraw_next', 'recycleDraw_every', 'playTopDraw', 'playTopDraw_next', 'playTopDraw_every', 'socketRand', 'socketRand_next', 'socketRand_every']),
     enhance:  P('强化包', '📈', '#c8a86a', '本牌成长（伤害/格挡/降费/锤炼）。', ['growDmg', 'growBlk', 'selfCostDown', 'temper'], ['gold'], ['emptyHand', 'curGold']),
