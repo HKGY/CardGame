@@ -209,7 +209,7 @@ window.CG = window.CG || {};
       this._discardedThisTurn = 0;                 // 弃牌包·倾倒：本回合已丢弃牌数
       this._inspire = 0;                           // 律动·灵感：每回合重置（活力 _vigor 不在此重置＝跨回合保留）
       this._ampDebuff = 0; this._ampBuff = 0;      // 放大·倍损/倍益：每回合重置（「本回合」效果）
-      this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._illusion = 0;   // v3.6/3.13 本回合型：每回合重置（幻境是本回合效果）
+      this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._illusion = 0; this._foresightThisTurn = false;   // v3.6/3.13/3.15 本回合型：每回合重置
       if (this.turn === 1) this.relics.forEach(id => { const r = CG.RELICS[id]; if (r.firstTurn) r.firstTurn(this); });  // 厚盾/灯笼
       this.relics.forEach(id => {
         const r = CG.RELICS[id];
@@ -508,6 +508,7 @@ window.CG = window.CG || {};
       for (let i = 0; i < (s.reborn || 0); i++) this._pickQueue.push('reborn');
       for (let i = 0; i < (s.reclaim || 0); i++) this._pickQueue.push('reclaim');   // 弃牌包·拾遗
       for (let i = 0; i < (s.wish || 0); i++) this._pickQueue.push('wish');         // #37 许愿：从抽牌堆挑牌进手
+      if (this._pendingForesight) { this._foresightWin = this.drawPile.slice(0, this._pendingForesight).map(c => c.uid); this._pickQueue.push('foresight'); this._pendingForesight = 0; }   // v3.15 预见：队列重置后再入队
       this._nextPick();
       };   // resolve()
       // 代价链：先弃牌代价（自选丢弃）→ 再消耗代价（#15 自选消耗）→ resolve
@@ -606,12 +607,21 @@ window.CG = window.CG || {};
       snap.forEach(c => this._exhaustCard(c));
     }
     fillNightmare() { while (this.hand.length < HAND_LIMIT) this.hand.push(CG.makeFoodCard('dross')); }   // 噩梦：渣滓塞满手牌
+    // v3.15 预见：锁定抽牌堆顶 n 张为可丢窗口，进队列交互（可逐张丢入弃牌堆、跳过保留其余）。
+    _startForesight(n) {
+      this._foresightThisTurn = true;
+      this._foresightWin = this.drawPile.slice(0, Math.max(1, n)).map(c => c.uid);
+      this._pickQueue = this._pickQueue || [];
+      this._pickQueue.push('foresight');
+      this._nextPick();
+    }
+    _foresightCands() { return this.drawPile.filter(c => (this._foresightWin || []).includes(c.uid)); }   // 窗口内仍在牌库顶的牌
     _nextPick() {                                 // 处理 _pickQueue 的下一个交互选牌；无候选则跳过；队列空则收尾
       while (this._pickQueue && this._pickQueue.length) {
         const t = this._pickQueue.shift();
-        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : this.exhaustPile;
+        const cands = t === 'burn' ? this.hand : t === 'reclaim' ? this.discardPile : t === 'wish' ? this.drawPile : t === 'foresight' ? this._foresightCands() : this.exhaustPile;
         if (!cands.length) continue;
-        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌' };
+        const titles = { burn: '燃烧：选择并消耗 1 张手牌', reborn: '重生：从消耗堆取回 1 张', reclaim: '拾遗：从弃牌堆取回 1 张', wish: '许愿：从抽牌堆选择 1 张加入手牌', foresight: '预见：看牌库顶，选要丢入弃牌堆的牌（可跳过保留）' };
         this.pick = { type: t, title: titles[t], noSkip: t === 'burn' };   // 燃烧＝消耗手牌，不允许跳过
         this._emit();
         return;
@@ -635,6 +645,15 @@ window.CG = window.CG || {};
         this._exhaustLeft = (this._exhaustLeft || 1) - 1;
         this._promptExhaust();
         return;
+      }
+      if (t === 'foresight') {                    // v3.15 预见：丢一张 → 继续看；跳过 → 保留其余，结束
+        if (uid != null) {
+          const i = this.drawPile.findIndex(c => c.uid === uid);
+          if (i >= 0) { this.discardPile.push(this.drawPile.splice(i, 1)[0]); this.addLog('预见：丢入弃牌堆 1 张。'); }
+          this._foresightWin = (this._foresightWin || []).filter(u => u !== uid);
+          if (this._foresightCands().length) { this.pick = { type: 'foresight', title: '预见：继续丢牌或跳过保留', noSkip: false }; this._emit(); return; }
+        }
+        this.pick = null; this._nextPick(); return;
       }
       if (uid != null) {
         if (t === 'burn') { const i = this.hand.findIndex(c => c.uid === uid); if (i >= 0) { const c = this.hand.splice(i, 1)[0]; this.addLog(`燃烧：消耗了 ${CG.cardStats(c).name}。`); this._exhaustCard(c); } }
@@ -686,6 +705,7 @@ window.CG = window.CG || {};
         case 'lostHpTurn':    return !!this._lostHpThisTurn;
         case 'exhaustedTurn': return !!this._exhaustedThisTurn;
         case 'lowHp':         return this.player.hp * 2 < this.player.maxHp;
+        case 'foresightTurn': return !!this._foresightThisTurn;
         default:              return false;
       }
     }

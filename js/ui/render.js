@@ -671,7 +671,7 @@ window.CG = window.CG || {};
       ov.classList.remove('hidden'); return;
     }
     if (game.pick) {
-      const pool = (game.pick.type === 'burn' || game.pick.type === 'discardCost' || game.pick.type === 'exhaustCost') ? game.hand : game.pick.type === 'reclaim' ? game.discardPile : game.pick.type === 'wish' ? game.drawPile : game.exhaustPile;
+      const pool = (game.pick.type === 'burn' || game.pick.type === 'discardCost' || game.pick.type === 'exhaustCost') ? game.hand : game.pick.type === 'reclaim' ? game.discardPile : game.pick.type === 'wish' ? game.drawPile : game.pick.type === 'foresight' ? (game._foresightCands ? game._foresightCands() : []) : game.exhaustPile;
       const noSkip = !!game.pick.noSkip;   // 丢弃/消耗手牌：必须选一张、不给「跳过」
       const cards = pool.length
         ? pool.map(c => cardFace(c, { clickable: true, data: { pick: c.uid } })).join('')

@@ -113,6 +113,7 @@ window.CG = window.CG || {};
     top_hat: { name: '高礼帽', icon: '🎩', pack: 'conjure', desc: '【价值】首回合：生成 1 张带随机宝石的牌', firstTurn: fx('conjure', 1) },
     crystal_ball: { name: '水晶球', icon: '🔮', pack: 'soul', desc: '【价值】首回合：生成 2 张灵魂到抽牌堆', firstTurn: fx('makePeek', 2) },
     wish_charm: { name: '祈愿符', icon: '🌠', pack: 'divine', desc: '【价值】首回合：从抽牌堆选择 1 张加入手牌', firstTurn: fx('wish', 1) },
+    scry_lens: { name: '窥镜', icon: '👁️', pack: 'foresight', desc: '【价值】首回合：预见(看牌库顶 3 张、任选丢弃)', firstTurn: b => { if (b._startForesight) b._startForesight(3); } },
     twin_mirror: { name: '双子镜', icon: '🪄', pack: 'sorcery', desc: '【价值】首回合：复制 1 张随机手牌', firstTurn: fx('duplicate', 1) },
     dumpster_key: { name: '废料钥匙', icon: '📚', pack: 'pile', desc: '【价值】每回合开始：从弃牌堆取回 1 张牌', onTurnStart: b => { if (b.discardPile.length && b.hand.length < 10) b.hand.push(b.discardPile.pop()); } },
     grindstone: { name: '砂轮', icon: '📈', pack: 'enhance', desc: '【价值】开局：牌库所有攻击牌伤害永久 +1', battleStart: fx('mindblast', 1) },

@@ -965,3 +965,21 @@ test('v3.13 指定原子已时点化（本/下/每回合变体存在且可结算
   const g = bt(); pg(g, [[{ id: 'energy_makeDagger_every', level: 1 }]]);
   assert.ok((g._everyTurn || []).some(e => e.type === 'makeDagger'));
 });
+
+test('v3.15 占卜·预见：看牌库顶 n 张、任选丢入弃牌堆 + 本回合预见过 门型', () => {
+  assert.ok(CG.AFFIXES['energy_foresight'] && CG.PACKS.foresight);
+  assert.strictEqual(CG.affixValueText('energy_foresight', 1), '预见：看抽牌堆顶 3 张，任选丢入弃牌堆');
+  const mk = () => { const g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) }); g.player.energy = 30; for (let i = 0; i < 6; i++) g.drawPile.push(spell([{ id: CG.STRIKE, level: 1 }])); return g; };
+  // 直接打出：起预见、窗口=顶 3、丢 1 张进弃牌堆、跳过保留其余
+  let g = mk(); const c = spell([{ id: 'energy_foresight', level: 1 }]); g.hand = [c]; g.playCard(c.uid);
+  assert.strictEqual(g.pick.type, 'foresight'); assert.strictEqual(g._foresightCands().length, 3); assert.ok(g._foresightThisTurn);
+  const u = g._foresightCands()[0].uid, dp = g.discardPile.length;
+  g.pickResolve(u); assert.strictEqual(g.discardPile.length, dp + 1); assert.strictEqual(g.pick.type, 'foresight');
+  g.pickResolve(null); assert.strictEqual(g.pick, null);
+  // 门型「本回合预见过」：未预见 → 不满足；预见后 → 满足
+  g = mk(); assert.strictEqual(g._gateMet('foresightTurn'), false);
+  g._startForesight(2); g.pickResolve(null); assert.strictEqual(g._gateMet('foresightTurn'), true);
+  // 门型词条 firstPlay_foresight 存在且能起预见
+  g = mk(); const c2 = spell([{ id: 'firstPlay_foresight', level: 1 }]); g.hand = [c2]; g.playCard(c2.uid);
+  assert.strictEqual(g.pick.type, 'foresight');
+});

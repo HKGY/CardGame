@@ -133,7 +133,7 @@ window.CG = window.CG || {};
     let potentN = 0;     // 放大包：翻倍（potent 是 playCard 加成）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
     all.forEach(({ def: d, level: rawL, free }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -325,7 +325,7 @@ window.CG = window.CG || {};
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
     // 新批价值字段（v3.6）：条件 × 这些价值时，按同一映射拆成效果 / 卡级字段（与 cardStats 一致）
-    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp' };
+    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight' };
     for (const k in NBE) if (f[k]) out.now.push({ type: NBE[k], value: f[k] });
     for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock']) if (f[k]) out[k] = (out[k] || 0) + f[k];
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
@@ -615,7 +615,7 @@ window.CG = window.CG || {};
     mage:       { name: '法师',   icon: '🔮', desc: '元素与减益的法术大师。', deck: [6, 4, 0], packs: ['elements', 'vuln', 'weak', 'frail', 'sorcery'] },
     healer:     { name: '医师',   icon: '✚',  desc: '治疗续航 + 永久强化。', deck: [3, 4, 3], packs: ['vitality', 'enhance', 'block', 'ward', 'hold'] },
     warlock:    { name: '巫灵',   icon: '⚗️', desc: '魔药、灾厄与灵魂的巫术。', deck: [5, 5, 0], packs: ['cook', 'curse', 'soul', 'blood', 'ash'] },
-    diviner:    { name: '占卜',   icon: '🌠', desc: '预言未来：许愿与预见。', deck: [4, 6, 0], packs: ['divine', 'soul', 'conjure', 'flow', 'draw'] },
+    diviner:    { name: '占卜',   icon: '🌠', desc: '预言未来：许愿与预见。', deck: [4, 6, 0], packs: ['divine', 'foresight', 'soul', 'conjure', 'flow'] },
     summoner:   { name: '召唤',   icon: '💀', desc: '召唤亡者，散布灾厄。', deck: [4, 6, 0], packs: ['summon', 'curse', 'blood', 'sapstr', 'poison'] },
     illusionist:{ name: '幻惑',   icon: '🎭', desc: '幻术与变化之术。', deck: [5, 5, 0], packs: ['conjure', 'wisp', 'amplify', 'sorcery', 'divine'] },
     demon:      { name: '恶魔',   icon: '😈', desc: '消耗与灼烧的恶魔之力。', deck: [6, 4, 0], packs: ['ash', 'burn', 'blood', 'curse', 'immune'] },
