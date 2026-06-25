@@ -475,6 +475,13 @@ window.CG = window.CG || {};
     if (eff.minion) s = '召唤物' + s;
     return s;
   }
+  function stanceBadge(game) {   // v3.15 僧侣·姿态 / 箴言 / 下回合死亡
+    let h = '';
+    if (game._stance) { const n = { rage: '😡愤怒', serenity: '🧘宁静', divinity: '✨神格' }[game._stance]; h += `<span class="badge badge-buff" title="姿态：同时只能一种">${n}</span>`; }
+    if (game._maxim > 0) h += `<span class="badge badge-buff" title="箴言：满 10 进入神格">📜${game._maxim}</span>`;
+    if (game._dieNextTurn) h += `<span class="badge badge-vuln" title="下回合开始时死亡">☠️下回合死亡</span>`;
+    return h;
+  }
   function scheduleBadges(game) {   // 每回合(常驻) + 下回合(一次性) 待结算效果 → 徽标
     let h = '';
     (game._everyTurn || []).forEach(e => { h += `<span class="badge badge-every" title="每回合开始结算">每回合 ${effLabel(e)}</span>`; });
@@ -581,7 +588,7 @@ window.CG = window.CG || {};
     renderEnemies(game);
 
     const incoming = game.playerIncomingDamage();   // 本回合预计净伤害（随格挡实时变化）
-    const incBadge = (incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '') + scheduleBadges(game);
+    const incBadge = (incoming > 0 ? `<span class="badge badge-incoming" title="本回合预计受到的净伤害（已计入格挡/减伤）">🩸 -${incoming}</span>` : '') + scheduleBadges(game) + stanceBadge(game);
     renderUnit('player', p, '你', '', incBadge);
 
     $('tarot-bar').innerHTML = tarotBarHTML(game.tarot, 'battle', game.phase === 'player', game.run && game.run.tarotSlots());

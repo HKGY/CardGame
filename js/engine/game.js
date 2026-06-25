@@ -111,7 +111,7 @@ window.CG = window.CG || {};
       this.player.block = 0; this.player.statuses = {}; this.player.power = 0;
       this._keepBlock = 0;                       // 死守包·重甲：愚者重开时重置（剩余保留回合数）
       this.skeleton = null;                     // 召唤：单骷髅「类玩家单位」（hp/maxHp/block/statuses；替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0;   // v3.6/3.7/3.8/3.12/3.13 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0; this._stance = null; this._maxim = 0; this._dieNextTurn = false;   // v3.6/3.7/3.8/3.12/3.13/3.15 新批战斗态（姿态跨回合保留）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合/下回合 待结算效果
       this._reaping = 0;                         // 猎杀：愚者重开时清空收割
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -152,7 +152,7 @@ window.CG = window.CG || {};
       this._playedThisTurn = 0;                // 连击：本回合已打出牌数
       this._keepBlock = 0;                      // 死守包·重甲：剩余「格挡不清空」回合数（打出重甲后 = 等级 N）
       this.skeleton = null;                    // 召唤包：单骷髅单位（替玩家挡伤、靠召唤物词条出手）
-      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0;   // v3.6/3.7/3.8/3.12/3.13 新批战斗态
+      this._immuneHits = 0; this._vulnAmp = 0; this._weakAmp = false; this._blockRetain = false; this._daggerBonus = 0; this._scrapBonus = 0; this._playTwice = 0; this._hpLossCount = 0; this._lostHpThisTurn = false; this._exhaustedThisTurn = false; this._dmgCap1 = false; this._tempThorns = 0; this._endswordDmg = 0; this._endswordBlk = 0; this._everyCap = 3; this._cardsMade = 0; this._basePlays = {}; this._poisonApplied = 0; this._corpseBomb = 0; this._peekBonus = 0; this._wispBonus = 0; this._illusion = 0; this._stance = null; this._maxim = 0; this._dieNextTurn = false;   // v3.6/3.7/3.8/3.12/3.13/3.15 新批战斗态（姿态跨回合保留）
       this._everyTurn = []; this._nextTurn = []; // 时点修饰器：每回合(常驻重复)/下回合(一次性) 待结算效果
       this._reaping = 0;                        // 猎杀包·收割：本场每击杀 +力量（打出收割后累加）
       this._hurtThisCombat = false; this._killsThisCombat = 0;   // 时点条件：本场是否受过伤 / 击杀数
@@ -192,6 +192,8 @@ window.CG = window.CG || {};
     _startPlayerTurn() {
       this.turn += 1;
       this.phase = 'player';
+      if (this._dieNextTurn) { this._dieNextTurn = false; this.player.hp = 0; this.addLog('代价应验：你在这一回合开始时死亡。'); this._checkEnd(); if (this.phase === 'lost') { this._emit(); return; } }   // v3.15 「下回合死亡」代价
+      if (this._stance === 'divinity') this._leaveStance();   // v3.15 神格：下回合开始自动退出
       if (this._tempRevert && this._tempRevert.length) { this._tempRevert.forEach(d => { if (d.target) this.applyStatus(d.target, d.key, d.amount); }); this._tempRevert = []; }   // 复原上回合的临时减益（敌临时失力量/敏捷）
 
       if (this._rewindSnap) { this._restore(this._rewindSnap); this._rewindSnap = null; this.addLog('回溯：时间倒流，敌人这一回合被抹去。'); }   // 律动·回溯：回滚到打出回溯时的双方状态
@@ -619,6 +621,20 @@ window.CG = window.CG || {};
       this._nextPick();
     }
     _foresightCands() { return this.drawPile.filter(c => (this._foresightWin || []).includes(c.uid)); }   // 窗口内仍在牌库顶的牌
+    // v3.15 僧侣·姿态：同时只处于一种；进入新姿态先离开旧的。愤怒 造成/受到伤害×2；宁静 离开时+2能量；神格 进入抽3/+3能量/造成×3、下回合自动退出。
+    _enterStance(name) {
+      if (this._stance === name) return;
+      this._leaveStance();
+      this._stance = name;
+      this.addLog(`进入姿态：${name === 'rage' ? '愤怒' : name === 'serenity' ? '宁静' : '神格'}。`);
+      if (name === 'divinity') { this.drawCards(3); this.player.energy += 3; this.addLog('神格：抽 3 张、+3 能量、本回合造成 ×3，下回合退出。'); }
+      this._emit && this._emit();
+    }
+    _leaveStance() {
+      if (!this._stance) return;
+      if (this._stance === 'serenity') { this.player.energy += 2; this.addLog('离开宁静：获得 2 能量。'); }
+      this._stance = null;
+    }
     _startTransform(n) { this._pickQueue = this._pickQueue || []; for (let i = 0; i < n; i++) this._pickQueue.push('transform'); this._nextPick(); }   // v3.15 变化：塔罗/遗物直起
     _startMimicry(n) { this._pickQueue = this._pickQueue || []; for (let i = 0; i < n; i++) this._pickQueue.push('mimicry'); this._nextPick(); }
     _nextPick() {                                 // 处理 _pickQueue 的下一个交互选牌；无候选则跳过；队列空则收尾
@@ -719,6 +735,7 @@ window.CG = window.CG || {};
         case 'exhaustedTurn': return !!this._exhaustedThisTurn;
         case 'lowHp':         return this.player.hp * 2 < this.player.maxHp;
         case 'foresightTurn': return !!this._foresightThisTurn;
+        case 'inStance':      return this._stance === 'rage' || this._stance === 'serenity';
         default:              return false;
       }
     }
@@ -781,6 +798,8 @@ window.CG = window.CG || {};
       }
       if (source.statuses.weak) dmg = Math.floor(dmg * (0.75 - (this._weakAmp && source !== this.player ? 0.15 : 0)));   // 虚弱：-25%（强化虚弱：敌方虚弱额外 -15%）
       if (target.statuses.vulnerable) dmg = Math.floor(dmg * (1.5 + (target !== this.player ? 0.25 * (this._vulnAmp || 0) : 0)));   // 易伤：+50%（强化易伤：敌方易伤额外 +25%×n）
+      if (source === this.player && this._stance) dmg = Math.floor(dmg * (this._stance === 'divinity' ? 3 : this._stance === 'rage' ? 2 : 1));   // v3.15 姿态：神格 造成×3 / 愤怒 造成×2
+      if (target === this.player && this._stance === 'rage') dmg = Math.floor(dmg * 2);   // 愤怒：受到的伤害也翻倍
       if (dmg < 0) dmg = 0;
       if (target === this.player) {                                 // 玩家受击：薄饼/圣盾/免疫/伤害降为1
         dmg = Math.max(0, dmg - this._relicSum('flatReduce'));

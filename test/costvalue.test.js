@@ -1003,3 +1003,23 @@ test('v3.15 幻惑·变化/变化为模仿 + 模仿牌', () => {
   assert.strictEqual(w.base, 'spell'); assert.strictEqual(w.sockets.length, n0);
   CG.setActivePacks(null);
 });
+
+test('v3.15 僧侣·姿态：愤怒×2 / 宁静离开+2能量 / 箴言满10进神格×3 / inStance门', () => {
+  assert.ok(CG.AFFIXES['energy_enterRage'] && CG.AFFIXES['energy_enterSerenity'] && CG.AFFIXES['energy_maxim'] && CG.PACKS.stance);
+  // 愤怒：造成/受到伤害翻倍 + inStance 门
+  let g = CG.makeBattle(); g.enemy.hp = 200; g.enemy.maxHp = 200; g._enterStance('rage');
+  let eh = g.enemy.hp; g.dealAttackDamage(g.player, g.enemy, 10); assert.strictEqual(eh - g.enemy.hp, 20);
+  let ph = g.player.hp; g.dealAttackDamage(g.enemy, g.player, 10); assert.strictEqual(ph - g.player.hp, 20);
+  assert.strictEqual(g._gateMet('inStance'), true);
+  // 同时只一种姿态：宁静→愤怒，离开宁静 +2 能量
+  g = CG.makeBattle(); g.player.energy = 5; g._enterStance('serenity'); g._enterStance('rage');
+  assert.strictEqual(g._stance, 'rage'); assert.strictEqual(g.player.energy, 7);
+  // 箴言满 10 → 神格（抽3/+3能量/造成×3），下回合自动退出
+  g = CG.makeBattle({ deck: CG.makeDeck([['spell', [[{ id: CG.STRIKE, level: 1 }]]]]) });
+  for (let i = 0; i < 6; i++) g.drawPile.push(spell([{ id: CG.STRIKE, level: 1 }]));
+  g.player.energy = 3; g.enemy.hp = 200; const h0 = g.hand.length;
+  CG.Effects.apply(g, { type: 'maxim', value: 10 }, g.player, g.enemy);
+  assert.strictEqual(g._stance, 'divinity'); assert.strictEqual(g.hand.length - h0, 3); assert.strictEqual(g.player.energy, 6);
+  const eh2 = g.enemy.hp; g.dealAttackDamage(g.player, g.enemy, 10); assert.strictEqual(eh2 - g.enemy.hp, 30);
+  g._startPlayerTurn(); assert.strictEqual(g._stance, null);   // 下回合自动退出
+});

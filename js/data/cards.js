@@ -136,7 +136,7 @@ window.CG = window.CG || {};
     let potentN = 0;     // 放大包：翻倍（potent 是 playCard 加成）
     // 新批价值字段（v3.6）：累加（按等级），再统一拆成效果/卡级字段
     const NB = {};
-    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
+    const NB_EFF = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry', enterRage: 'enterRage', enterSerenity: 'enterSerenity', maxim: 'maxim' };   // 注：vigor 走既有 vigorN 路径；v3.12 尸爆/催发/再生；v3.13 磷火/幻境/灵魂强化/磷火强化
     const NB_FIELD = ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock'];
     all.forEach(({ def: d, level: rawL, free }) => {
       const L = CG.lvVal(rawL);   // 价值倍率：1级×1、2级×2、3级×2（本循环内的 *L 全是价值侧）
@@ -328,7 +328,7 @@ window.CG = window.CG || {};
     if (f.prepDex)   out.now.push({ type: 'tempDexterity', value: f.prepDex });
     if (f.apply)     for (const k in f.apply) out.now.push({ type: k, value: f.apply[k] });
     // 新批价值字段（v3.6）：条件 × 这些价值时，按同一映射拆成效果 / 卡级字段（与 cardStats 一致）
-    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry' };
+    const NBE = { recallDiscard: 'recallDiscard', recycleDraw: 'recycleDraw', playTopDraw: 'playFromDraw', socketRand: 'socketRandom', debuffMult: 'debuffMult', vulnAmp: 'vulnAmp', weakAmp: 'weakAmp', makeDagger: 'makeDagger', makeScrap: 'makeScrap', daggerUp: 'daggerUp', scrapUp: 'scrapUp', immune: 'immune', keepBlockFull: 'keepBlockFull', dmgCap1: 'dmgCap1', tempThorns: 'tempThorns', addThorns: 'thorns', forge: 'forge', vigor: 'vigor', parry: 'parry', makePeek: 'makePeek', expandEvery: 'expandEvery', harvestEvery: 'harvestEvery', detonateEvery: 'detonateEvery', recycle: 'recycle', corpseBomb: 'corpseBomb', catalyze: 'catalyze', regen: 'regen', makeWisp: 'makeWisp', illusion: 'illusion', peekUp: 'peekUp', wispUp: 'wispUp', foresight: 'foresight', transform: 'transform', mimicry: 'mimicry', enterRage: 'enterRage', enterSerenity: 'enterSerenity', maxim: 'maxim' };
     for (const k in NBE) if (f[k]) out.now.push({ type: NBE[k], value: f[k] });
     for (const k of ['copyToDiscard', 'growDmg', 'growBlk', 'selfCostDown', 'aoe', 'playTwice', 'wish', 'curseStrike', 'dmgToBlock']) if (f[k]) out[k] = (out[k] || 0) + f[k];
     if (f.enemyStr)  out.now.push({ type: 'enemyStat', key: 'strength', value: f.enemyStr, temp: !!f.enemyTemp });
@@ -608,7 +608,6 @@ window.CG = window.CG || {};
     14 * (card.sockets || []).reduce((s, g) => s + g.affixes.filter(a => !CG.isDebuff(a.id)).reduce((t, a) => t + a.level, 0), 0);
 
   // ---------- 职业 / 初始牌组 ----------
-  CG.CLASS_IDS = ['warrior', 'shield', 'priest'];
   // 职业 = 一套固定主题包组合(packs) + 初始牌组(deck:[打击,格挡,治疗])。旅者 packs:null → 随机。
   //   注：⭐姿态(stance)/预见(foresight)/变化(transform) 等新机制待建，相关职业先用现有包，建好后再并入 packs。
   CG.CLASSES = {
@@ -616,7 +615,7 @@ window.CG = window.CG || {};
     berserker:  { name: '狂战士', icon: '🪓', desc: '牺牲防御换强大进攻，可耗血换增益。', deck: [7, 3, 0], packs: ['power', 'blood', 'amplify', 'assault', 'combo'] },
     knight:     { name: '骑士',   icon: '🛡️', desc: '身披重甲，挥舞终末之剑。', deck: [4, 6, 0], packs: ['endsword', 'ward', 'block', 'thorns', 'immune'] },
     leader:     { name: '领袖',   icon: '🚩', desc: '不断强化自身的增益型职业。', deck: [5, 5, 0], packs: ['strength', 'dexterity', 'vitality', 'enhance', 'hold'] },
-    monk:       { name: '僧侣',   icon: '🧘', desc: '强力近战，以姿态切换战术。', deck: [6, 4, 0], packs: ['power', 'combo', 'energy', 'strength', 'block'] },
+    monk:       { name: '僧侣',   icon: '🧘', desc: '强力近战，以姿态切换战术。', deck: [6, 4, 0], packs: ['stance', 'power', 'combo', 'energy', 'strength'] },
     rogue:      { name: '盗贼',   icon: '🗡️', desc: '灵巧：毒液、匕首与甲片。', deck: [6, 4, 0], packs: ['poison', 'dagger', 'scrap', 'spread', 'sapdex'] },
     archer:     { name: '射手',   icon: '🏹', desc: '擅长计划：弃牌与下回合的运转。', deck: [5, 5, 0], packs: ['draw', 'pile', 'nextMod', 'energy', 'cycle'] },
     tech:       { name: '科技',   icon: '🔌', desc: '电力与每回合的引擎。', deck: [5, 5, 0], packs: ['elec', 'everyMod', 'cycle', 'energy', 'conjure'] },
@@ -629,6 +628,7 @@ window.CG = window.CG || {};
     demon:      { name: '恶魔',   icon: '😈', desc: '消耗与灼烧的恶魔之力。', deck: [6, 4, 0], packs: ['ash', 'burn', 'blood', 'curse', 'immune'] },
     traveler:   { name: '旅者',   icon: '🎒', desc: '随机应变：随机的初始卡包。', deck: [5, 5, 0], packs: null },
   };
+  CG.CLASS_IDS = Object.keys(CG.CLASSES);
   // 本局可用包：职业指定则用其 packs（恒含 basic）；旅者/未指定 → 随机 rollRunPacks。
   CG.classPacks = function (cls) {
     const c = CG.CLASSES[cls];

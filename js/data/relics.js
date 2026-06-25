@@ -115,6 +115,7 @@ window.CG = window.CG || {};
     wish_charm: { name: '祈愿符', icon: '🌠', pack: 'divine', desc: '【价值】首回合：从抽牌堆选择 1 张加入手牌', firstTurn: fx('wish', 1) },
     scry_lens: { name: '窥镜', icon: '👁️', pack: 'foresight', desc: '【价值】首回合：预见(看牌库顶 3 张、任选丢弃)', firstTurn: b => { if (b._startForesight) b._startForesight(3); } },
     trick_mask: { name: '戏面', icon: '🎭', pack: 'transform', desc: '【价值】首回合：将 1 张手牌变化为随机模仿牌', firstTurn: b => { if (b._startMimicry) b._startMimicry(1); } },
+    prayer_beads: { name: '念珠', icon: '📿', pack: 'stance', desc: '【价值】首回合：进入「宁静」姿态', firstTurn: b => { if (b._enterStance) b._enterStance('serenity'); } },
     twin_mirror: { name: '双子镜', icon: '🪄', pack: 'sorcery', desc: '【价值】首回合：复制 1 张随机手牌', firstTurn: fx('duplicate', 1) },
     dumpster_key: { name: '废料钥匙', icon: '📚', pack: 'pile', desc: '【价值】每回合开始：从弃牌堆取回 1 张牌', onTurnStart: b => { if (b.discardPile.length && b.hand.length < 10) b.hand.push(b.discardPile.pop()); } },
     grindstone: { name: '砂轮', icon: '📈', pack: 'enhance', desc: '【价值】开局：牌库所有攻击牌伤害永久 +1', battleStart: fx('mindblast', 1) },
