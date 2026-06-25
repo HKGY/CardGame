@@ -105,7 +105,7 @@ window.CG = window.CG || {};
       if (target.statuses.strength) delete target.statuses.strength;
       game.applyStatus(target, 'strength', -eff.value);
     },
-    give(game, eff)     { if (game.giveFoodCard) game.giveFoodCard(eff.what, eff.value); },   // 厨艺：打出后获得食材卡
+    give(game, eff)     { if (game.giveFoodCard) game.giveFoodCard(eff.what, eff.value); },   // 厨艺：打出后获得药材卡
     freeNext(game, eff) { game.freeCards = (game.freeCards || 0) + eff.value; },              // 回响：接下来若干张牌免费
     // —— 时点修饰器（本回合/下回合/每回合）——
     scheduleEvery(game, eff) { game._addEveryTurn(eff.eff); },     // 每回合：经 _addEveryTurn（增益受「最多 N 种」上限约束）

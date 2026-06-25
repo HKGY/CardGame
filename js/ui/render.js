@@ -96,7 +96,7 @@ window.CG = window.CG || {};
   // 整卡贴图（AI 重绘的「外框 + 中央图案」一体图），按基底取
   function getArt(base) {
     if (CARD_ART[base]) return CARD_ART[base];
-    const bd = CG.BASE_CARDS[base];                 // 厨艺食材：用 emoji 作卡图
+    const bd = CG.BASE_CARDS[base];                 // 厨艺药材：用 emoji 作卡图
     if (bd && bd.icon) return `<svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" class="art"><text x="50" y="49" font-size="44" text-anchor="middle">${bd.icon}</text></svg>`;
     return base === 'shieldbash' ? CARD_ART.defend : CARD_ART_FALLBACK;
   }
@@ -364,7 +364,7 @@ window.CG = window.CG || {};
       return `<span class="gem-chip${dim}">(<span class="gem-cost">${a.cost}</span> → ${span(a)})</span>`;
     }).join('');
     const empties = '<span class="socket-empty" title="空孔位">◇</span>'.repeat(s.emptySockets);
-    // 空法术法杖(base 'spell')卡名只显效果（去掉「法术」基名）；食材/临时牌仍用其固有名
+    // 空法术法杖(base 'spell')卡名只显效果（去掉「法术」基名）；药材/临时牌仍用其固有名
     const name = `${s.base === 'spell' ? '' : `<span class="base-name">${s.baseName}</span>`}${gemChips}${empties}`;
     // 词条说明：按宝石分组（不同宝石用 ┃ 隔开），避免数量多时撑破卡面
     const descGroups = s.gemViews.map(g =>
@@ -461,7 +461,7 @@ window.CG = window.CG || {};
     tempStrength: v => `力量+${v}`, tempDexterity: v => `敏捷+${v}`, tempThorns: v => `荆棘${v}`,
     vulnerable: v => `易伤${v}`, weak: v => `虚弱${v}`, frail: v => `脆弱${v}`, poison: v => `中毒${v}`, curse: v => `灾厄${v}`,
     loseHp: v => `失${v}血`, loseGold: v => `失${v}金`, losePower: v => `失${v}电`, clutter: v => `+${v}渣滓`,
-    summon: v => `召唤${v}`, conjure: () => `造牌`, give: () => `食材`,
+    summon: v => `召唤${v}`, conjure: () => `造牌`, give: () => `药材`,
     // 效果类型 ≠ 价值原子 id 的两个，单列；其余「操作/生成」类经 effLabel 的 bareName 兜底取中文
     playFromDraw: v => `打出牌库顶${v > 1 ? ' ' + v : ''}`, socketRandom: v => `镶随机宝石${v > 1 ? ' ' + v : ''}`,
   };
@@ -640,7 +640,7 @@ window.CG = window.CG || {};
     if (appearing && spr) animate(spr, 'enter', 560);
   }
 
-  // ---------- 战斗内浮层：做菜选料（craft）/ 消耗包选牌（pick：燃烧 / 重生）----------
+  // ---------- 战斗内浮层：炼药选料（craft）/ 消耗包选牌（pick：燃烧 / 重生）----------
   function renderPrompt(game) {
     let ov = $('craft-overlay');
     if (!ov) {
@@ -648,7 +648,7 @@ window.CG = window.CG || {};
       ov.id = 'craft-overlay'; ov.className = 'craft-overlay hidden';
       ov.addEventListener('click', ev => {
         const el = ev.target.closest('[data-craft],[data-pick]'); if (!el || !current) return;
-        if (el.dataset.craft != null) {       // 做菜
+        if (el.dataset.craft != null) {       // 炼药
           const v = el.dataset.craft;
           if (v === 'cancel') return handlers.onCraftCancel && handlers.onCraftCancel();
           if (v === 'skip')   return handlers.onCraftPick && handlers.onCraftPick(null);
@@ -661,13 +661,13 @@ window.CG = window.CG || {};
       $('screen-battle').appendChild(ov);
     }
     if (game.craft) {
-      const title = '🍳 做菜 · 选择兽血（与草药同炖）';
+      const title = '🍳 炼药 · 选择兽血（与草药同熬）';
       const cands = game.craftCandidates();
       const cards = cands.length
         ? cands.map(c => cardFace(c, { clickable: true, data: { craft: c.uid } })).join('')
         : '<p class="empty-note">手牌里没有可选的，点「跳过」。</p>';
       ov.innerHTML = `<div class="craft-box"><h3>${title}</h3><div class="craft-cards">${cards}</div>
-        <div class="craft-actions"><button class="big-btn" data-craft="skip">跳过</button><button class="big-btn leave" data-craft="cancel">取消做菜</button></div></div>`;
+        <div class="craft-actions"><button class="big-btn" data-craft="skip">跳过</button><button class="big-btn leave" data-craft="cancel">取消炼药</button></div></div>`;
       ov.classList.remove('hidden'); return;
     }
     if (game.pick) {

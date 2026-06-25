@@ -24,17 +24,17 @@ window.CG = window.CG || {};
     // v2：唯一基底＝空法术（法杖）。无攻防之分、本身 0 效果，效果全来自镶嵌的宝石「价值」。
     spell:      { name: '法术', cost: 1, base: 0 },
 
-    // ===== 厨艺包·食材卡（不走宝石聚合，cardStats 转交 foodStats；仅本场战斗、进手牌）=====
-    tomato:  { name: '番茄',   cost: 0, type: 'skill',  food: 'veg',  level: 1, icon: '🍅' },
-    potato:  { name: '土豆',   cost: 0, type: 'skill',  food: 'veg',  level: 2, icon: '🥔' },
-    carrot:  { name: '胡萝卜', cost: 0, type: 'skill',  food: 'veg',  level: 3, icon: '🥕' },
-    fish:    { name: '鱼肉',   cost: 0, type: 'skill',  food: 'meat', level: 1, icon: '🐟' },
-    chicken: { name: '鸡肉',   cost: 0, type: 'skill',  food: 'meat', level: 2, icon: '🍗' },
-    beef:    { name: '牛肉',   cost: 0, type: 'skill',  food: 'meat', level: 3, icon: '🥩' },
+    // ===== 厨艺包·药材卡（不走宝石聚合，cardStats 转交 foodStats；仅本场战斗、进手牌）=====
+    tomato:  { name: '苦草',   cost: 0, type: 'skill',  food: 'veg',  level: 1, icon: '🌿' },
+    potato:  { name: '曼德拉', cost: 0, type: 'skill',  food: 'veg',  level: 2, icon: '🍄' },
+    carrot:  { name: '龙胆',   cost: 0, type: 'skill',  food: 'veg',  level: 3, icon: '🌺' },
+    fish:    { name: '蝠翼',   cost: 0, type: 'skill',  food: 'meat', level: 1, icon: '🦇' },
+    chicken: { name: '蛇胆',   cost: 0, type: 'skill',  food: 'meat', level: 2, icon: '🐍' },
+    beef:    { name: '龙血',   cost: 0, type: 'skill',  food: 'meat', level: 3, icon: '🩸' },
     spoiled_rice: { name: '馊饭', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'selfdmg', icon: '🍚' },
     stinky_meat:  { name: '臭肉', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'weak',    icon: '🥓' },
     rotten_veg:   { name: '烂菜', cost: 0, type: 'skill', kind: 'spoiled', spoiled: 'vuln',    icon: '🥬' },
-    meal:    { name: '餐点',   cost: 0, type: 'skill',  kind: 'meal', icon: '🍲' },               // 动态：effects 挂在实例 .meal 上
+    meal:    { name: '药剂',   cost: 0, type: 'skill',  kind: 'meal', icon: '🍲' },               // 动态：effects 挂在实例 .meal 上
     dross:   { name: '渣滓',   cost: 1, type: 'skill',  kind: 'dross', icon: '🗑️' },              // 消耗包·噩梦塞入：1 费、打出无效果、打出即消耗
     shiv:    { name: '飞刀',   cost: 0, type: 'attack', kind: 'shiv',  icon: '🗡️' },              // 术士包·生成：0 费、造 4 伤害、打出即消耗
     dagger:  { name: '匕首',   cost: 0, type: 'attack', kind: 'dagger', icon: '🔪' },             // 兵械包：0 费、造 4(+强化)伤害、打出即消耗
@@ -43,7 +43,7 @@ window.CG = window.CG || {};
     peek:    { name: '灵魂',   cost: 0, type: 'skill',  kind: 'peek',  icon: '🔮' },               // 机巧包：0 费、抽 2 张、打出即消耗
     wisp:    { name: '磷火',   cost: 0, type: 'skill',  kind: 'wisp',  icon: '🟢' },               // 0 费、获得 1(+强化)能量、保留、打出即消耗
   };
-  // 食材分类（随机生成用）
+  // 药材分类（随机生成用）
   CG.FOODS_BY_CAT = { veg: ['tomato', 'potato', 'carrot'], meat: ['fish', 'chicken', 'beef'] };
   CG.isFood = base => { const b = CG.BASE_CARDS[base]; return !!(b && (b.food || b.kind === 'spoiled' || b.kind === 'meal' || b.kind === 'dross' || b.kind === 'shiv' || b.kind === 'dagger' || b.kind === 'scrap' || b.kind === 'endsword' || b.kind === 'peek' || b.kind === 'wisp')); };
 
@@ -93,7 +93,7 @@ window.CG = window.CG || {};
   CG.cardStats = function (inst, opts) {
     const valueMult = (opts && opts.valueMult) || 1;
     const b = CG.BASE_CARDS[inst.base];
-    if (CG.isFood(inst.base)) return CG.foodStats(inst);   // 厨艺食材：固定效果卡，不走宝石聚合
+    if (CG.isFood(inst.base)) return CG.foodStats(inst);   // 厨艺药材：固定效果卡，不走宝石聚合
     const order = id => CG.AFFIX_ORDER.indexOf(id);
     const resolve = a => { const def = CG.AFFIXES[a.id]; return { id: a.id, level: a.level, def, debuff: false, name: CG.affixShort(a.id, a.level), cost: CG.affixCostText(a.id, a.level), color: def.color, desc: CG.affixValueText(a.id, a.level) }; };   // name=短形(卡名chip)、desc=自然句
     const bySort = (x, y) => order(x.id) - order(y.id);
@@ -119,7 +119,7 @@ window.CG = window.CG || {};
     const condBonusList = [];   // v3：条件代价 → 动态缩放数值价值（playCard 结算）
     const everyTurnList = [], nextTurnList = [], minionNowList = [];   // v3.1 时点：每回合/下回合 调度；minionNow=本回合召唤物效果（投给骷髅）
     let elementId = null, elementLevel = 0;                  // 元素附着（火/水/雷/冰）+ 附着层数（=词条等级，多个取最后一个）
-    const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类食材卡」（每个 give 词条给 1 张，食材本身已有等级，不按词条等级翻倍）
+    const statuses = {}, selfStatuses = {}, gives = {};      // gives：厨艺包「打出后给某类药材卡」（每个 give 词条给 1 张，药材本身已有等级，不按词条等级翻倍）
     all.forEach(({ def: d }) => { if (d.give) gives[d.give] = (gives[d.give] || 0) + 1; });
     let nirvanaN = 0, undyingN = 0;   // 灰烬包：涅槃/不坏（被消耗时再发动/留副本）
     let gainPowerN = 0, arcN = 0, chargeN = 0, losePowerN = 0;   // 电力 / 电弧包
@@ -257,7 +257,7 @@ window.CG = window.CG || {};
     if (dexDelta) effects.push({ type: 'dexterity', value: dexDelta });
     if (prepare) effects.push({ type: 'tempStrength', value: prepare });   // 准备：本回合力量 +n（回合末移除）
     if (prepDexN) effects.push({ type: 'tempDexterity', value: prepDexN });   // 临时敏捷（回合末移除）
-    for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给食材卡
+    for (const w in gives) effects.push({ type: 'give', what: w, value: gives[w] });   // 厨艺：打出后给药材卡
     // v3 自身减益代价（首石免/同种均摊已在 costMax 处理）：打出时给自己上易伤/虚弱/脆弱。
     if (costMax.selfVuln)  effects.push({ type: 'selfStatus', status: 'vulnerable', value: costMax.selfVuln });
     if (costMax.selfWeak)  effects.push({ type: 'selfStatus', status: 'weak', value: costMax.selfWeak });
@@ -311,7 +311,7 @@ window.CG = window.CG || {};
   CG.valueEffects = function (atom, amount, level) {
     const va = CG.VALUE_ATOMS[atom], out = { now: [], every: [], next: [] };
     if (!va || !va.mech || !(amount > 0)) return out;
-    if (va.maxCount != null) amount = Math.min(va.maxCount, amount);   // 尊重价值 maxCount 上限（元素≤2 层、吸血≤100%、食材≤1）
+    if (va.maxCount != null) amount = Math.min(va.maxCount, amount);   // 尊重价值 maxCount 上限（元素≤2 层、吸血≤100%、药材≤1）
     const f = va.mech(amount), L = level || 1;
     if (f.dmg)       out.now.push({ type: 'damage', value: f.dmg, hits: 1 });
     if (f.blk)       out.now.push({ type: 'block', value: f.blk });
@@ -344,12 +344,12 @@ window.CG = window.CG || {};
   };
 
   // ===========================================================================
-  //  厨艺包：食材 / 餐点 / 菜谱
+  //  厨艺包：药材 / 药剂 / 菜谱
   // ===========================================================================
   const rnd = arr => arr[Math.floor(Math.random() * arr.length)];
   CG.randomFood = cat => rnd(CG.FOODS_BY_CAT[cat] || ['tomato']);
-  // 食材卡实例（无孔位）；meal 把动态效果挂在 .meal 上
-  CG.makeFoodCard = (base, meal) => { const c = { uid: CG.nextUid(), base }; if (base === 'meal') c.meal = meal || { effects: [], name: '餐点', desc: '', repeatTimes: 1 }; return c; };
+  // 药材卡实例（无孔位）；meal 把动态效果挂在 .meal 上
+  CG.makeFoodCard = (base, meal) => { const c = { uid: CG.nextUid(), base }; if (base === 'meal') c.meal = meal || { effects: [], name: '药剂', desc: '', repeatTimes: 1 }; return c; };
 
   // 菜谱矩阵：兽血 × 草药 → 效果种类（数值 = 草药等级 × 兽血等级 × 2）
   CG.RECIPE = {
@@ -372,7 +372,7 @@ window.CG = window.CG || {};
       default:          return { type: 'heal', value };
     }
   }
-  // 做菜：草药(必填) + 兽血(可选) → 餐点 spec { effects, repeatTimes, name, desc, value }
+  // 炼药：草药(必填) + 兽血(可选) → 药剂 spec { effects, repeatTimes, name, desc, value }
   CG.buildMeal = function (vegBase, meatBase) {
     const veg = CG.BASE_CARDS[vegBase];
     let kind, label, value, name;
@@ -381,16 +381,16 @@ window.CG = window.CG || {};
       kind = (CG.RECIPE[meatBase] && CG.RECIPE[meatBase][vegBase]) || 'heal';
       label = RECIPE_LABEL[kind];
       value = veg.level * meat.level * 4;                 // 高级原料数值相乘 ×4
-      name = `${veg.name}炖${meat.name}`;
+      name = `${veg.name}·${meat.name}`;
     } else {
-      kind = 'heal'; label = '回复'; value = veg.level * 2;   // 只放草药 = 清炒，回复其等级 ×2
-      name = `清炒${veg.name}`;
+      kind = 'heal'; label = '回复'; value = veg.level * 2;   // 只放草药 = 粗熬，回复其等级 ×2
+      name = `粗熬${veg.name}`;
     }
-    const desc = `${label} ${value}（餐点·0费消耗）`;
+    const desc = `${label} ${value}（药剂·0费消耗）`;
     return { effects: [recipeEffect(kind, value)], repeatTimes: 1, value, name, desc };
   };
 
-  // 食材卡的「固定」stats（替代 cardStats 的宝石聚合）。返回与 cardStats 同结构的对象。
+  // 药材卡的「固定」stats（替代 cardStats 的宝石聚合）。返回与 cardStats 同结构的对象。
   CG.foodStats = function (inst) {
     const b = CG.BASE_CARDS[inst.base];
     const mult = inst._mult || 1;   // 幻境：本回合生成的临时卡牌效果 ×(1+50%n)（向上取整）
@@ -399,21 +399,21 @@ window.CG = window.CG || {};
       value: 0, hits: 1, effects: [], buffs: [], debuffs: [], gemViews: [], limit: 0, emptySockets: 0, score: 0,
       repeatTimes: 1, windfury: 0, lifesteal: 0, exhaust: false, pierce: 0, freeNext: 0, combo: 0,
       element: null, elementLevel: 0, ashes: 0, burnSelect: 0, reborn: 0, nirvana: 0, undying: 0,
-      arc: 0, temper: 0, retain: false,   // 电弧 / 锤炼 / 保留（食材卡默认值）
+      arc: 0, temper: 0, retain: false,   // 电弧 / 锤炼 / 保留（药材卡默认值）
       potent: 0, multiHit: 0,                           // 放大/连击默认
       nextEnergyPenalty: 0, noPlay: false, food: b.food || null, icon: b.icon || '',
       name: b.name, baseText: '',
     };
-    if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `做菜：打出后选兽血做成餐点（不选则＝回复 ${b.level}）`; }
-    else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（做菜时可当兽血）`; }
+    if (b.food === 'veg')  { s.kind = 'veg';  s.value = b.level; s.baseText = `炼药：打出后选兽血做成药剂（不选则＝回复 ${b.level}）`; }
+    else if (b.food === 'meat') { s.kind = 'meat'; s.value = b.level; s.effects = [{ type: 'heal', value: b.level }]; s.baseText = `吃下回复 ${b.level} 生命（炼药时可当兽血）`; }
     if (b.kind === 'spoiled') {
       s.noPlay = true;
       const m = { selfdmg: '回合结束失去 2 生命', weak: '回合结束自身虚弱 2', vuln: '回合结束自身易伤 2' };
       s.baseText = `腐坏·不能打出；${m[b.spoiled]}`;
     } else if (b.kind === 'meal') {
-      const meal = inst.meal || { effects: [], name: '餐点', desc: '', repeatTimes: 1 };
+      const meal = inst.meal || { effects: [], name: '药剂', desc: '', repeatTimes: 1 };
       s.exhaust = true; s.effects = meal.effects || []; s.repeatTimes = meal.repeatTimes || 1;
-      s.value = meal.value || 0; s.name = s.baseName = meal.name || '餐点'; s.baseText = meal.desc || '';
+      s.value = meal.value || 0; s.name = s.baseName = meal.name || '药剂'; s.baseText = meal.desc || '';
     } else if (b.kind === 'dross') {
       s.exhaust = true; s.baseText = '渣滓：打出无任何效果，打出即消耗（噩梦塞入）';
     } else if (b.kind === 'shiv') {

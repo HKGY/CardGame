@@ -370,7 +370,7 @@ window.CG = window.CG || {};
   function mkCond(costId, valId) {
     const va = VALUE_ATOMS[valId], cc = COST_COND[costId], gate = !!cc.gate;
     const valVP = V[va.vpRes] || 6, valMax = maxOf(va.maxCount);
-    // 该价值能否升档（同 mkReal 的 hasHi）：被 maxCount 卡成单一量(如食材)→ 条件型也只 LV1（去掉等级不变效果的冗余档）
+    // 该价值能否升档（同 mkReal 的 hasHi）：被 maxCount 卡成单一量(如药材)→ 条件型也只 LV1（去掉等级不变效果的冗余档）
     const v1 = Math.min(valMax, Math.max(1, Math.floor(6 / valVP + 1e-9)));
     const hasHi = Math.min(valMax, Math.max(v1 + 1, Math.floor(12 / valVP + 1e-9))) > v1;
     const mult = (cc.vp != null ? cc.vp : 6) / valVP;   // 每单位条件量换得的价值量
@@ -540,15 +540,15 @@ window.CG = window.CG || {};
     cycle:    P('轮回包', '🔄', '#9ec85a', '每回合机制：扩容上限 / 收割 / 爆破（配合「每回合」修饰词更强）。', ['expandEvery', 'harvestEvery', 'detonateEvery'], [], ['turnNum']),
     blood:    P('血液包', '🩸', '#c0394a', '以生命/自身减益/属性为代价，换伤害·治疗·吸血；越惨越强。', ['damage', 'heal', 'lifesteal'], ['hp', 'selfVuln', 'selfWeak', 'selfFrail', 'loseStr', 'loseDex'], ['myDebuff', 'hpLossCount', 'lostHpTurn', 'hurt', 'lowHp']),
     ash:      P('灰烬包', '♨️', '#d86a4a', '消耗：涅槃/不坏（被消耗时再发动/留副本）+ 以消耗手牌/虚无/渣滓为代价。', ['nirvana', 'undying'], ['exhaustCard', 'ethereal', 'makeDross'], ['exhaustPile', 'exhaustedTurn']),
-    // ===== 造物 / 食材 / 元素 =====
+    // ===== 造物 / 药材 / 元素 =====
     summon:   P('召唤包', '👻', '#b0b0e0', '召唤骷髅 + 召唤物修饰词（攻/防/增益投给骷髅、量×2）。', ['summon', 'summon_next', 'summon_every',
       'damage_m', 'damage_next_m', 'damage_every_m', 'block_m', 'block_next_m', 'produce_block_m', 'thorns_m', 'strength_m', 'dexterity_m', 'heal_m'], ['minionHp']),
     dagger:   P('匕首包', '🔪', '#c0a878', '生成（本/下/每回合）/ 强化匕首。', ['makeDagger', 'makeDagger_next', 'makeDagger_every', 'daggerUp'], [], ['daggerPlayed']),
     scrap:    P('甲片包', '🛡️', '#a8b0c0', '生成（本/下/每回合）/ 强化甲片。', ['makeScrap', 'makeScrap_next', 'makeScrap_every', 'scrapUp'], [], ['scrapPlayed']),
     endsword: P('终末之剑包', '🗡️', '#d0c060', '锻造（增伤）/ 招架（增格挡，本/下/每回合），刷新终末之剑。', ['forge', 'forge_next', 'forge_every', 'parry', 'parry_next', 'parry_every']),
     wisp:     P('磷火包', '🟢', '#9ee0a0', '生成磷火(0费得能量保留消耗，本/下/每回合) + 磷火强化 + 幻境(本回合临时牌效果+50%)。', ['makeWisp', 'makeWisp_next', 'makeWisp_every', 'wispUp', 'illusion', 'illusion_next', 'illusion_every']),
-    // 魔药：草药+兽血合一（做菜需荤+素配合，拆开无法成菜）
-    cook:     P('魔药包', '⚗️', '#b07ad0', '药材（草药 / 兽血）：草药+兽血做成餐点。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every']),
+    // 魔药：草药+兽血合一（炼药需荤+素配合，拆开无法成菜）
+    cook:     P('魔药包', '⚗️', '#b07ad0', '药材（草药 / 兽血）：草药+兽血做成药剂。', ['food_veg', 'food_veg_next', 'food_veg_every', 'food_meat', 'food_meat_next', 'food_meat_every']),
     // 元素：火/水/雷/冰合一（反应需 ≥2 种元素，拆开无法触发反应）
     elements: P('元素包', '⚗️', '#cf6fd0', '附火/水/雷/冰，叠加触发元素反应。', ['fire', 'water', 'thunder', 'ice']),
     // ===== 时点修饰词包（v3.14）=====：自身不带价值；选了它，本局其它已选主题的价值才获得对应「下回合/每回合」变体。

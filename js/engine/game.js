@@ -243,7 +243,7 @@ window.CG = window.CG || {};
     // 玩家点“结束回合”：先收尾，敌人行动由 runEnemyTurn 触发（界面可加延迟做演出）
     endTurn() {
       if (this.phase !== 'player') return;
-      if (this.craft || this.pick) return;                             // 做菜 / 选牌中不能结束回合
+      if (this.craft || this.pick) return;                             // 炼药 / 选牌中不能结束回合
       if (this._tempStrength) { this.applyStatus(this.player, 'strength', -this._tempStrength); this._tempStrength = 0; } // 战车：回合末移除临时力量
       if (this._tempDex) { this.applyStatus(this.player, "dexterity", -this._tempDex); this._tempDex = 0; }   // 回合末移除临时敏捷
       if (this._tempThorns) { this.applyStatus(this.player, 'thorns', -this._tempThorns); this._tempThorns = 0; }   // 本回合荆棘：回合末移除
@@ -328,13 +328,13 @@ window.CG = window.CG || {};
     // ---------- 玩家操作 ----------
     playCard(uid) {
       if (this.phase !== 'player') return;
-      if (this.craft || this.pick) return;                             // 做菜 / 选牌中：先完成
+      if (this.craft || this.pick) return;                             // 炼药 / 选牌中：先完成
       const idx = this.hand.findIndex(c => c.uid === uid);
       if (idx === -1) return;
       const card = this.hand[idx];
       let s = CG.cardStats(card, { valueMult: this.cardValueMult });   // 达摩克利斯翻倍
       if (s.noPlay) { this.addLog(`${s.name} 不能直接打出。`); this._emit(); return; }   // 腐坏卡
-      if (s.kind === 'veg') return this._startCraft(card);             // 草药 → 进入做菜
+      if (s.kind === 'veg') return this._startCraft(card);             // 草药 → 进入炼药
       if (idx < (this._paralyze || 0)) { this.addLog(`麻痹：最左 ${this._paralyze} 张牌本回合无法打出。`); this._emit(); return; }
       // 资源：改造(超频)→改用电力付费(耗能×N)、数值×N；否则走能量(回响可免费)
       const oc = s.overclock || 0;
@@ -538,18 +538,18 @@ window.CG = window.CG || {};
       this._emit();
     }
 
-    // ---------- 厨艺：做菜 ----------
-    // 打出草药 → 进入做菜：选兽血(可跳过)，做成「餐点」进手牌。
+    // ---------- 厨艺：炼药 ----------
+    // 打出草药 → 进入炼药：选兽血(可跳过)，做成「药剂」进手牌。
     _startCraft(vegCard) {
       this.craft = { vegUid: vegCard.uid, step: 'meat', meatUid: null };
-      this.addLog('开始做菜：选择兽血（可跳过）。');
+      this.addLog('开始炼药：选择兽血（可跳过）。');
       this._emit();
     }
     craftCandidates() {                          // 给 UI：当前可选的手牌（兽血）
       if (!this.craft) return [];
       return this.hand.filter(c => { const b = CG.BASE_CARDS[c.base]; return b && b.food === 'meat'; });
     }
-    craftChoose(uid) {                           // uid=null 跳过（清炒）；选中兽血则做菜
+    craftChoose(uid) {                           // uid=null 跳过（粗熬）；选中兽血则炼药
       if (!this.craft) return;
       if (uid != null) {
         const c = this.hand.find(x => x.uid === uid);
@@ -558,7 +558,7 @@ window.CG = window.CG || {};
       }
       this._finishCraft();
     }
-    craftCancel() { this.craft = null; this.addLog('取消了做菜。'); this._emit(); }   // 放回草药，不消耗
+    craftCancel() { this.craft = null; this.addLog('取消了炼药。'); this._emit(); }   // 放回草药，不消耗
     _finishCraft() {
       const cr = this.craft; this.craft = null;
       const veg = this.hand.find(c => c.uid === cr.vegUid);
@@ -576,7 +576,7 @@ window.CG = window.CG || {};
       this._playedThisTurn = (this._playedThisTurn || 0) + 1;
       this._emit();
     }
-    giveFoodCard(what, count) {                   // 获得食材卡（进手牌；满则进弃牌堆）
+    giveFoodCard(what, count) {                   // 获得药材卡（进手牌；满则进弃牌堆）
       count = count || 1;
       for (let k = 0; k < count; k++) {
         const base = (what === 'veg' || what === 'meat') ? CG.randomFood(what) : what;

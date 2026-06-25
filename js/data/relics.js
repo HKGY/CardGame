@@ -123,7 +123,7 @@ window.CG = window.CG || {};
     seed_pouch: { name: '种子袋', icon: '🌾', pack: 'cycle', desc: '【价值】每回合开始：+2 格挡并抽 1 张', onTurnStart: b => { b.gainBlock(b.player, 2); b.drawCards(1); } },
     karma_wheel: { name: '业轮', icon: '🔄', pack: 'cycle', desc: '【价值】每回合开始：现有每回合增益额外结算 1 次', onTurnStart: b => { if (b._everyTurn && b._everyTurn.length) b._resolveEveryBuffs(1, false); } },
     ash_urn: { name: '骨灰瓮', icon: '♨️', pack: 'ash', desc: '【价值】每回合开始：获得等同消耗堆牌数的格挡（至多 20）', onTurnStart: b => b.gainBlock(b.player, Math.min(20, b.exhaustPile.length)) },
-    // 造物 / 食材 / 元素
+    // 造物 / 药材 / 元素
     bone_charm: { name: '骨符', icon: '👻', pack: 'summon', desc: '【价值】开局：召唤一具骷髅（血量上限 6）', battleStart: fx('summon', 6) },
     knife_belt: { name: '飞刀带', icon: '🔪', pack: 'dagger', desc: '【价值】首回合：生成 2 张匕首', firstTurn: fx('makeDagger', 2) },
     scrap_box: { name: '甲片盒', icon: '🛡️', pack: 'scrap', desc: '【价值】首回合：生成 2 张甲片', firstTurn: fx('makeScrap', 2) },
